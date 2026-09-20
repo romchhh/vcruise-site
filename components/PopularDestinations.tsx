@@ -1,10 +1,15 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { destinations } from "@/data/destinations";
 import DestinationCard from "./DestinationCard";
-import DestinationModal from "./destinations/DestinationModal";
 import type { Destination } from "@/types";
+
+const DestinationModal = dynamic(
+  () => import("./destinations/DestinationModal"),
+  { ssr: false }
+);
 
 export default function PopularDestinations() {
   const [activeDestination, setActiveDestination] = useState<Destination | null>(

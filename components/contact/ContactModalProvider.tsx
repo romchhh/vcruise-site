@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import {
   createContext,
   useCallback,
@@ -8,7 +9,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import ContactModal from "./ContactModal";
+
+const ContactModal = dynamic(() => import("./ContactModal"), { ssr: false });
 
 type ContactModalContextValue = {
   openContactModal: () => void;
@@ -31,8 +33,12 @@ export default function ContactModalProvider({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  const openContactModal = useCallback(() => setOpen(true), []);
+  const openContactModal = useCallback(() => {
+    setMounted(true);
+    setOpen(true);
+  }, []);
   const closeContactModal = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
@@ -60,7 +66,9 @@ export default function ContactModalProvider({
       value={{ openContactModal, closeContactModal }}
     >
       {children}
-      <ContactModal open={open} onClose={closeContactModal} />
+      {mounted ? (
+        <ContactModal open={open} onClose={closeContactModal} />
+      ) : null}
     </ContactModalContext.Provider>
   );
 }

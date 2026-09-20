@@ -2,20 +2,16 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "loremflickr.com",
-      },
-      {
-        protocol: "https",
-        hostname: "picsum.photos",
-      },
       {
         protocol: "https",
         hostname: "4gates.cruises",
       },
     ],
+  },
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
   },
   async headers() {
     return [

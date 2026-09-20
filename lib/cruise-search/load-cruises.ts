@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { isFeaturedCompany } from "./companies";
+import { serializeCruisesForClient } from "./serialize-cruises";
 import type { CruiseRecord } from "./types";
 
 let cachedCruises: CruiseRecord[] | null = null;
@@ -29,4 +30,8 @@ export function loadCruises() {
   });
 
   return cachedCruises;
+}
+
+export function loadClientCruises() {
+  return serializeCruisesForClient(loadCruises());
 }

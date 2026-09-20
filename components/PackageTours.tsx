@@ -1,10 +1,15 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { packageTours } from "@/data/tours";
-import PackageTourModal from "./package-tours/PackageTourModal";
 import TourCard from "./TourCard";
 import type { PackageTour } from "@/types";
+
+const PackageTourModal = dynamic(
+  () => import("./package-tours/PackageTourModal"),
+  { ssr: false }
+);
 
 export default function PackageTours() {
   const [activeTour, setActiveTour] = useState<PackageTour | null>(null);

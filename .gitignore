@@ -23,6 +23,11 @@
 # misc
 .DS_Store
 *.pem
+__pycache__/
+*.pyc
+
+# local parser tooling (not used by Next.js runtime)
+/cruise-search/
 
 # debug
 npm-debug.log*
