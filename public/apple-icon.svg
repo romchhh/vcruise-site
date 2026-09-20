@@ -1,0 +1,15 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="180" height="180" rx="40" fill="#066E79"/>
+  <path
+    d="M50 50L69.5 130H74.5L94 50H103.5L77 140H67L40.5 50H50Z"
+    fill="white"
+  />
+  <path
+    d="M45 131C62 118 84 115 107 120C124 124 138 128 146 133"
+    stroke="white"
+    stroke-opacity="0.28"
+    stroke-width="5"
+    stroke-linecap="round"
+    fill="none"
+  />
+</svg>
