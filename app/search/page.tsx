@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
-import CruiseSearchApp from "@/components/cruise-search/CruiseSearchApp";
-import { loadClientCruises } from "@/lib/cruise-search/load-cruises";
+import CruiseSearchLoader from "@/components/cruise-search/CruiseSearchLoader";
 import { createMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createMetadata({
@@ -21,8 +20,6 @@ export const metadata: Metadata = createMetadata({
 });
 
 export default function SearchPage() {
-  const cruises = loadClientCruises();
-
   return (
     <>
       <Header forceSolid />
@@ -35,7 +32,7 @@ export default function SearchPage() {
           </main>
         }
       >
-        <CruiseSearchApp cruises={cruises} />
+        <CruiseSearchLoader />
       </Suspense>
       <Footer />
     </>

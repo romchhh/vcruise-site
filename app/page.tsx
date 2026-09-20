@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import Hero from "@/components/Hero";
 import Header from "@/components/Header";
 import LinerClasses from "@/components/LinerClasses";
 import NearestCruises from "@/components/NearestCruises";
-import CruiseFinder from "@/components/CruiseFinder";
 import AboutUs from "@/components/AboutUs";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
-import PackageTours from "@/components/PackageTours";
-import PopularDestinations from "@/components/PopularDestinations";
 import HashScrollHandler from "@/components/HashScrollHandler";
 import ScrollReveal from "@/components/ScrollReveal";
 import JsonLd from "@/components/JsonLd";
+
+const CruiseFinder = dynamic(() => import("@/components/CruiseFinder"));
+const PackageTours = dynamic(() => import("@/components/PackageTours"));
+const PopularDestinations = dynamic(
+  () => import("@/components/PopularDestinations")
+);
 import { createMetadata } from "@/lib/seo";
 import { siteConfig } from "@/lib/site";
 import {
