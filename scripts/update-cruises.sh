@@ -7,7 +7,7 @@
 #   ./scripts/update-cruises.sh
 #   ./scripts/update-cruises.sh --force
 #
-# Автоматично кожні 3 дні (macOS launchd, без cron):
+# Автоматично кожні 3 дні (launchd на macOS / systemd на Linux):
 #   ./scripts/cruise-scheduler.sh install
 #
 set -euo pipefail
@@ -77,6 +77,7 @@ should_run() {
 ensure_python_env() {
   if [[ ! -d "$PARSER_DIR" ]]; then
     log "Помилка: не знайдено ${PARSER_DIR}"
+    log "Зроби git pull — парсер має бути в репозиторії (cruise-search/backend/)."
     exit 1
   fi
 

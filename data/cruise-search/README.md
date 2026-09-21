@@ -6,6 +6,10 @@
 ## Перший запуск на сервері
 
 ```bash
+sudo apt-get update
+sudo apt-get install -y python3 python3-venv python3-pip
+git pull
+chmod +x scripts/update-cruises.sh scripts/cruise-scheduler.sh
 ./scripts/update-cruises.sh --force
 ```
 
