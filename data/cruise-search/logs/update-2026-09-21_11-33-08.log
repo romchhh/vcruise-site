@@ -1,0 +1,4 @@
+[2026-09-21 11:33:08] === Старт оновлення бази круїзів ===
+[2026-09-21 11:33:08] Проєкт: /Users/nowayrm/Desktop/Projects/Sites/In Progress/vcruise-nextjs
+[2026-09-21 11:33:08] Пропуск: останнє оновлення було 0 дн. тому (інтервал: 3 дн.).
+[2026-09-21 11:33:08] Для примусового запуску: /Users/nowayrm/Desktop/Projects/Sites/In Progress/vcruise-nextjs/scripts/update-cruises.sh --force
