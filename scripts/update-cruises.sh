@@ -6,6 +6,7 @@
 # Ручний запуск:
 #   ./scripts/update-cruises.sh
 #   ./scripts/update-cruises.sh --force
+#   ./scripts/update-cruises.sh --force --background
 #
 # Автоматично кожні 3 дні (launchd на macOS / systemd на Linux):
 #   ./scripts/cruise-scheduler.sh install
@@ -14,13 +15,29 @@ set -euo pipefail
 
 INTERVAL_DAYS=3
 FORCE=0
+BACKGROUND=0
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PARSER_DIR="${PROJECT_ROOT}/cruise-search/backend"
+VENV_DIR="${PROJECT_ROOT}/cruise-search/.venv"
+OUTPUT_FILE="${PROJECT_ROOT}/data/cruise-search/cruises_output.json"
+STATE_FILE="${PROJECT_ROOT}/data/cruise-search/.last-update"
+LOG_DIR="${PROJECT_ROOT}/data/cruise-search/logs"
+PID_FILE="${LOG_DIR}/update.pid"
+LOG_FILE="${LOG_DIR}/update-$(date +%Y-%m-%d_%H-%M-%S).log"
 
 for arg in "$@"; do
   case "$arg" in
     --force|-f) FORCE=1 ;;
+    --background|-b) BACKGROUND=1 ;;
     --help|-h)
-      echo "Usage: $0 [--force]"
-      echo "  --force  оновити зараз, ігноруючи інтервал у ${INTERVAL_DAYS} дні"
+      cat <<EOF
+Usage: $0 [--force] [--background]
+
+  --force       оновити зараз, ігноруючи інтервал у ${INTERVAL_DAYS} дні
+  --background  запустити у фоні (термінал можна закрити)
+EOF
       exit 0
       ;;
     *)
@@ -30,14 +47,35 @@ for arg in "$@"; do
   esac
 done
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-PARSER_DIR="${PROJECT_ROOT}/cruise-search/backend"
-VENV_DIR="${PROJECT_ROOT}/cruise-search/.venv"
-OUTPUT_FILE="${PROJECT_ROOT}/data/cruise-search/cruises_output.json"
-STATE_FILE="${PROJECT_ROOT}/data/cruise-search/.last-update"
-LOG_DIR="${PROJECT_ROOT}/data/cruise-search/logs"
-LOG_FILE="${LOG_DIR}/update-$(date +%Y-%m-%d_%H-%M-%S).log"
+start_background() {
+  mkdir -p "$LOG_DIR"
+
+  if [[ -f "$PID_FILE" ]]; then
+    local running_pid
+    running_pid="$(cat "$PID_FILE")"
+    if kill -0 "$running_pid" 2>/dev/null; then
+      echo "Оновлення вже виконується (PID ${running_pid})."
+      echo "Прогрес: tail -f ${LOG_DIR}/update-*.log"
+      exit 0
+    fi
+    rm -f "$PID_FILE"
+  fi
+
+  local args=()
+  [[ "$FORCE" -eq 1 ]] && args+=(--force)
+
+  nohup "$0" "${args[@]}" >"$LOG_FILE" 2>&1 &
+  echo $! >"$PID_FILE"
+
+  echo "Запущено у фоні (PID $(cat "$PID_FILE"))."
+  echo "Лог: ${LOG_FILE}"
+  echo "Прогрес: tail -f ${LOG_FILE}"
+}
+
+if [[ "$BACKGROUND" -eq 1 ]]; then
+  start_background
+  exit 0
+fi
 
 log() {
   local message="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
@@ -143,9 +181,14 @@ mark_success() {
   log "Оновлення завершено. Наступний запуск після ${INTERVAL_DAYS} днів (або з --force)."
 }
 
+cleanup() {
+  rm -f "$PID_FILE"
+}
+
 main() {
   mkdir -p "$LOG_DIR"
   mkdir -p "$(dirname "$OUTPUT_FILE")"
+  trap cleanup EXIT
 
   log "=== Старт оновлення бази круїзів ==="
   log "Проєкт: ${PROJECT_ROOT}"
