@@ -31,7 +31,31 @@ export function cheapestPrice(
   return min;
 }
 
-export function nearestDate(cruise: CruiseRecord) {
+export function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function getUpcomingDates(
+  cruise: CruiseRecord,
+  referenceDate = todayIso()
+) {
+  return (cruise.available_dates ?? [])
+    .filter((item) => item.date && item.date >= referenceDate)
+    .slice()
+    .sort((left, right) => left.date!.localeCompare(right.date!));
+}
+
+export function hasBookableDates(
+  cruise: CruiseRecord,
+  referenceDate = todayIso()
+) {
+  return getUpcomingDates(cruise, referenceDate).length > 0;
+}
+
+export function nearestDate(cruise: CruiseRecord, referenceDate = todayIso()) {
+  const upcoming = getUpcomingDates(cruise, referenceDate);
+  if (upcoming.length) return upcoming[0]?.date ?? null;
+
   const dates = (cruise.available_dates ?? [])
     .map((item) => item.date)
     .filter(Boolean)

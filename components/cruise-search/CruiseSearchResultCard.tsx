@@ -1,13 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
-import { ChevronDown, ExternalLink } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { CURRENCY_SYMBOL } from "@/lib/cruise-search/constants";
 import {
   cheapestPrice,
   formatDate,
   formatMoney,
+  getUpcomingDates,
   nearestDate,
 } from "@/lib/cruise-search/utils";
 import type { CruiseRecord, CurrencyCode } from "@/lib/cruise-search/types";
@@ -38,18 +39,20 @@ function InfoRow({
 export default function CruiseSearchResultCard({
   cruise,
   currency,
+  onBook,
 }: {
   cruise: CruiseRecord;
   currency: CurrencyCode;
+  onBook: (cruise: CruiseRecord) => void;
 }) {
   const [datesOpen, setDatesOpen] = useState(false);
+  const upcomingDates = useMemo(() => getUpcomingDates(cruise), [cruise]);
   const price = cheapestPrice(cruise, currency);
   const symbol = CURRENCY_SYMBOL[currency];
   const nearDate = nearestDate(cruise);
   const route = cruise.route ?? [];
   const routePreview = route.slice(0, 3).join(" · ");
   const routeExtra = route.length > 3 ? ` +${route.length - 3}` : "";
-  const bookingUrl = cruise.available_dates?.[0]?.booking_url;
   const nightsLabel = cruise.nights_str ?? `${cruise.nights} ночей`;
 
   return (
@@ -105,22 +108,14 @@ export default function CruiseSearchResultCard({
       </div>
 
       <div className="mt-4 flex flex-col gap-2">
-        {bookingUrl ? (
-          <a
-            href={bookingUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-primary btn-primary--block"
-          >
-            Забронювати
-            <ExternalLink className="h-4 w-4" />
-          </a>
-        ) : (
-          <button type="button" className="btn-primary btn-primary--block">
-            Детальніше
-          </button>
-        )}
-        {(cruise.available_dates?.length ?? 0) > 1 ? (
+        <button
+          type="button"
+          onClick={() => onBook(cruise)}
+          className="btn-primary btn-primary--block"
+        >
+          Забронювати
+        </button>
+        {upcomingDates.length > 1 ? (
           <button
             type="button"
             onClick={() => setDatesOpen((open) => !open)}
@@ -128,7 +123,7 @@ export default function CruiseSearchResultCard({
           >
             {datesOpen
               ? "Сховати дати"
-              : `Усі дати (${cruise.available_dates?.length ?? 0})`}
+              : `Усі дати (${upcomingDates.length})`}
             <ChevronDown
               className={`h-4 w-4 transition-transform ${datesOpen ? "rotate-180" : ""}`}
             />
@@ -139,43 +134,28 @@ export default function CruiseSearchResultCard({
       {datesOpen ? (
         <div className="divider mt-4 border-t border-[color:var(--color-divider)] pt-4">
           <div className="space-y-3">
-            {(cruise.available_dates ?? [])
-              .slice()
-              .sort((left, right) =>
-                (left.date ?? "").localeCompare(right.date ?? "")
-              )
-              .map((item) => {
-                const cabins = Object.entries(item.cabins ?? {})
-                  .map(
-                    ([name, prices]) =>
-                      `${name}: ${formatMoney(prices?.[currency])} ${symbol}`
-                  )
-                  .join(" · ");
+            {upcomingDates.map((item) => {
+              const cabins = Object.entries(item.cabins ?? {})
+                .map(
+                  ([name, prices]) =>
+                    `${name}: ${formatMoney(prices?.[currency])} ${symbol}`
+                )
+                .join(" · ");
 
-                return (
-                  <div
-                    key={item.date}
-                    className="border-t border-[color:var(--color-divider)] pt-3 first:border-t-0 first:pt-0"
-                  >
-                    <p className="text-caption font-semibold text-[color:var(--color-black)]">
-                      {formatDate(item.date)}
-                    </p>
-                    <p className="text-caption mt-1 text-subtitle">
-                      {cabins || "—"}
-                    </p>
-                    {item.booking_url ? (
-                      <a
-                        href={item.booking_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-caption mt-1 inline-block font-semibold text-[color:var(--color-brand)] hover:underline"
-                      >
-                        Перейти
-                      </a>
-                    ) : null}
-                  </div>
-                );
-              })}
+              return (
+                <div
+                  key={item.date}
+                  className="border-t border-[color:var(--color-divider)] pt-3 first:border-t-0 first:pt-0"
+                >
+                  <p className="text-caption font-semibold text-[color:var(--color-black)]">
+                    {formatDate(item.date)}
+                  </p>
+                  <p className="text-caption mt-1 text-subtitle">
+                    {cabins || "—"}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : null}

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   formatContactTelegramMessage,
   type ContactFormPayload,
+  type CruiseBookingDetails,
 } from "@/lib/contact/format-message";
 import { isValidUaPhone, normalizeUaPhone } from "@/lib/contact/phone";
 import {
@@ -20,6 +21,43 @@ function parseChatId(value: string) {
   return trimmed;
 }
 
+function parseBooking(
+  value: unknown
+): CruiseBookingDetails | null | undefined {
+  if (!value || typeof value !== "object") return undefined;
+
+  const booking = value as Record<string, unknown>;
+  const linerName = String(booking.linerName ?? "").trim();
+  const company = String(booking.company ?? "").trim();
+  const region = String(booking.region ?? "").trim();
+  const route = String(booking.route ?? "").trim();
+  const cruiseDate = String(booking.cruiseDate ?? "").trim();
+  const nights = Number(booking.nights);
+  const priceLabel = String(booking.priceLabel ?? "").trim();
+
+  if (
+    !linerName ||
+    !company ||
+    !region ||
+    !route ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(cruiseDate) ||
+    !Number.isFinite(nights) ||
+    nights < 1
+  ) {
+    return null;
+  }
+
+  return {
+    linerName: linerName.slice(0, 120),
+    company: company.slice(0, 120),
+    region: region.slice(0, 120),
+    route: route.slice(0, 500),
+    cruiseDate,
+    nights,
+    priceLabel: priceLabel ? priceLabel.slice(0, 80) : undefined,
+  };
+}
+
 function parsePayload(body: Record<string, unknown>): ContactFormPayload | null {
   const name = String(body.name ?? "").trim();
 
@@ -33,11 +71,17 @@ function parsePayload(body: Record<string, unknown>): ContactFormPayload | null 
   }
 
   const details = String(body.details ?? "").trim();
+  const booking = parseBooking(body.booking);
+
+  if (body.booking && !booking) {
+    return null;
+  }
 
   return {
     name,
     phone: normalizeUaPhone(phoneRaw),
     details: details ? details.slice(0, 1000) : undefined,
+    booking: booking ?? undefined,
   };
 }
 

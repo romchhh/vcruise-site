@@ -8,6 +8,7 @@ export type Cruise = {
   nights: number;
   price: number;
   image: string;
+  href?: string;
 };
 
 export type PackageTour = {

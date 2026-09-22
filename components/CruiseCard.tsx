@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Cruise } from "@/types";
 
 function InfoRow({
@@ -66,9 +67,20 @@ export default function CruiseCard({ cruise }: { cruise: Cruise }) {
         </div>
       </div>
 
-      <button type="button" className="btn-primary btn-primary--block mt-4">
-        Детальніше
-      </button>
+      {cruise.href ? (
+        <Link
+          href={cruise.href}
+          className="btn-primary btn-primary--block mt-4"
+          target={cruise.href.startsWith("http") ? "_blank" : undefined}
+          rel={cruise.href.startsWith("http") ? "noopener noreferrer" : undefined}
+        >
+          Детальніше
+        </Link>
+      ) : (
+        <button type="button" className="btn-primary btn-primary--block mt-4">
+          Детальніше
+        </button>
+      )}
     </article>
   );
 }

@@ -10,10 +10,12 @@ import {
   createDefaultFilters,
   parseSearchParams,
 } from "@/lib/cruise-search/params";
+import { hasBookableDates } from "@/lib/cruise-search/utils";
 import type {
   CruiseRecord,
   CruiseSearchFilters as CruiseSearchFiltersState,
 } from "@/lib/cruise-search/types";
+import CruiseBookingModal from "./CruiseBookingModal";
 import CruiseSearchFilters from "./CruiseSearchFilters";
 import CruiseSearchResultCard from "./CruiseSearchResultCard";
 
@@ -24,31 +26,44 @@ export default function CruiseSearchApp({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const defaults = useMemo(() => createDefaultFilters(cruises), [cruises]);
+  const bookableCruises = useMemo(
+    () => cruises.filter((cruise) => hasBookableDates(cruise)),
+    [cruises]
+  );
+
+  const defaults = useMemo(
+    () => createDefaultFilters(bookableCruises),
+    [bookableCruises]
+  );
 
   const initialFilters = useMemo(() => {
     const params: Record<string, string | string[] | undefined> = {};
     searchParams.forEach((value, key) => {
       params[key] = value;
     });
-    return parseSearchParams(params, cruises);
-  }, [cruises, searchParams]);
+    return parseSearchParams(params, bookableCruises);
+  }, [bookableCruises, searchParams]);
 
   const [filters, setFilters] =
     useState<CruiseSearchFiltersState>(initialFilters);
   const [visibleCount, setVisibleCount] = useState(SEARCH_RESULTS_PAGE_SIZE);
+  const [bookingCruise, setBookingCruise] = useState<CruiseRecord | null>(null);
 
   const companies = useMemo(() => {
-    const available = new Set(cruises.map((cruise) => cruise.cruise_title));
+    const available = new Set(
+      bookableCruises.map((cruise) => cruise.cruise_title)
+    );
     return FEATURED_CRUISE_COMPANIES.filter((company) =>
       available.has(company)
     );
-  }, [cruises]);
+  }, [bookableCruises]);
 
   const liners = useMemo(() => {
     const pool = filters.company
-      ? cruises.filter((cruise) => cruise.cruise_title === filters.company)
-      : cruises;
+      ? bookableCruises.filter(
+          (cruise) => cruise.cruise_title === filters.company
+        )
+      : bookableCruises;
 
     return [...new Map(
       pool
@@ -57,12 +72,12 @@ export default function CruiseSearchApp({
     ).entries()]
       .map(([slug, name]) => ({ slug, name: name! }))
       .sort((left, right) => left.name.localeCompare(right.name, "uk"));
-  }, [cruises, filters.company]);
+  }, [bookableCruises, filters.company]);
 
   const results = useMemo(() => {
-    const filtered = filterCruises(cruises, filters);
+    const filtered = filterCruises(bookableCruises, filters);
     return sortCruises(filtered, filters.sort, filters.currency);
-  }, [cruises, filters]);
+  }, [bookableCruises, filters]);
 
   useEffect(() => {
     setVisibleCount(SEARCH_RESULTS_PAGE_SIZE);
@@ -161,7 +176,7 @@ export default function CruiseSearchApp({
                   <span className="font-semibold text-[color:var(--color-black)]">
                     {results.length.toLocaleString("uk-UA")}
                   </span>{" "}
-                  круїзів із {cruises.length.toLocaleString("uk-UA")}
+                  круїзів із {bookableCruises.length.toLocaleString("uk-UA")}
                 </>
               )}
             </p>
@@ -174,6 +189,7 @@ export default function CruiseSearchApp({
                   key={cruise.key}
                   cruise={cruise}
                   currency={filters.currency}
+                  onBook={setBookingCruise}
                 />
               ))
             ) : (
@@ -213,6 +229,11 @@ export default function CruiseSearchApp({
           ) : null}
         </div>
       </div>
+      <CruiseBookingModal
+        cruise={bookingCruise}
+        currency={filters.currency}
+        onClose={() => setBookingCruise(null)}
+      />
     </main>
   );
 }

@@ -5,7 +5,12 @@ import {
   NEW_LINER_MIN_BUILT_YEAR,
   REGION_TREE,
 } from "./constants";
-import { cheapestPrice, getDurationBounds, nearestDate } from "./utils";
+import {
+  cheapestPrice,
+  getDurationBounds,
+  hasBookableDates,
+  nearestDate,
+} from "./utils";
 import type { CruiseRecord, CruiseSearchFilters, CruiseSort } from "./types";
 
 function matchesRegions(cruise: CruiseRecord, regions: string[]) {
@@ -100,6 +105,8 @@ export function filterCruises(
   filters: CruiseSearchFilters
 ) {
   return cruises.filter((cruise) => {
+    if (!hasBookableDates(cruise)) return false;
+
     if (filters.company && cruise.cruise_title !== filters.company) {
       return false;
     }

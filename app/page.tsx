@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
+import { Suspense } from "react";
 import Hero from "@/components/Hero";
 import Header from "@/components/Header";
 import LinerClasses from "@/components/LinerClasses";
 import NearestCruises from "@/components/NearestCruises";
+import NearestCruisesSkeleton from "@/components/NearestCruisesSkeleton";
 import AboutUs from "@/components/AboutUs";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
@@ -53,7 +55,9 @@ export default function Home() {
       <main>
         <Hero />
         <ScrollReveal>
-          <NearestCruises />
+          <Suspense fallback={<NearestCruisesSkeleton />}>
+            <NearestCruises />
+          </Suspense>
         </ScrollReveal>
         <ScrollReveal delay={80}>
           <LinerClasses />
