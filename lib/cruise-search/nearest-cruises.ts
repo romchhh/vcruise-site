@@ -51,24 +51,23 @@ function formatDateRange(startIso: string, nights: number) {
   return `${formatDateShort(startIso)} – ${formatDateShort(endIso)}`;
 }
 
-function formatRoute(route: string[]) {
-  if (!route.length) return "—";
-  if (route.length === 1) return route[0];
-  const first = route[0].split(",")[0]?.trim() ?? route[0];
-  const last = route[route.length - 1].split(",")[0]?.trim() ?? route.at(-1)!;
-  return `${first} → ${last}`;
+function routePorts(route: string[]) {
+  return route
+    .map((port) => port.split(",")[0]?.trim())
+    .filter(
+      (port) =>
+        port &&
+        port !== "В морі" &&
+        !port.startsWith("...") &&
+        !port.startsWith("…")
+    );
 }
 
-function buildTitle(cruise: CruiseRecord) {
-  const ports = (cruise.route ?? [])
-    .map((port) => port.split(",")[0]?.trim())
-    .filter(Boolean);
-
-  if (ports.length >= 2) {
-    return `${ports[0]} — ${ports[ports.length - 1]}`;
-  }
-
-  return cruise.liner_name || cruise.cruise_title;
+function formatRoute(route: string[]) {
+  const ports = routePorts(route);
+  if (!ports.length) return "—";
+  if (ports.length === 1) return ports[0];
+  return `${ports[0]} → ${ports[ports.length - 1]}`;
 }
 
 function upcomingDates(cruise: CruiseRecord, today: string) {
@@ -88,13 +87,6 @@ function upcomingDates(cruise: CruiseRecord, today: string) {
 
 function nearestUpcomingDate(cruise: CruiseRecord, today: string) {
   return upcomingDates(cruise, today)[0] ?? null;
-}
-
-function bookingUrlForDate(cruise: CruiseRecord, date: string) {
-  return (
-    cruise.available_dates?.find((item) => item.date === date)?.booking_url ??
-    null
-  );
 }
 
 function pickBestCruiseForSlot(
@@ -148,10 +140,10 @@ function mapToCard(
     cheapestPrice(cruise, "EUR") ??
     0;
 
-  const bookingUrl = bookingUrlForDate(cruise, startDate);
   const searchUrl = `/search?${buildSearchParams({
     regions: [slot.region],
     company: slot.company,
+    liner: cruise.liner_slug,
     dateFrom: startDate,
     sort: "date_asc",
     currency: "USD",
@@ -167,13 +159,13 @@ function mapToCard(
     id: String(cruise.key),
     region: slot.region,
     line: cruise.cruise_title,
-    title: buildTitle(cruise),
+    title: cruise.liner_name || cruise.cruise_title,
     route: formatRoute(cruise.route ?? []),
     dateRange: formatDateRange(startDate, cruise.nights),
     nights: cruise.nights,
     price,
     image,
-    href: bookingUrl ?? searchUrl,
+    href: searchUrl,
   };
 }
 
@@ -223,6 +215,6 @@ async function loadNearestCruisesUncached() {
 /** Кеш 1 год — дати оновлюються автоматично відносно «сьогодні». */
 export const getNearestCruises = unstable_cache(
   loadNearestCruisesUncached,
-  ["nearest-cruises-v1"],
+  ["nearest-cruises-v2"],
   { revalidate: 3600 }
 );

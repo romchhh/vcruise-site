@@ -68,12 +68,7 @@ export default function CruiseCard({ cruise }: { cruise: Cruise }) {
       </div>
 
       {cruise.href ? (
-        <Link
-          href={cruise.href}
-          className="btn-primary btn-primary--block mt-4"
-          target={cruise.href.startsWith("http") ? "_blank" : undefined}
-          rel={cruise.href.startsWith("http") ? "noopener noreferrer" : undefined}
-        >
+        <Link href={cruise.href} className="btn-primary btn-primary--block mt-4">
           Детальніше
         </Link>
       ) : (

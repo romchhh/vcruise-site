@@ -3,7 +3,6 @@ import type { CruiseDate, CruiseRecord } from "./types";
 function serializeDate(date: CruiseDate): CruiseDate {
   return {
     date: date.date,
-    booking_url: date.booking_url,
     cabins: date.cabins,
   };
 }
