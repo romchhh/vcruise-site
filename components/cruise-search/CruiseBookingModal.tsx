@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { CURRENCY_SYMBOL } from "@/lib/cruise-search/constants";
@@ -57,6 +57,7 @@ export default function CruiseBookingModal({
   onClose,
 }: CruiseBookingModalProps) {
   const honeypotId = useId();
+  const formOpenedAtRef = useRef(0);
   const open = Boolean(cruise);
   const [mounted, setMounted] = useState(false);
   const [form, setForm] = useState<FormState>(initialForm);
@@ -114,8 +115,10 @@ export default function CruiseBookingModal({
       ...initialForm,
       cruiseDate: upcomingDates[0]?.date ?? "",
     });
-    setStartedAt(Date.now());
-  }, [open, cruise, upcomingDates]);
+    const openedAt = Date.now();
+    formOpenedAtRef.current = openedAt;
+    setStartedAt(openedAt);
+  }, [open, cruise?.key, upcomingDates[0]?.date]);
 
   useEffect(() => {
     if (!open) return;
@@ -153,10 +156,9 @@ export default function CruiseBookingModal({
     setSubmitting(true);
     setError("");
 
-    const formElement = event.currentTarget;
-    const honeypot = (
-      formElement.elements.namedItem("_hp") as HTMLInputElement | null
-    )?.value;
+    const honeypot =
+      (document.getElementById(honeypotId) as HTMLInputElement | null)?.value ??
+      "";
 
     try {
       const response = await fetch("/api/contact", {
@@ -167,16 +169,16 @@ export default function CruiseBookingModal({
           phone: form.phone,
           details: form.details.trim(),
           booking: {
-            linerName: cruise.liner_name,
+            linerName: cruise.liner_name || cruise.cruise_title,
             company: cruise.cruise_title,
-            region: cruise.region_name,
+            region: cruise.region_name || cruise.region_id,
             route: routeLabel,
-            nights: cruise.nights,
+            nights: cruise.nights || 1,
             cruiseDate: form.cruiseDate,
             priceLabel,
           },
-          _hp: honeypot ?? "",
-          startedAt,
+          _hp: honeypot,
+          startedAt: formOpenedAtRef.current || startedAt || Date.now(),
         }),
       });
 
@@ -333,7 +335,6 @@ export default function CruiseBookingModal({
               <input
                 id={honeypotId}
                 type="text"
-                name="_hp"
                 tabIndex={-1}
                 autoComplete="off"
                 aria-hidden="true"

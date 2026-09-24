@@ -1,6 +1,5 @@
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 12;
-const MIN_SUBMIT_DELAY_MS = 800;
 const MAX_FORM_AGE_MS = 60 * 60 * 1000;
 
 const rateLimitStore = new Map<string, number[]>();
@@ -65,7 +64,7 @@ export function validateSpamGuard(
   body: Record<string, unknown>
 ): SpamCheckResult {
   const honeypot = String(body._hp ?? "").trim();
-  if (honeypot) {
+  if (honeypot.length >= 2) {
     return {
       ok: false,
       status: 400,
@@ -80,15 +79,7 @@ export function validateSpamGuard(
     return {
       ok: false,
       status: 400,
-      message: "Некоректні дані форми.",
-    };
-  }
-
-  if (now - startedAt < MIN_SUBMIT_DELAY_MS) {
-    return {
-      ok: false,
-      status: 400,
-      message: "Зачекайте кілька секунд і спробуйте ще раз.",
+      message: "Оновіть сторінку і спробуйте ще раз.",
     };
   }
 

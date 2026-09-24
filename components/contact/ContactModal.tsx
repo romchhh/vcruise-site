@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import {
@@ -42,6 +42,7 @@ function Field({
 
 export default function ContactModal({ open, onClose }: ContactModalProps) {
   const honeypotId = useId();
+  const formOpenedAtRef = useRef(0);
   const [mounted, setMounted] = useState(false);
   const [form, setForm] = useState<FormState>(initialForm);
   const [startedAt, setStartedAt] = useState<number | null>(null);
@@ -62,7 +63,9 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
     setError("");
     setSuccess(false);
     setForm(initialForm);
-    setStartedAt(Date.now());
+    const openedAt = Date.now();
+    formOpenedAtRef.current = openedAt;
+    setStartedAt(openedAt);
   }, [open]);
 
   const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -79,10 +82,9 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
     setSubmitting(true);
     setError("");
 
-    const formElement = event.currentTarget;
-    const honeypot = (
-      formElement.elements.namedItem("_hp") as HTMLInputElement | null
-    )?.value;
+    const honeypot =
+      (document.getElementById(honeypotId) as HTMLInputElement | null)?.value ??
+      "";
 
     try {
       const response = await fetch("/api/contact", {
@@ -92,8 +94,8 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
           name: form.name.trim(),
           phone: form.phone,
           details: form.details.trim(),
-          _hp: honeypot ?? "",
-          startedAt,
+          _hp: honeypot,
+          startedAt: formOpenedAtRef.current || startedAt || Date.now(),
         }),
       });
 
@@ -214,7 +216,6 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
               <input
                 id={honeypotId}
                 type="text"
-                name="_hp"
                 tabIndex={-1}
                 autoComplete="off"
                 aria-hidden="true"
