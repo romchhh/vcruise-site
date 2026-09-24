@@ -7,7 +7,7 @@ import {
 import { isValidUaPhone, normalizeUaPhone } from "@/lib/contact/phone";
 import {
   checkRateLimit,
-  getClientIp,
+  getRateLimitKey,
   validateSpamGuard,
 } from "@/lib/contact/spam-guard";
 
@@ -96,15 +96,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const ip = getClientIp(request);
-
-  if (!checkRateLimit(ip)) {
-    return NextResponse.json(
-      { error: "Забагато спроб. Спробуйте через хвилину." },
-      { status: 429 }
-    );
-  }
-
   let body: Record<string, unknown>;
 
   try {
@@ -127,6 +118,15 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Вкажіть ім'я та коректний номер телефону." },
       { status: 400 }
+    );
+  }
+
+  const rateLimitKey = getRateLimitKey(request);
+
+  if (!checkRateLimit(rateLimitKey)) {
+    return NextResponse.json(
+      { error: "Забагато спроб. Спробуйте через хвилину." },
+      { status: 429 }
     );
   }
 

@@ -1,22 +1,50 @@
 const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX = 5;
-const MIN_SUBMIT_DELAY_MS = 1_000;
+const RATE_LIMIT_MAX = 12;
+const MIN_SUBMIT_DELAY_MS = 800;
 const MAX_FORM_AGE_MS = 60 * 60 * 1000;
 
 const rateLimitStore = new Map<string, number[]>();
 
-export function getClientIp(request: Request) {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0]?.trim() || "unknown";
+function simpleHash(value: string) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
   }
-
-  return request.headers.get("x-real-ip") ?? "unknown";
+  return Math.abs(hash).toString(36);
 }
 
-export function checkRateLimit(ip: string) {
+export function getClientIp(request: Request) {
+  const candidates = [
+    request.headers.get("cf-connecting-ip"),
+    request.headers.get("x-real-ip"),
+    request.headers.get("x-forwarded-for"),
+    request.headers.get("x-vercel-forwarded-for"),
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const ip = candidate.split(",")[0]?.trim();
+    if (ip) return ip;
+  }
+
+  return "unknown";
+}
+
+export function getRateLimitKey(request: Request) {
+  const ip = getClientIp(request);
+
+  if (ip !== "unknown") {
+    return ip;
+  }
+
+  const userAgent = request.headers.get("user-agent") ?? "no-ua";
+  return `unknown:${simpleHash(userAgent)}`;
+}
+
+export function checkRateLimit(key: string) {
   const now = Date.now();
-  const recent = (rateLimitStore.get(ip) ?? []).filter(
+  const recent = (rateLimitStore.get(key) ?? []).filter(
     (timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS
   );
 
@@ -25,7 +53,7 @@ export function checkRateLimit(ip: string) {
   }
 
   recent.push(now);
-  rateLimitStore.set(ip, recent);
+  rateLimitStore.set(key, recent);
   return true;
 }
 
@@ -48,7 +76,7 @@ export function validateSpamGuard(
   const startedAt = Number(body.startedAt);
   const now = Date.now();
 
-  if (!Number.isFinite(startedAt)) {
+  if (!Number.isFinite(startedAt) || startedAt <= 0) {
     return {
       ok: false,
       status: 400,
@@ -59,7 +87,7 @@ export function validateSpamGuard(
   if (now - startedAt < MIN_SUBMIT_DELAY_MS) {
     return {
       ok: false,
-      status: 429,
+      status: 400,
       message: "Зачекайте кілька секунд і спробуйте ще раз.",
     };
   }
