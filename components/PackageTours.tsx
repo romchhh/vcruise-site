@@ -15,7 +15,7 @@ export default function PackageTours() {
   const [activeTour, setActiveTour] = useState<PackageTour | null>(null);
 
   return (
-    <section id="package-tours" className="bg-background py-20 lg:py-24">
+    <section id="package-tours" className="bg-background py-14 sm:py-20 lg:py-24">
       <div className="container-px mx-auto max-w-[1400px]">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-16">
           <div>

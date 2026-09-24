@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowRight, ChevronDown, Minus, Plus } from "lucide-react";
+import { isMonthSelectable } from "@/lib/cruise-search/month-helpers";
 import { buildSearchParams } from "@/lib/cruise-search/params";
 
 type FieldKey = "where" | "when" | "duration" | "who";
@@ -113,7 +114,9 @@ export default function HeroSearch() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    router.prefetch("/search");
+    void fetch("/api/cruises");
+  }, [router]);
 
   useEffect(() => {
     if (!activeField) return;
@@ -208,6 +211,8 @@ export default function HeroSearch() {
   };
 
   const toggleMonth = (month: string) => {
+    if (!isMonthSelectable(month, selectedYear)) return;
+
     setSelectedMonths((prev) =>
       prev.includes(month)
         ? prev.filter((item) => item !== month)
@@ -253,10 +258,14 @@ export default function HeroSearch() {
 
   const handleSearch = () => {
     setActiveField(null);
+    const months = selectedMonths.filter((month) =>
+      isMonthSelectable(month, selectedYear)
+    );
+
     const query = buildSearchParams({
       regions: selectedDestinations.filter((item) => item !== "Будь-який"),
       year: selectedYear,
-      months: selectedMonths,
+      months,
       duration: selectedDuration,
       adults: counts.adults,
       children: counts.children,
@@ -294,22 +303,31 @@ export default function HeroSearch() {
               key={year}
               label={year}
               checked={selectedYear === year}
-              onChange={() => setSelectedYear(year)}
+              onChange={() => {
+                setSelectedYear(year);
+                setSelectedMonths((prev) =>
+                  prev.filter((month) => isMonthSelectable(month, year))
+                );
+              }}
             />
           ))}
 
           <div className="divider mt-3 grid grid-cols-4 gap-2 pt-4">
             {months.map((month) => {
               const selected = selectedMonths.includes(month);
+              const selectable = isMonthSelectable(month, selectedYear);
               return (
                 <button
                   key={month}
                   type="button"
+                  disabled={!selectable}
                   onClick={() => toggleMonth(month)}
                   className={`text-small normal-case rounded-full border px-2 py-2 font-medium transition-colors ${
-                    selected
-                      ? "border-[color:var(--color-brand)] bg-[color:var(--color-brand)] text-white"
-                      : "border-[color:var(--color-line)] bg-white text-[color:var(--color-black)] hover:border-[color:var(--color-brand)]/40"
+                    !selectable
+                      ? "cursor-not-allowed border-[color:var(--color-line)] bg-[color:var(--color-surface-muted)] text-subtitle opacity-60"
+                      : selected
+                        ? "border-[color:var(--color-brand)] bg-[color:var(--color-brand)] text-white"
+                        : "border-[color:var(--color-line)] bg-white text-[color:var(--color-black)] hover:border-[color:var(--color-brand)]/40"
                   }`}
                 >
                   {month}

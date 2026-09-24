@@ -10,7 +10,8 @@ import {
   createDefaultFilters,
   parseSearchParams,
 } from "@/lib/cruise-search/params";
-import { hasBookableDates } from "@/lib/cruise-search/utils";
+import { sanitizeSelectedMonths } from "@/lib/cruise-search/month-helpers";
+import { hasBookableDates, todayIso } from "@/lib/cruise-search/utils";
 import type {
   CruiseRecord,
   CruiseSearchFilters as CruiseSearchFiltersState,
@@ -80,6 +81,10 @@ export default function CruiseSearchApp({
   }, [bookableCruises, filters]);
 
   useEffect(() => {
+    setFilters(initialFilters);
+  }, [initialFilters]);
+
+  useEffect(() => {
     setVisibleCount(SEARCH_RESULTS_PAGE_SIZE);
   }, [results]);
 
@@ -98,16 +103,27 @@ export default function CruiseSearchApp({
   const updateFilters = (patch: Partial<CruiseSearchFiltersState>) => {
     setFilters((current) => {
       const next = { ...current, ...patch };
+
+      if ("year" in patch) {
+        next.months = sanitizeSelectedMonths(next.months, next.year);
+      }
+
       if ("newLinersOnly" in patch) {
         const query = buildSearchParams(next);
         router.replace(query ? `/search?${query}` : "/search", { scroll: false });
       }
+
       return next;
     });
   };
 
   const applyFilters = () => {
-    syncFiltersToUrl(filters);
+    const next = {
+      ...filters,
+      months: sanitizeSelectedMonths(filters.months, filters.year),
+    };
+    setFilters(next);
+    syncFiltersToUrl(next);
   };
 
   const resetFilters = () => {
@@ -123,7 +139,8 @@ export default function CruiseSearchApp({
     filters.months.length > 0 ||
     filters.duration !== "Будь-яка" ||
     filters.dateFrom ||
-    filters.dateTo;
+    filters.dateTo ||
+    filters.newLinersOnly;
 
   return (
     <main className="bg-background pb-16 pt-28 sm:pt-32">

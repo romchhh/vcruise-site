@@ -1,5 +1,19 @@
 import Image from "next/image";
+import Link from "next/link";
+import { buildSearchParams } from "@/lib/cruise-search/params";
 import { LinerClass } from "@/types";
+
+function buildShipSearchHref(ship: LinerClass["ships"][number]) {
+  if (!ship.linerSlug) return null;
+
+  const query = buildSearchParams({
+    company: ship.company ?? "",
+    liner: ship.linerSlug,
+    newLinersOnly: false,
+  });
+
+  return `/search?${query}`;
+}
 
 export default function LinerClassCard({ linerClass }: { linerClass: LinerClass }) {
   return (
@@ -18,16 +32,39 @@ export default function LinerClassCard({ linerClass }: { linerClass: LinerClass 
         <h3 className="text-h4 font-bold text-white">{linerClass.title}</h3>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          {linerClass.ships.map((ship) => (
-            <span key={ship} className="chip chip-glass text-small normal-case">
-              {ship}
-            </span>
-          ))}
+          {linerClass.ships.map((ship) => {
+            const href = buildShipSearchHref(ship);
+
+            if (!href) {
+              return (
+                <span
+                  key={ship.name}
+                  className="chip chip-glass text-small normal-case"
+                >
+                  {ship.name}
+                </span>
+              );
+            }
+
+            return (
+              <Link
+                key={ship.name}
+                href={href}
+                className="chip chip-glass text-small normal-case transition-colors hover:bg-white/25"
+                title={`Круїзи на ${ship.name}`}
+              >
+                {ship.name}
+              </Link>
+            );
+          })}
         </div>
 
-        <button type="button" className="btn-secondary btn-secondary--block mt-4">
+        <Link
+          href="/search"
+          className="btn-secondary btn-secondary--block mt-4"
+        >
           Детальніше
-        </button>
+        </Link>
       </div>
     </article>
   );

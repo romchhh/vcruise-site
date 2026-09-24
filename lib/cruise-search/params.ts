@@ -2,6 +2,7 @@ import {
   HERO_DURATION_OPTIONS,
   MONTH_LABELS,
 } from "./constants";
+import { sanitizeSelectedMonths } from "./month-helpers";
 import { getSearchBounds } from "./utils";
 import type {
   CruiseRecord,
@@ -51,7 +52,7 @@ export function createDefaultFilters(
     infants: 0,
     sort: "date_asc",
     currency: "NAT",
-    newLinersOnly: true,
+    newLinersOnly: false,
   };
 }
 
@@ -61,8 +62,14 @@ export function parseSearchParams(
 ): CruiseSearchFilters {
   const defaults = createDefaultFilters(cruises);
   const regions = parseList(params.where).filter((item) => item !== "Будь-який");
-  const months = parseList(params.months).filter((item) =>
-    MONTH_LABELS.includes(item as (typeof MONTH_LABELS)[number])
+  const yearRaw = Array.isArray(params.year) ? params.year[0] : params.year;
+  const year =
+    yearRaw && yearRaw !== "Будь-коли" ? yearRaw : defaults.year;
+  const months = sanitizeSelectedMonths(
+    parseList(params.months).filter((item) =>
+      MONTH_LABELS.includes(item as (typeof MONTH_LABELS)[number])
+    ),
+    year
   );
   const durationRaw = Array.isArray(params.duration)
     ? params.duration[0]
@@ -72,7 +79,6 @@ export function parseSearchParams(
   )
     ? durationRaw!
     : defaults.duration;
-  const yearRaw = Array.isArray(params.year) ? params.year[0] : params.year;
   const sortRaw = Array.isArray(params.sort) ? params.sort[0] : params.sort;
   const currencyRaw = Array.isArray(params.currency)
     ? params.currency[0]
@@ -90,7 +96,7 @@ export function parseSearchParams(
     liner: Array.isArray(params.liner)
       ? params.liner[0] ?? ""
       : params.liner ?? "",
-    year: yearRaw && yearRaw !== "Будь-коли" ? yearRaw : defaults.year,
+    year,
     months,
     duration,
     dateFrom: Array.isArray(params.dateFrom)
@@ -104,7 +110,7 @@ export function parseSearchParams(
     infants: parseNumber(params.infants, 0),
     sort: (sortRaw as CruiseSort) || defaults.sort,
     currency: (currencyRaw as CurrencyCode) || defaults.currency,
-    newLinersOnly: newLinersRaw !== "0",
+    newLinersOnly: newLinersRaw === "1",
   };
 }
 
@@ -140,8 +146,8 @@ export function buildSearchParams(filters: Partial<CruiseSearchFilters>) {
   if (filters.currency && filters.currency !== "NAT") {
     params.set("currency", filters.currency);
   }
-  if (filters.newLinersOnly === false) {
-    params.set("newLiners", "0");
+  if (filters.newLinersOnly) {
+    params.set("newLiners", "1");
   }
 
   return params.toString();

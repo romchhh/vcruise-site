@@ -5,11 +5,13 @@ import {
   NEW_LINER_MIN_BUILT_YEAR,
   REGION_TREE,
 } from "./constants";
+import { sanitizeSelectedMonths } from "./month-helpers";
 import {
   cheapestPrice,
   getDurationBounds,
   hasBookableDates,
   nearestDate,
+  todayIso,
 } from "./utils";
 import type { CruiseRecord, CruiseSearchFilters, CruiseSort } from "./types";
 
@@ -57,27 +59,30 @@ function matchesYearAndMonths(
 ) {
   if (year === "Будь-коли" && months.length === 0) return true;
 
+  const today = todayIso();
   const dates = (cruise.available_dates ?? [])
     .map((item) => item.date)
-    .filter(Boolean);
+    .filter((date): date is string => Boolean(date && date >= today));
 
   const pool =
     dates.length > 0
       ? dates
-      : cruise.base_date_start
+      : cruise.base_date_start && cruise.base_date_start >= today
         ? [cruise.base_date_start]
         : [];
 
   if (!pool.length) return year === "Будь-коли" && months.length === 0;
 
+  const activeMonths = sanitizeSelectedMonths(months, year);
+
   return pool.some((iso) => {
     const [dateYear, dateMonth] = iso.split("-");
     if (year !== "Будь-коли" && dateYear !== year) return false;
 
-    if (!months.length) return true;
+    if (!activeMonths.length) return true;
 
     const monthIndex = Number(dateMonth) - 1;
-    return months.some((label) => MONTH_INDEX[label] === monthIndex);
+    return activeMonths.some((label) => MONTH_INDEX[label] === monthIndex);
   });
 }
 
@@ -88,11 +93,12 @@ function matchesDateRange(
 ) {
   if (!dateFrom && !dateTo) return true;
 
+  const today = todayIso();
   const dates = (cruise.available_dates ?? [])
     .map((item) => item.date)
-    .filter(Boolean);
+    .filter((date): date is string => Boolean(date && date >= today));
 
-  if (!dates.length) return true;
+  if (!dates.length) return !dateFrom && !dateTo;
 
   return dates.some(
     (date) =>

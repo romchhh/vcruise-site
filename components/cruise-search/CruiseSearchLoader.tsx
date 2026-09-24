@@ -4,12 +4,35 @@ import { useEffect, useState } from "react";
 import type { CruiseRecord } from "@/lib/cruise-search/types";
 import CruiseSearchApp from "./CruiseSearchApp";
 
+const CRUISES_CACHE_KEY = "vcruise:cruises-cache:v1";
+const CRUISES_CACHE_TTL_MS = 60 * 60 * 1000;
+
+type CruisesCache = {
+  savedAt: number;
+  cruises: CruiseRecord[];
+};
+
 export default function CruiseSearchLoader() {
   const [cruises, setCruises] = useState<CruiseRecord[] | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
+
+    try {
+      const cachedRaw = sessionStorage.getItem(CRUISES_CACHE_KEY);
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw) as CruisesCache;
+        if (
+          Array.isArray(cached.cruises) &&
+          Date.now() - cached.savedAt < CRUISES_CACHE_TTL_MS
+        ) {
+          setCruises(cached.cruises);
+        }
+      }
+    } catch {
+      // ignore cache read errors
+    }
 
     fetch("/api/cruises")
       .then(async (response) => {
@@ -27,6 +50,14 @@ export default function CruiseSearchLoader() {
       .then((items) => {
         if (!cancelled) {
           setCruises(items);
+          try {
+            sessionStorage.setItem(
+              CRUISES_CACHE_KEY,
+              JSON.stringify({ savedAt: Date.now(), cruises: items })
+            );
+          } catch {
+            // ignore cache write errors
+          }
         }
       })
       .catch((fetchError) => {

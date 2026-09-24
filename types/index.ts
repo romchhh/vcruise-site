@@ -54,10 +54,16 @@ export type Destination = {
   searchLabel: string;
 };
 
+export type LinerClassShip = {
+  name: string;
+  linerSlug?: string;
+  company?: string;
+};
+
 export type LinerClass = {
   id: string;
   title: string;
-  ships: string[];
+  ships: LinerClassShip[];
   image: string;
 };
 

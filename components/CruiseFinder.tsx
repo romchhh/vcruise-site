@@ -58,7 +58,7 @@ export default function CruiseFinder() {
   const [travelers, setTravelers] = useState(2);
 
   return (
-    <section id="cruise-finder" className="bg-background py-20 lg:py-24">
+    <section id="cruise-finder" className="bg-background py-14 sm:py-20 lg:py-24">
       <div className="container-px mx-auto max-w-[1400px]">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
           <div className="relative min-h-[520px] overflow-hidden rounded-card lg:min-h-[640px]">

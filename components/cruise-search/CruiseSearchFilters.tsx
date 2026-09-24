@@ -10,6 +10,8 @@ import type {
   CruiseSort,
   CurrencyCode,
 } from "@/lib/cruise-search/types";
+import { isMonthSelectable } from "@/lib/cruise-search/month-helpers";
+import { todayIso } from "@/lib/cruise-search/utils";
 import NewLinersToggle from "./NewLinersToggle";
 
 type Props = {
@@ -43,7 +45,11 @@ export default function CruiseSearchFilters({
 }: Props) {
   const selectedRegion = filters.regions[0] ?? "";
 
+  const minDate = todayIso();
+
   const toggleMonth = (month: string) => {
+    if (!isMonthSelectable(month, filters.year)) return;
+
     const months = filters.months.includes(month)
       ? filters.months.filter((item) => item !== month)
       : [...filters.months, month];
@@ -136,7 +142,15 @@ export default function CruiseSearchFilters({
           </span>
           <select
             value={filters.year}
-            onChange={(event) => onChange({ year: event.target.value })}
+            onChange={(event) => {
+              const year = event.target.value;
+              onChange({
+                year,
+                months: filters.months.filter((month) =>
+                  isMonthSelectable(month, year)
+                ),
+              });
+            }}
             className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
           >
             {years.map((year) => (
@@ -189,6 +203,7 @@ export default function CruiseSearchFilters({
           </span>
           <input
             type="date"
+            min={minDate}
             value={filters.dateFrom}
             onChange={(event) => onChange({ dateFrom: event.target.value })}
             className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
@@ -201,6 +216,7 @@ export default function CruiseSearchFilters({
           </span>
           <input
             type="date"
+            min={filters.dateFrom || minDate}
             value={filters.dateTo}
             onChange={(event) => onChange({ dateTo: event.target.value })}
             className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
@@ -215,12 +231,18 @@ export default function CruiseSearchFilters({
         <div className="mt-3 flex flex-wrap gap-2">
           {MONTH_LABELS.map((month) => {
             const selected = filters.months.includes(month);
+            const selectable = isMonthSelectable(month, filters.year);
             return (
               <button
                 key={month}
                 type="button"
+                disabled={!selectable}
                 onClick={() => toggleMonth(month)}
-                className={`chip cursor-pointer transition-colors ${
+                className={`chip transition-colors ${
+                  !selectable
+                    ? "cursor-not-allowed opacity-40"
+                    : "cursor-pointer"
+                } ${
                   selected
                     ? "chip-brand"
                     : "chip-muted-brand hover:bg-[color:var(--color-surface-hover)]"
