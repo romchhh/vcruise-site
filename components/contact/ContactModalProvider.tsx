@@ -11,6 +11,10 @@ import {
 } from "react";
 
 const ContactModal = dynamic(() => import("./ContactModal"), { ssr: false });
+const FloatingMessengerButtons = dynamic(
+  () => import("./FloatingMessengerButtons"),
+  { ssr: false },
+);
 
 type ContactModalContextValue = {
   openContactModal: () => void;
@@ -66,6 +70,7 @@ export default function ContactModalProvider({
       value={{ openContactModal, closeContactModal }}
     >
       {children}
+      <FloatingMessengerButtons />
       {mounted ? (
         <ContactModal open={open} onClose={closeContactModal} />
       ) : null}

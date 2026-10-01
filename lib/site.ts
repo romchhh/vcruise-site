@@ -22,6 +22,14 @@ export const siteConfig = {
     instagram: "https://www.instagram.com/vcruise",
     facebook: "https://www.facebook.com/vcruise",
   },
+  messengers: {
+    /** Повне посилання; якщо порожнє — збирається з telegramUsername */
+    telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL?.trim() ?? "",
+    telegramUsername:
+      process.env.NEXT_PUBLIC_TELEGRAM_USERNAME?.trim() ?? "vcruise",
+    /** Повне посилання або viber://; якщо порожнє — з номера phone */
+    viber: process.env.NEXT_PUBLIC_VIBER_URL?.trim() ?? "",
+  },
   keywords: [
     "круїзи",
     "круїзне агентство",

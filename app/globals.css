@@ -453,21 +453,20 @@ body {
 .scroll-reveal {
   opacity: 0;
   transition:
-    opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: opacity, transform;
+    opacity 0.45s ease-out,
+    transform 0.45s ease-out;
 }
 
 .scroll-reveal--up {
-  transform: translateY(36px);
+  transform: translateY(20px);
 }
 
 .scroll-reveal--left {
-  transform: translateX(-36px);
+  transform: translateX(-20px);
 }
 
 .scroll-reveal--right {
-  transform: translateX(36px);
+  transform: translateX(20px);
 }
 
 .scroll-reveal--scale {
@@ -479,11 +478,12 @@ body {
   transform: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (max-width: 767px), (prefers-reduced-motion: reduce) {
   .scroll-reveal {
     opacity: 1;
     transform: none;
     transition: none;
+    will-change: auto;
   }
 }
 

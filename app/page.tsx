@@ -59,22 +59,22 @@ export default function Home() {
             <NearestCruises />
           </Suspense>
         </ScrollReveal>
-        <ScrollReveal delay={80}>
+        <ScrollReveal>
           <LinerClasses />
         </ScrollReveal>
-        <ScrollReveal delay={120}>
+        <ScrollReveal>
           <PopularDestinations />
         </ScrollReveal>
-        <ScrollReveal delay={80}>
+        <ScrollReveal>
           <CruiseFinder />
         </ScrollReveal>
-        <ScrollReveal delay={120}>
+        <ScrollReveal>
           <PackageTours />
         </ScrollReveal>
         <ScrollReveal>
           <AboutUs />
         </ScrollReveal>
-        <ScrollReveal delay={80}>
+        <ScrollReveal>
           <CTASection />
         </ScrollReveal>
       </main>

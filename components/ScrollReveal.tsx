@@ -9,6 +9,15 @@ type ScrollRevealProps = {
   direction?: "up" | "left" | "right" | "scale";
 };
 
+function prefersReducedMotion() {
+  if (typeof window === "undefined") return false;
+
+  return (
+    window.matchMedia("(max-width: 767px)").matches ||
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
 export default function ScrollReveal({
   children,
   className = "",
@@ -17,8 +26,15 @@ export default function ScrollReveal({
 }: ScrollRevealProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
+  const [disabled, setDisabled] = useState(false);
 
   useEffect(() => {
+    if (prefersReducedMotion()) {
+      setDisabled(true);
+      setVisible(true);
+      return;
+    }
+
     const element = ref.current;
     if (!element) return;
 
@@ -29,12 +45,16 @@ export default function ScrollReveal({
           observer.unobserve(element);
         }
       },
-      { threshold: 0.12, rootMargin: "0px 0px -48px 0px" }
+      { threshold: 0.08, rootMargin: "0px 0px 0px 0px" }
     );
 
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+
+  if (disabled) {
+    return <div className={className}>{children}</div>;
+  }
 
   return (
     <div
