@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Flame } from "lucide-react";
 import type { HotDeal } from "@/types";
 
 function formatUsd(value: number) {
@@ -35,10 +34,12 @@ export default function HotDealCard({ deal }: { deal: HotDeal }) {
           <span
             className="type-overlay-badge inline-flex max-w-full items-center gap-1 rounded-full bg-[#1A1A1A] px-2 py-1 text-white max-sm:text-[0.6875rem] max-sm:leading-tight sm:gap-1.5 sm:px-3 sm:py-1.5"
           >
-            <Flame
-              className="h-3 w-3 shrink-0 text-[#FF8A4C] sm:h-3.5 sm:w-3.5"
+            <span
+              className="shrink-0 text-base leading-none sm:text-lg"
               aria-hidden
-            />
+            >
+              🔥
+            </span>
             <span className="text-pretty">Гаряча пропозиція</span>
           </span>
           <span
