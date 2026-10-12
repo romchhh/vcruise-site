@@ -85,21 +85,10 @@ export default function MobileHorizontalScroll({
     tone === "light" ? "bg-white/20" : "bg-[color:var(--color-line)]";
   const thumbClass =
     tone === "light" ? "bg-white" : "bg-[color:var(--color-brand)]";
-  const edgeFadeClass =
-    tone === "light"
-      ? "from-[color:var(--color-brand)] via-[color:var(--color-brand)]/70"
-      : "from-[var(--background)] via-[var(--background)]/85";
 
   return (
     <div className="relative">
       <div className="relative lg:static">
-        {hasOverflow && canScrollRight ? (
-          <div
-            className={`pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l to-transparent sm:w-14 lg:hidden ${edgeFadeClass}`}
-            aria-hidden
-          />
-        ) : null}
-
         <div
           ref={scrollRef}
           className={`horizontal-scroll-strip ${className}`}
