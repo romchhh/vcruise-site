@@ -1,91 +1,51 @@
-# Лоція — пошук круїзів
+# Парсер круїзів (4gates.cruises)
 
-Готовий фронтенд для пошуку круїзів: фільтри як на 4gates.cruises (регіон,
-дати, компанія, лайнер, тривалість, ціна), сортування, перемикач валют і
-картки-квитки з повним списком дат відправлення та цінами по каютах.
+Джерело даних для пошуку на сайті VCRUISE (Next.js).
+
+| Файл | Призначення |
+|------|-------------|
+| `backend/cruise_parser.py` | Завантаження сторінок `ajax.php?act=getitems` |
+| `backend/structure_cruises.py` | Перетворення HTML-полів у JSON для фронтенду |
+| `run-parser.sh` | **Єдиний скрипт запуску** (venv, логи, інтервал 3 дні) |
+
+**Результат:** `data/cruise-search/cruises_output.json` (у git не комітиться).
 
 ## Швидкий старт
 
-Просто відкрий `index.html` у браузері — подвійним кліком або
-"Відкрити за допомогою → браузер". Інтернет не потрібен (шрифти Google Fonts
-підвантажаться, якщо є з'єднання, але сторінка працює і без них).
-
-Зараз у файл вбудовано **59 демо-круїзів** (`data/cruises_data.json` —
-та сама структура, у читабельному вигляді) — вигадані, але реалістичні дані
-по всіх 24 компаніях і всіх регіонах із сайту-прикладу. Це потрібно, щоб
-інтерфейс можна було одразу відкрити й побачити в роботі.
-
-## Як підключити реальні дані з 4gates.cruises
-
-У папці `backend/` — той самий парсер, який ми зробили раніше:
-
-1. `cruise_parser.py` — заходить на сайт, тягне `ajax.php?act=getitems`,
-   збирає всі сторінки видачі.
-2. `structure_cruises.py` — перетворює сирі HTML-поля відповіді на чисту
-   структуру (маршрут, ціни по каютах і датах, клас лайнера тощо) — саме
-   в такому форматі, який очікує `index.html`.
-
-Запуск:
 ```bash
-pip install requests beautifulsoup4
-cd backend
-python3 cruise_parser.py
+chmod +x cruise-search/run-parser.sh
+
+# Повне оновлення (10–40 хв, залежно від мережі)
+./cruise-search/run-parser.sh --force
+
+# У фоні
+./cruise-search/run-parser.sh --force --background
+tail -f data/cruise-search/logs/update-*.log
+
+# Тест на 200 круїзах
+./cruise-search/run-parser.sh --force --limit 200
 ```
-Це створить `cruises_output.json`. Далі два варіанти:
 
-- **Найпростіше**: перейменувати `cruises_output.json` → `cruises_data.json`,
-  відкрити `index.html` у текстовому редакторі, знайти рядок
-  `<script id="cruise-data" type="application/json">...</script>`
-  і замінити вміст на новий JSON (можна скриптом — див. нижче).
-- **Для регулярного оновлення**: прибрати вбудовані дані з `index.html` і
-  замінити на `fetch('cruises_data.json')`, а `cruises_data.json` класти
-  поруч і оновлювати за розкладом (cron). Це вимагає віддавати файли через
-  http-сервер (не `file://`), бо `fetch` локального файлу браузери іноді
-  блокують.
+Або з кореня проєкту:
 
-Скрипт для перезбирання `index.html` з новими даними:
 ```bash
-python3 - <<'EOF'
-import re, json
-data = open("cruises_output.json", encoding="utf-8").read()
-html = open("index.html", encoding="utf-8").read()
-html = re.sub(
-    r'(<script id="cruise-data" type="application/json">).*?(</script>)',
-    lambda m: m.group(1) + data + m.group(2),
-    html, flags=re.S,
-)
-open("index.html", "w", encoding="utf-8").write(html)
-EOF
+npm run cruises:update
 ```
 
-### Важливо про CORS
+## Автооновлення кожні 3 дні
 
-Якщо захочеш робити запити до `4gates.cruises` прямо з браузера (JS у
-`index.html`), майже напевно впрешся в CORS-заборону — сайт не видає
-дозвіл чужим доменам робити fetch до `ajax.php`. Тому пайплайн "Python
-парсер → JSON-файл → фронтенд читає файл" (як вище) надійніший, ніж
-пряме звернення з браузера. Якщо потрібен саме live-режим — постав
-маленький бекенд (Flask/FastAPI) на своєму сервері, який проксує
-запити до 4gates.cruises і віддає їх фронтенду вже без CORS-обмежень
-(бо запит іде сервер→сервер).
-
-## Структура архіву
-
-```
-index.html              — готовий застосунок (все в одному файлі)
-data/cruises_data.json   — ті самі демо-дані в читабельному JSON
-backend/cruise_parser.py       — парсер 4gates.cruises
-backend/structure_cruises.py   — структуризація сирих items
-backend/generate_demo_data.py  — скрипт, яким згенеровано демо-дані
+```bash
+chmod +x scripts/cruise-scheduler.sh
+./scripts/cruise-scheduler.sh install
+./scripts/cruise-scheduler.sh status
 ```
 
-## Що можна донастроїти
+## Локальна розробка без парсера
 
-- Курс валют для демо-даних (₴/$/€) захардкоджений у
-  `generate_demo_data.py` — заміни на реальний, коли підключиш живі дані
-  (реальний парсер бере курси прямо з сайту, тож там донастройка не
-  потрібна).
-- Список лайнерів у фільтрі підтягується динамічно з даних, що завантажені
-  — нічого вручну прописувати не треба.
-- Фільтр по ціні працює завжди в ₴ (як і на сайті-оригіналі), перемикач
-  валют вгорі міняє лише відображувану валюту карток.
+Скопіюй `cruises_output.json` з сервера в `data/cruise-search/`.  
+Сайт віддає дані через `GET /api/cruises`.
+
+## Залежності
+
+- Python 3.10+
+- `requests`, `beautifulsoup4` (ставляться у `cruise-search/.venv` автоматично)

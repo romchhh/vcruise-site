@@ -9,9 +9,12 @@
 4. Результат — data/cruise-search/cruises_output.json (приватна папка data).
 
 Потребує: pip install requests beautifulsoup4
-Запуск:   python3 cruise_parser.py
+Запуск:
+  ../run-parser.sh --force
+  python3 cruise_parser.py [--limit N] [--output PATH]
 """
 
+import argparse
 import json
 import time
 from pathlib import Path
@@ -167,7 +170,37 @@ def get_page_count(total: int, page_size: int) -> int:
     return (total + page_size - 1) // page_size
 
 
+def parse_cli() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Завантаження круїзів з 4gates.cruises у cruises_output.json"
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="максимум круїзів (0 = без ліміту)",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=OUTPUT_FILE,
+        help=f"шлях до JSON (за замовч.: {OUTPUT_FILE})",
+    )
+    parser.add_argument(
+        "--pause",
+        type=float,
+        default=REQUEST_PAUSE_SEC,
+        help="пауза між сторінками, сек",
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_cli()
+    output_path = args.output.resolve()
+    pause_sec = max(0.0, args.pause)
+    limit = args.limit if args.limit > 0 else (MAX_ITEMS if MAX_ITEMS else None)
+
     session = get_session()
 
     first_page = fetch_cruises(session, FILTERS, page=0)
@@ -179,7 +212,6 @@ def main():
     print(f"Елементів на сторінку: {page_size}")
 
     total_pages = get_page_count(total, page_size)
-    limit = MAX_ITEMS if MAX_ITEMS else None
     if limit:
         total_pages = min(total_pages, get_page_count(limit, page_size))
         print(f"Ліміт: {limit} круїзів → сторінок: {total_pages}\n")
@@ -187,13 +219,13 @@ def main():
         print(f"Всього сторінок: {total_pages}")
         print("Ліміту немає — качаємо все.\n")
 
-    print(f"Пишемо результати одразу → {OUTPUT_FILE}\n")
+    print(f"Пишемо результати одразу → {output_path}\n")
 
-    with IncrementalJsonArrayWriter(OUTPUT_FILE) as writer:
+    with IncrementalJsonArrayWriter(output_path) as writer:
         for page in range(total_pages):
             data = first_page if page == 0 else fetch_cruises(session, FILTERS, page=page)
             if page != 0:
-                time.sleep(REQUEST_PAUSE_SEC)
+                time.sleep(pause_sec)
 
             batch = data.get("items") or []
             if limit:
@@ -209,7 +241,7 @@ def main():
                 target = limit or total
                 print(
                     f"[progress] сторінка {page + 1}/{total_pages} "
-                    f"({writer.count}/{target} items) → {OUTPUT_FILE.name}"
+                    f"({writer.count}/{target} items) → {output_path.name}"
                 )
 
             if limit and writer.count >= limit:
@@ -219,7 +251,7 @@ def main():
                 )
                 break
 
-    print(f"\nЗбережено {writer.count} круїзів → {OUTPUT_FILE}")
+    print(f"\nЗбережено {writer.count} круїзів → {output_path}")
 
 
 if __name__ == "__main__":

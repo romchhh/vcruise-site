@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "cruises:update": "./cruise-search/run-parser.sh --force",
+    "cruises:update:bg": "./cruise-search/run-parser.sh --force --background"
   },
   "dependencies": {
     "lucide-react": "^1.42.0",
