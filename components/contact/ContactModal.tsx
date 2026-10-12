@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpRight } from "lucide-react";
+import { X } from "lucide-react";
 import {
   formatUaPhoneInput,
   isValidUaPhone,
@@ -28,17 +28,35 @@ const initialForm: FormState = {
   email: "",
 };
 
-const pillInputClass =
-  "h-14 w-full rounded-full border border-[#E5E0DC] bg-[#F3EEEA] px-6 text-body text-[color:var(--color-black)] outline-none transition-colors placeholder:text-[#9A928C] focus:border-[#D0C8C2]";
-
 const messengerLabels: Record<MessengerId, string> = {
   telegram: "Telegram",
   viber: "Viber",
 };
 
+function ContactField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="contact-field-label">{label}</span>
+      {children}
+    </label>
+  );
+}
+
 function isValidEmail(value: string) {
   if (!value.trim()) return true;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function scrollFieldIntoView(element: HTMLElement) {
+  window.setTimeout(() => {
+    element.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, 280);
 }
 
 export default function ContactModal({ open, onClose }: ContactModalProps) {
@@ -50,6 +68,7 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [keyboardInset, setKeyboardInset] = useState(0);
   const messengerLinks = useMemo(() => getMessengerLinks(), []);
 
   useEffect(() => {
@@ -59,6 +78,7 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
   useEffect(() => {
     if (!open) {
       setStartedAt(null);
+      setKeyboardInset(0);
       return;
     }
 
@@ -68,6 +88,30 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
     const openedAt = Date.now();
     formOpenedAtRef.current = openedAt;
     setStartedAt(openedAt);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const updateKeyboardInset = () => {
+      const gap = Math.max(
+        0,
+        window.innerHeight - viewport.height - viewport.offsetTop
+      );
+      setKeyboardInset(gap > 48 ? gap : 0);
+    };
+
+    updateKeyboardInset();
+    viewport.addEventListener("resize", updateKeyboardInset);
+    viewport.addEventListener("scroll", updateKeyboardInset);
+
+    return () => {
+      viewport.removeEventListener("resize", updateKeyboardInset);
+      viewport.removeEventListener("scroll", updateKeyboardInset);
+    };
   }, [open]);
 
   const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -128,7 +172,14 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
   if (!mounted || !open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4">
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4"
+      style={
+        keyboardInset > 0
+          ? { paddingBottom: keyboardInset }
+          : undefined
+      }
+    >
       <button
         type="button"
         aria-label="Закрити"
@@ -140,145 +191,175 @@ export default function ContactModal({ open, onClose }: ContactModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="contact-modal-title"
-        className="relative z-[101] w-full max-w-[400px] overflow-hidden rounded-t-[32px] bg-white px-8 pb-8 pt-4 shadow-[0_24px_80px_rgba(0,0,0,0.2)] sm:rounded-[32px] sm:pb-10 sm:pt-5"
+        className="relative z-[101] flex max-h-[min(92dvh,640px)] w-full max-w-[400px] flex-col overflow-hidden rounded-t-[var(--radius-shell)] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.2)] sm:max-h-none sm:rounded-[var(--radius-shell-lg)]"
       >
-        <div
-          className="mx-auto mb-5 h-1 w-10 rounded-full bg-[#D8D2CC] sm:mb-6"
-          aria-hidden
-        />
+        <div className="relative shrink-0 px-5 pb-2 pt-3 sm:px-8 sm:pb-0 sm:pt-5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--color-surface-muted)] text-[color:var(--color-black)] transition-colors hover:bg-[color:var(--color-surface-hover)] sm:right-4 sm:top-4"
+            aria-label="Закрити вікно"
+          >
+            <X className="h-4 w-4" strokeWidth={2.25} />
+          </button>
 
-        {success ? (
-          <div className="py-4 text-center">
-            <p className="text-body font-semibold text-[color:var(--color-black)]">
-              Дякуємо! Ми зв&apos;яжемося з вами найближчим часом.
-            </p>
-            <button
-              type="button"
-              onClick={onClose}
-              className="mt-6 flex h-14 w-full items-center justify-between rounded-full bg-black px-6 text-sm font-bold tracking-wide text-white uppercase"
-            >
-              <span>Закрити</span>
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-black">
-                <ArrowUpRight className="h-4 w-4" strokeWidth={2.25} />
-              </span>
-            </button>
-          </div>
-        ) : (
-          <>
+          <div
+            className="mx-auto mb-4 h-1 w-10 rounded-full bg-[color:var(--color-line)] sm:mb-5"
+            aria-hidden
+          />
+
+          {!success ? (
             <h2
               id="contact-modal-title"
-              className="text-center text-[22px] font-bold leading-tight text-[color:var(--color-black)]"
+              className="text-h4 text-center font-bold text-[color:var(--color-black)]"
             >
-              Зв&apos;язатися з нами
+              {"Зв'язатися з нами"}
             </h2>
+          ) : null}
+        </div>
 
-            <form className="mt-6 space-y-3" onSubmit={handleSubmit} noValidate>
-              <input
-                type="text"
-                required
-                autoComplete="name"
-                value={form.name}
-                onChange={(event) => updateField("name", event.target.value)}
-                className={pillInputClass}
-                placeholder="ім'я"
-                maxLength={80}
-              />
-
-              <input
-                type="tel"
-                required
-                autoComplete="tel"
-                inputMode="tel"
-                value={form.phone}
-                onChange={(event) =>
-                  updateField("phone", formatUaPhoneInput(event.target.value))
-                }
-                onFocus={(event) => {
-                  if (!event.target.value.trim()) {
-                    updateField("phone", "+380 ");
-                  }
-                }}
-                className={pillInputClass}
-                placeholder="телефон"
-              />
-
-              <input
-                type="email"
-                autoComplete="email"
-                inputMode="email"
-                value={form.email}
-                onChange={(event) => updateField("email", event.target.value)}
-                className={pillInputClass}
-                placeholder="пошта"
-                maxLength={120}
-              />
-
-              <input
-                id={honeypotId}
-                type="text"
-                tabIndex={-1}
-                autoComplete="off"
-                aria-hidden="true"
-                data-1p-ignore
-                data-lpignore="true"
-                className="pointer-events-none absolute -left-[9999px] h-0 w-0 opacity-0"
-              />
-
-              {error ? (
-                <p className="px-2 text-center text-caption text-red-600">
-                  {error}
-                </p>
-              ) : null}
-
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className="mt-2 flex h-14 w-full items-center justify-between rounded-full bg-black px-6 text-sm font-bold tracking-[0.06em] text-white uppercase disabled:cursor-not-allowed disabled:opacity-50"
+        <div
+          className="contact-modal-body min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8 sm:pb-10"
+        >
+          {success ? (
+            <div className="py-2 text-center sm:py-4">
+              <h2
+                id="contact-modal-title"
+                className="text-h4 font-bold text-[color:var(--color-black)]"
               >
-                <span>{submitting ? "Надсилання…" : "Надіслати"}</span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-black">
-                  <ArrowUpRight className="h-4 w-4" strokeWidth={2.25} />
-                </span>
+                Дякуємо!
+              </h2>
+              <p className="text-body mt-3 text-subtitle">
+                {"Ми зв'яжемося з вами найближчим часом."}
+              </p>
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn-primary btn-primary--block mt-6"
+              >
+                Закрити
               </button>
-            </form>
+            </div>
+          ) : (
+            <>
+              <form
+                className="mt-2 space-y-4 sm:mt-6"
+                onSubmit={handleSubmit}
+                noValidate
+              >
+                <ContactField label="Ім'я *">
+                  <input
+                    type="text"
+                    required
+                    autoComplete="name"
+                    value={form.name}
+                    onChange={(event) => updateField("name", event.target.value)}
+                    onFocus={(event) => scrollFieldIntoView(event.currentTarget)}
+                    className="contact-field-input"
+                    placeholder="Ваше ім'я"
+                    maxLength={80}
+                  />
+                </ContactField>
 
-            {messengerLinks.length > 0 ? (
-              <div className="mt-8 text-center">
-                <p className="text-caption text-[#B8B0AA]">Або</p>
-                <p className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-caption text-[color:var(--color-black)]">
-                  <span>Напишіть нам у</span>
-                  {messengerLinks.map((link, index) => (
-                    <span key={link.id} className="inline-flex items-center gap-1.5">
-                      {index > 0 ? (
-                        <span className="text-[#B8B0AA]" aria-hidden>·</span>
-                      ) : null}
-                      <a
-                        href={link.href}
-                        target={
-                          link.href.startsWith("http") ? "_blank" : undefined
-                        }
-                        rel={
-                          link.href.startsWith("http")
-                            ? "noopener noreferrer"
-                            : undefined
-                        }
-                        className="inline-flex items-center gap-1 font-medium underline-offset-2 hover:underline"
-                        style={{ color: messengerBrandHex(link.id) }}
-                      >
-                        <BrandMessengerIcon
-                          brand={link.id}
-                          size={16}
-                          color="brand"
-                        />
-                        {messengerLabels[link.id]}
-                      </a>
-                    </span>
-                  ))}
-                </p>
-              </div>
-            ) : null}
-          </>
-        )}
+                <ContactField label="Телефон *">
+                  <input
+                    type="tel"
+                    required
+                    autoComplete="tel"
+                    inputMode="tel"
+                    value={form.phone}
+                    onChange={(event) =>
+                      updateField("phone", formatUaPhoneInput(event.target.value))
+                    }
+                    onFocus={(event) => {
+                      scrollFieldIntoView(event.currentTarget);
+                      if (!event.target.value.trim()) {
+                        updateField("phone", "+380 ");
+                      }
+                    }}
+                    className="contact-field-input"
+                    placeholder="+380 (XX) XXX-XX-XX"
+                  />
+                </ContactField>
+
+                <ContactField label="Пошта">
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    value={form.email}
+                    onChange={(event) => updateField("email", event.target.value)}
+                    onFocus={(event) => scrollFieldIntoView(event.currentTarget)}
+                    className="contact-field-input"
+                    placeholder="email@example.com"
+                    maxLength={120}
+                  />
+                </ContactField>
+
+                <input
+                  id={honeypotId}
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  data-1p-ignore
+                  data-lpignore="true"
+                  className="pointer-events-none absolute -left-[9999px] h-0 w-0 opacity-0"
+                />
+
+                {error ? (
+                  <p className="rounded-[var(--radius-control)] bg-red-50 px-3 py-2 text-center text-caption text-red-700">
+                    {error}
+                  </p>
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="btn-primary btn-primary--block btn-card-detail disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting ? "Надсилання…" : "Надіслати"}
+                </button>
+              </form>
+
+              {messengerLinks.length > 0 ? (
+                <div className="mt-6 pb-1 text-center sm:mt-8">
+                  <p className="text-caption text-subtitle">Або</p>
+                  <p className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-caption text-[color:var(--color-black)]">
+                    <span className="text-subtitle">Напишіть нам у</span>
+                    {messengerLinks.map((link, index) => (
+                      <span key={link.id} className="inline-flex items-center gap-1.5">
+                        {index > 0 ? (
+                          <span className="text-subtitle" aria-hidden>·</span>
+                        ) : null}
+                        <a
+                          href={link.href}
+                          target={
+                            link.href.startsWith("http") ? "_blank" : undefined
+                          }
+                          rel={
+                            link.href.startsWith("http")
+                              ? "noopener noreferrer"
+                              : undefined
+                          }
+                          className="inline-flex items-center gap-1 font-medium underline-offset-2 hover:underline"
+                          style={{ color: messengerBrandHex(link.id) }}
+                        >
+                          <BrandMessengerIcon
+                            brand={link.id}
+                            size={16}
+                            color="brand"
+                          />
+                          {messengerLabels[link.id]}
+                        </a>
+                      </span>
+                    ))}
+                  </p>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
       </div>
     </div>,
     document.body

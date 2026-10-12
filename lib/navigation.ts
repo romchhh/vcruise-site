@@ -1,9 +1,9 @@
 export const navLinks = [
-  { label: "Найближчі круїзи", href: "#nearest-cruises" },
+  { label: "Найкращі пропозиції", href: "#hot-deals" },
+  { label: "Унікальні маршрути", href: "#unique-routes" },
   { label: "Лайнери", href: "#liners" },
-  { label: "Напрямлення", href: "#destinations" },
+  { label: "Напрямки", href: "#destinations" },
   { label: "Пакетні тури", href: "#package-tours" },
-  { label: "Життя на борту", href: "#onboard-life" },
   { label: "Про нас", href: "#about" },
   { label: "Контакти", href: "#footer" },
 ] as const;

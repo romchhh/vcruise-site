@@ -50,7 +50,7 @@ export function websiteSchema() {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: `${siteConfig.url}/#cruise-finder`,
+        urlTemplate: `${siteConfig.url}/search`,
       },
       "query-input": "required name=search_term_string",
     },

@@ -20,7 +20,9 @@ VCRUISE (VCruise Agency) — турагентство, що спеціалізу
 ## Key sections
 
 - [Головна](https://vcruise.ua/): hero, пошук круїзів, актуальні пропозиції
-- [Найближчі круїзи](https://vcruise.ua/#nearest-cruises): добірка круїзів на найближчі дати
+- [Найкращі пропозиції](https://vcruise.ua/#hot-deals): акційні маршрути
+- [Унікальні маршрути](https://vcruise.ua/#unique-routes): незвичні напрямки
+- [Пошук круїзів](https://vcruise.ua/search): каталог і фільтри
 - [Класи лайнерів](https://vcruise.ua/#liners): порівняння класів і лайнерів
 - [Напрямлення](https://vcruise.ua/#destinations): популярні регіони подорожей
 - [Підбір круїзу](https://vcruise.ua/#cruise-finder): форма індивідуального підбору
@@ -42,7 +44,7 @@ VCRUISE (VCruise Agency) — турагентство, що спеціалізу
 
 - Website: https://vcruise.ua
 - Email: hello@vcruise.ua
-- Phone: +380 00 000 00 00
+- Phone: see website footer / contact form
 - Location: Київ, Україна
 - Instagram: https://www.instagram.com/vcruise
 - Facebook: https://www.facebook.com/vcruise

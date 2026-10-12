@@ -31,6 +31,8 @@ export default function Header({ forceSolid = false }: { forceSolid?: boolean })
   }, [menuOpen]);
 
   const isSolid = forceSolid || scrolled || menuOpen;
+  const logoSrc = isSolid ? "/VCRUISE-brand.svg" : "/VCRUISE.svg";
+  const logoClassName = "h-[16px] w-auto sm:h-[18px] lg:h-[20px]";
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -73,14 +75,18 @@ export default function Header({ forceSolid = false }: { forceSolid?: boolean })
             }`}
           >
             <div className="container-px mx-auto flex max-w-[1400px] items-center justify-between gap-4">
-          <Link href="/" className="relative z-10 flex-shrink-0" onClick={closeMenu}>
+          <Link
+            href="/"
+            className={`relative z-10 flex-shrink-0 ${menuOpen ? "max-lg:hidden" : ""}`}
+            onClick={closeMenu}
+          >
             <Image
-              src={isSolid ? "/VCRUISE-brand.svg" : "/VCRUISE.svg"}
+              src={logoSrc}
               alt="VCRUISE"
               width={104}
               height={15}
               priority
-              className="h-[16px] w-auto sm:h-[18px] lg:h-[20px]"
+              className={logoClassName}
             />
           </Link>
 
@@ -111,16 +117,16 @@ export default function Header({ forceSolid = false }: { forceSolid?: boolean })
             <button
               type="button"
               onClick={handleContactClick}
-              className={`hidden sm:inline-flex ${
+              className={`btn-header-mobile hidden sm:inline-flex ${
                 isSolid ? "btn-primary" : "btn-secondary"
               }`}
             >
-              Зв&apos;язатись з нами
+              {"Зв'язатись з нами"}
             </button>
 
             <button
               type="button"
-              className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors lg:hidden ${
+              className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors sm:h-10 sm:w-10 lg:hidden ${
                 isSolid
                   ? "bg-[color:var(--color-surface-muted)] text-[color:var(--color-black)]"
                   : "bg-white/15 text-white backdrop-blur-md"
@@ -153,17 +159,17 @@ export default function Header({ forceSolid = false }: { forceSolid?: boolean })
         <div className="container-px mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 py-5">
           <Link href="/" onClick={closeMenu}>
             <Image
-              src="/VCRUISE-brand.svg"
+              src={logoSrc}
               alt="VCRUISE"
               width={104}
               height={15}
-              className="h-[18px] w-auto"
+              className={logoClassName}
             />
           </Link>
 
           <button
             type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-[color:var(--color-surface-muted)] text-[color:var(--color-black)]"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--color-surface-muted)] text-[color:var(--color-black)] sm:h-10 sm:w-10"
             aria-label="Закрити меню"
             onClick={closeMenu}
           >
@@ -188,10 +194,10 @@ export default function Header({ forceSolid = false }: { forceSolid?: boolean })
         <div className="container-px mx-auto w-full max-w-[1400px] pb-10">
           <button
             type="button"
-            className="btn-primary btn-primary--block"
+            className="btn-primary btn-primary--block btn-header-mobile"
             onClick={handleContactClick}
           >
-            Зв&apos;язатись з нами
+            {"Зв'язатись з нами"}
           </button>
         </div>
       </div>

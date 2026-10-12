@@ -2,7 +2,8 @@ import type { MetadataRoute } from "next";
 import { absoluteUrl } from "@/lib/site";
 
 const sections = [
-  "nearest-cruises",
+  "hot-deals",
+  "unique-routes",
   "liners",
   "destinations",
   "cruise-finder",

@@ -478,11 +478,16 @@ export default function HeroSearch() {
 
           <button
             type="button"
-            aria-label="Знайти круїз"
+            aria-label="Підібрати круїз"
             onClick={handleSearch}
-            className="btn-icon mt-1 h-11 w-full shrink-0 sm:mt-0 sm:h-[60px] sm:w-[60px]"
+            className="btn-icon mt-1 h-12 w-full shrink-0 px-4 text-body font-semibold sm:mt-0 sm:h-[60px] sm:w-[60px] sm:px-0 sm:text-caption"
           >
-            <ArrowRight className="h-5 w-5" strokeWidth={2} />
+            <span className="sm:hidden">Підібрати круїз</span>
+            <ArrowRight
+              className="hidden h-5 w-5 sm:block"
+              strokeWidth={2}
+              aria-hidden
+            />
           </button>
         </div>
       </div>

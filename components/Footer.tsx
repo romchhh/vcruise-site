@@ -1,29 +1,11 @@
 import Image from "next/image";
+import FooterSubscribe from "@/components/footer/FooterSubscribe";
+import {
+  footerLegal,
+  footerLinkColumns,
+  footerTagline,
+} from "@/lib/footer";
 import { siteConfig } from "@/lib/site";
-
-const linkColumns = [
-  {
-    title: "Направлення",
-    links: [
-      { label: "Африка", href: "#destinations" },
-      { label: "Європа", href: "#destinations" },
-      { label: "Азія", href: "#destinations" },
-      { label: "Арктика", href: "#destinations" },
-    ],
-  },
-  {
-    title: "Круїзи",
-    links: [{ label: "Пошук круїзів", href: "#cruise-finder" }],
-  },
-  {
-    title: "Про нас",
-    links: [{ label: "Наша команда", href: "#about" }],
-  },
-  {
-    title: "Контакти",
-    links: [{ label: "+380 XX XXX XX XX", href: `tel:${siteConfig.phone}` }],
-  },
-];
 
 export default function Footer() {
   return (
@@ -39,23 +21,14 @@ export default function Footer() {
                 height={15}
                 className="h-[18px] w-auto"
               />
-              <p className="text-caption mt-3 text-white/70">
-                Ваш особистий провідник у світ круїзів
-              </p>
+              <p className="text-caption mt-3 text-white/70">{footerTagline}</p>
             </div>
 
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-              <p className="text-body text-white/80">
-                Отримуйте найвигідніші пропозиції першими
-              </p>
-              <button type="button" className="btn-secondary shrink-0">
-                Підписатись
-              </button>
-            </div>
+            <FooterSubscribe />
           </div>
 
           <div className="grid grid-cols-2 gap-8 py-10 sm:grid-cols-4 lg:py-12">
-            {linkColumns.map((col) => (
+            {footerLinkColumns.map((col) => (
               <div key={col.title}>
                 <h4 className="text-body font-semibold text-white">
                   {col.title}
@@ -77,18 +50,18 @@ export default function Footer() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 border-t border-white/15 py-6 text-caption text-white/55 sm:grid-cols-3 sm:items-center">
-            <p>© 2026 Cruise Agency. Усі права захищено.</p>
+            <p>{footerLegal.copyright}</p>
             <a
-              href="/privacy"
+              href={footerLegal.privacy.href}
               className="text-center transition-colors hover:text-white"
             >
-              Політика конфіденційності
+              {footerLegal.privacy.label}
             </a>
             <a
-              href="/terms"
+              href={footerLegal.terms.href}
               className="text-left transition-colors hover:text-white sm:text-right"
             >
-              Умови використання
+              {footerLegal.terms.label}
             </a>
           </div>
         </div>

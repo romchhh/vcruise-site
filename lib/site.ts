@@ -11,8 +11,13 @@ export const siteConfig = {
     "https://vcruise.ua",
   locale: "uk_UA",
   language: "uk",
-  email: "hello@vcruise.ua",
-  phone: "+380000000000",
+  email: process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "hello@vcruise.ua",
+  phone:
+    process.env.NEXT_PUBLIC_CONTACT_PHONE?.replace(/\s/g, "") ||
+    "+380000000000",
+  phoneDisplay:
+    process.env.NEXT_PUBLIC_CONTACT_PHONE_DISPLAY?.trim() ||
+    "+380 XX XXX XX XX",
   address: {
     streetAddress: "Київ",
     addressLocality: "Київ",

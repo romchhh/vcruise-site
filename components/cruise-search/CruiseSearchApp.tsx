@@ -11,7 +11,7 @@ import {
   parseSearchParams,
 } from "@/lib/cruise-search/params";
 import { sanitizeSelectedMonths } from "@/lib/cruise-search/month-helpers";
-import { hasBookableDates, todayIso } from "@/lib/cruise-search/utils";
+import { hasBookableDates } from "@/lib/cruise-search/utils";
 import type {
   CruiseRecord,
   CruiseSearchFilters as CruiseSearchFiltersState,

@@ -25,14 +25,14 @@ export default function CTASection() {
           </div>
         </div>
 
-        <div>
+        <div className="text-center lg:text-left">
           <span className="section-badge">Ви подорожуєте</span>
 
           <h2 className="text-h2 mt-6 text-[color:var(--color-black)]">
             Ми подбаємо про все інше
           </h2>
 
-          <p className="text-body text-subtitle mt-4 max-w-md">
+          <p className="type-section-lead text-subtitle mx-auto mt-4 max-w-md lg:mx-0">
             Від вибору маршруту та каюти до документів, екскурсій і підтримки
             під час подорожі.
           </p>

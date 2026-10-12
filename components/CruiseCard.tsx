@@ -68,11 +68,17 @@ export default function CruiseCard({ cruise }: { cruise: Cruise }) {
       </div>
 
       {cruise.href ? (
-        <Link href={cruise.href} className="btn-primary btn-primary--block mt-4">
+        <Link
+          href={cruise.href}
+          className="btn-primary btn-primary--block btn-card-detail mt-4 sm:mt-6"
+        >
           Детальніше
         </Link>
       ) : (
-        <button type="button" className="btn-primary btn-primary--block mt-4">
+        <button
+          type="button"
+          className="btn-primary btn-primary--block btn-card-detail mt-4 sm:mt-6"
+        >
           Детальніше
         </button>
       )}

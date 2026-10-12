@@ -13,29 +13,32 @@ export default function OnboardLife() {
             <h2 className="text-h2 text-[color:var(--color-black)]">
               Круїз — це більше, ніж подорож між містами
             </h2>
-            <p className="text-body text-subtitle mt-4">
+            <p className="type-section-lead text-subtitle mt-4">
               Поки за вікном змінюються країни та океани, на борту починається
               окрема історія.
             </p>
           </div>
         </div>
 
-        <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+        <div className="mt-14 grid grid-cols-2 gap-2.5 sm:gap-5 lg:grid-cols-4 lg:gap-6">
           {onboardFeatures.map((feature) => (
             <div
               key={feature.id}
-              className="group relative aspect-[3/4] overflow-hidden rounded-card"
+              className="group relative aspect-[3/4.5] min-w-0 overflow-hidden rounded-card sm:aspect-[3/4]"
             >
               <Image
                 src={feature.image}
                 alt={feature.title}
                 fill
                 className="object-cover transition-transform duration-500 group-hover:scale-105"
+                sizes="(max-width: 1024px) 50vw, 25vw"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 p-5">
-                <h3 className="text-h4 font-bold text-white">{feature.title}</h3>
-                <p className="text-caption mt-1 text-white/75">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-2.5 sm:p-5">
+                <h3 className="type-card-title text-white">
+                  {feature.title}
+                </h3>
+                <p className="type-card-meta mt-1 line-clamp-2 text-white/75">
                   {feature.description}
                 </p>
               </div>

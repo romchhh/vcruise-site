@@ -4,17 +4,17 @@ import { AboutFeature } from "@/types";
 
 function AboutFeatureCard({ feature }: { feature: AboutFeature }) {
   return (
-    <article className="overflow-hidden rounded-card-inner bg-white">
-      <div className="flex items-center justify-center px-5 py-6">
+    <article className="min-w-0 overflow-hidden rounded-card-inner bg-white">
+      <div className="flex items-center justify-center px-3 py-4 sm:px-5 sm:py-6">
         <div
-          className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-icon)] bg-[color:var(--color-brand-light)]"
+          className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-icon)] bg-[color:var(--color-brand-light)] sm:h-12 sm:w-12"
         >
           <Image
             src={feature.icon}
             alt=""
             width={29}
             height={29}
-            className="h-7 w-7 object-contain"
+            className="h-6 w-6 object-contain sm:h-7 sm:w-7"
             aria-hidden
           />
         </div>
@@ -22,11 +22,11 @@ function AboutFeatureCard({ feature }: { feature: AboutFeature }) {
 
       <div className="divider" />
 
-      <div className="px-5 py-5">
-        <h3 className="text-h4 font-bold text-[color:var(--color-black)]">
+      <div className="px-3 py-3.5 sm:px-5 sm:py-5">
+        <h3 className="type-card-title text-[color:var(--color-black)]">
           {feature.title}
         </h3>
-        <p className="text-caption text-subtitle mt-2 leading-relaxed">
+        <p className="type-card-body text-subtitle mt-1.5 leading-relaxed sm:mt-2 sm:text-caption">
           {feature.description}
         </p>
       </div>
@@ -71,7 +71,7 @@ export default function AboutUs() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-5">
               {aboutFeatures.map((feature) => (
                 <AboutFeatureCard key={feature.id} feature={feature} />
               ))}

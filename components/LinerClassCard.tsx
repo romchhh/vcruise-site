@@ -15,56 +15,75 @@ function buildShipSearchHref(ship: LinerClass["ships"][number]) {
   return `/search?${query}`;
 }
 
-export default function LinerClassCard({ linerClass }: { linerClass: LinerClass }) {
+const shipChipClass =
+  "chip chip-glass normal-case text-caption leading-tight max-sm:px-2.5 max-sm:py-1 sm:px-3 sm:py-1";
+
+type LinerClassCardProps = {
+  linerClass: LinerClass;
+  onOpenDetails: () => void;
+};
+
+export default function LinerClassCard({
+  linerClass,
+  onOpenDetails,
+}: LinerClassCardProps) {
   return (
-    <article className="relative aspect-[3/4.2] overflow-hidden rounded-card">
+    <article className="group relative flex aspect-[3/4.5] min-h-0 overflow-hidden rounded-card sm:aspect-[3/4.2] sm:min-h-[400px]">
       <Image
         src={linerClass.image}
         alt={linerClass.title}
         fill
-        className="object-cover"
-        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+        className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+        sizes="(max-width: 1024px) 50vw, 25vw"
       />
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/5" />
+      <div
+        className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/20 to-black/90 max-sm:from-black/80 max-sm:via-black/25 max-sm:to-black/95 sm:bg-gradient-to-t sm:from-black/95 sm:via-black/50 sm:to-black/15"
+      />
 
-      <div className="absolute inset-x-0 bottom-0 flex flex-col px-4 pb-4 pt-24 sm:px-5 sm:pb-5">
-        <h3 className="text-h4 font-bold text-white">{linerClass.title}</h3>
+      <div
+        className="absolute inset-0 flex min-h-0 flex-col justify-between px-3 pb-3 pt-3 sm:inset-x-0 sm:bottom-0 sm:top-auto sm:h-auto sm:justify-start sm:px-5 sm:pb-5 sm:pt-20"
+      >
+        <h3
+          className="type-card-title shrink-0 font-bold leading-tight text-white sm:text-h3"
+        >
+          {linerClass.title}
+        </h3>
 
-        <div className="mt-3 flex flex-wrap gap-2">
-          {linerClass.ships.map((ship) => {
-            const href = buildShipSearchHref(ship);
+        <div className="mt-2 flex min-h-0 flex-col sm:mt-0">
+          <div className="flex flex-wrap content-end gap-1 sm:content-start sm:gap-2">
+            {linerClass.ships.map((ship) => {
+              const href = buildShipSearchHref(ship);
 
-            if (!href) {
+              if (!href) {
+                return (
+                  <span key={ship.name} className={shipChipClass}>
+                    {ship.name}
+                  </span>
+                );
+              }
+
               return (
-                <span
+                <Link
                   key={ship.name}
-                  className="chip chip-glass text-small normal-case"
+                  href={href}
+                  className={`${shipChipClass} transition-colors hover:bg-white/30`}
+                  title={`Круїзи на ${ship.name}`}
                 >
                   {ship.name}
-                </span>
+                </Link>
               );
-            }
+            })}
+          </div>
 
-            return (
-              <Link
-                key={ship.name}
-                href={href}
-                className="chip chip-glass text-small normal-case transition-colors hover:bg-white/25"
-                title={`Круїзи на ${ship.name}`}
-              >
-                {ship.name}
-              </Link>
-            );
-          })}
+          <button
+            type="button"
+            className="btn-secondary btn-secondary--block btn-card-detail mt-3 shrink-0 sm:mt-6"
+            onClick={onOpenDetails}
+          >
+            Детальніше
+          </button>
         </div>
-
-        <Link
-          href="/search"
-          className="btn-secondary btn-secondary--block mt-4"
-        >
-          Детальніше
-        </Link>
       </div>
     </article>
   );

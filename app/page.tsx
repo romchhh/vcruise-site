@@ -4,8 +4,10 @@ import { Suspense } from "react";
 import Hero from "@/components/Hero";
 import Header from "@/components/Header";
 import LinerClasses from "@/components/LinerClasses";
-import NearestCruises from "@/components/NearestCruises";
-import NearestCruisesSkeleton from "@/components/NearestCruisesSkeleton";
+import HotDeals from "@/components/HotDeals";
+import HotDealsSkeleton from "@/components/HotDealsSkeleton";
+import UniqueRoutes from "@/components/UniqueRoutes";
+import UniqueRoutesSkeleton from "@/components/UniqueRoutesSkeleton";
 import AboutUs from "@/components/AboutUs";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
@@ -55,8 +57,13 @@ export default function Home() {
       <main>
         <Hero />
         <ScrollReveal>
-          <Suspense fallback={<NearestCruisesSkeleton />}>
-            <NearestCruises />
+          <Suspense fallback={<HotDealsSkeleton />}>
+            <HotDeals />
+          </Suspense>
+        </ScrollReveal>
+        <ScrollReveal>
+          <Suspense fallback={<UniqueRoutesSkeleton />}>
+            <UniqueRoutes />
           </Suspense>
         </ScrollReveal>
         <ScrollReveal>

@@ -78,7 +78,7 @@ export default function NotFound() {
               На головну
             </Link>
             <Link
-              href="/#nearest-cruises"
+              href="/#unique-routes"
               className="inline-flex items-center justify-center rounded-full border border-white/25 bg-white/10 px-7 py-3.5 text-body font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/15"
             >
               Переглянути круїзи

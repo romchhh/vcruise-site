@@ -24,7 +24,7 @@ export default function Hero() {
             <br />
             можливостей
           </h1>
-          <p className="text-body mt-5 max-w-[540px] text-white/90">
+          <p className="type-section-lead mt-5 max-w-[540px] text-white/90">
             Подорожуйте без зайвих турбот – ми будемо поруч на кожному етапі.
           </p>
         </div>

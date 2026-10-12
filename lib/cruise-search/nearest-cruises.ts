@@ -36,9 +36,12 @@ function todayIso() {
 }
 
 function addDays(iso: string, days: number) {
-  const date = new Date(`${iso}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  const [year, month, day] = iso.split("-").map((part) => Number(part));
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function formatDateShort(iso: string) {
@@ -161,8 +164,8 @@ function mapToCard(
     line: cruise.cruise_title,
     title: cruise.liner_name || cruise.cruise_title,
     route: formatRoute(cruise.route ?? []),
-    dateRange: formatDateRange(startDate, cruise.nights),
-    nights: cruise.nights,
+    dateRange: formatDateRange(startDate, Math.max(cruise.nights, 1)),
+    nights: Math.max(cruise.nights, 1),
     price,
     image,
     href: searchUrl,

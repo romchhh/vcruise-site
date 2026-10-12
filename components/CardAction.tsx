@@ -20,7 +20,7 @@ export default function CardAction({
       <button
         type="button"
         onClick={onClick}
-        className={`btn-secondary btn-secondary--block ${className}`}
+        className={`btn-secondary btn-secondary--block btn-card-detail ${className}`}
       >
         <span>Детальніше</span>
         {showArrow ? <ArrowRight className="h-4 w-4" strokeWidth={2} /> : null}
