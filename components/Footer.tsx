@@ -50,16 +50,16 @@ export default function Footer() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 border-t border-white/15 py-6 text-caption text-white/55 sm:grid-cols-3 sm:items-center">
-            <p>{footerLegal.copyright}</p>
+            <p className="text-center sm:text-left">{footerLegal.copyright}</p>
             <a
               href={footerLegal.privacy.href}
-              className="text-center transition-colors hover:text-white"
+              className="text-center transition-colors hover:text-white sm:text-center"
             >
               {footerLegal.privacy.label}
             </a>
             <a
               href={footerLegal.terms.href}
-              className="text-left transition-colors hover:text-white sm:text-right"
+              className="text-center transition-colors hover:text-white sm:text-right"
             >
               {footerLegal.terms.label}
             </a>

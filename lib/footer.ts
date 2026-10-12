@@ -1,4 +1,5 @@
 import { destinations } from "@/data/destinations";
+import { buildSearchParams } from "@/lib/cruise-search/params";
 import { siteConfig } from "@/lib/site";
 
 const footerDestinationIds = [
@@ -10,12 +11,22 @@ const footerDestinationIds = [
   "transatlantic",
 ] as const;
 
+function footerDestinationById(id: (typeof footerDestinationIds)[number]) {
+  return destinations.find((item) => item.id === id);
+}
+
 function footerDestinationLabel(id: (typeof footerDestinationIds)[number]) {
-  const destination = destinations.find((item) => item.id === id);
+  const destination = footerDestinationById(id);
   if (!destination) return id;
   if (id === "asia") return "Азія";
   if (id === "australia") return "Австралія та Океанія";
   return destination.title;
+}
+
+function footerDestinationSearchHref(id: (typeof footerDestinationIds)[number]) {
+  const destination = footerDestinationById(id);
+  if (!destination) return "/search";
+  return `/search?${buildSearchParams({ regions: [destination.searchLabel] })}`;
 }
 
 export const footerLinkColumns = [
@@ -23,7 +34,7 @@ export const footerLinkColumns = [
     title: "Направлення",
     links: footerDestinationIds.map((id) => ({
       label: footerDestinationLabel(id),
-      href: "#destinations",
+      href: footerDestinationSearchHref(id),
     })),
   },
   {
