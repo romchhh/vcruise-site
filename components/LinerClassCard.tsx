@@ -28,7 +28,7 @@ export default function LinerClassCard({
   onOpenDetails,
 }: LinerClassCardProps) {
   return (
-    <article className="group relative flex aspect-[3/4.5] min-h-0 overflow-hidden rounded-card sm:aspect-[3/4.2] sm:min-h-[400px]">
+    <article className="group relative aspect-[3/4.5] w-full min-w-0 overflow-hidden rounded-card sm:aspect-[3/4.2] sm:min-h-[400px]">
       <Image
         src={linerClass.image}
         alt={linerClass.title}
@@ -38,11 +38,12 @@ export default function LinerClassCard({
       />
 
       <div
-        className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/20 to-black/90 max-sm:from-black/80 max-sm:via-black/25 max-sm:to-black/95 sm:bg-gradient-to-t sm:from-black/95 sm:via-black/50 sm:to-black/15"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/80 via-black/25 to-black/95 sm:bg-gradient-to-t sm:from-black/95 sm:via-black/50 sm:to-black/15"
+        aria-hidden
       />
 
       <div
-        className="absolute inset-0 flex min-h-0 flex-col justify-between px-3 pb-3 pt-3 sm:inset-x-0 sm:bottom-0 sm:top-auto sm:h-auto sm:justify-start sm:px-5 sm:pb-5 sm:pt-20"
+        className="absolute inset-0 z-10 flex flex-col justify-between px-3 pb-3 pt-3 sm:inset-x-0 sm:bottom-0 sm:top-auto sm:h-auto sm:justify-end sm:px-5 sm:pb-5 sm:pt-20"
       >
         <h3
           className="type-card-title shrink-0 font-bold leading-tight text-white sm:text-h3"
@@ -50,8 +51,8 @@ export default function LinerClassCard({
           {linerClass.title}
         </h3>
 
-        <div className="mt-2 flex min-h-0 flex-col sm:mt-0">
-          <div className="flex flex-wrap content-end gap-1 sm:content-start sm:gap-2">
+        <div className="mt-2 flex flex-col sm:mt-3">
+          <div className="flex max-h-[5.5rem] flex-wrap content-end gap-1 overflow-y-auto sm:max-h-none sm:content-start sm:gap-2">
             {linerClass.ships.map((ship) => {
               const href = buildShipSearchHref(ship);
 

@@ -32,8 +32,10 @@ export default function UniqueRouteCard({ route }: UniqueRouteCardProps) {
           src={route.coverImage}
           alt={route.title}
           fill
-          className={`object-cover transition-opacity duration-500 ease-in-out ${
-            hasLinerHover ? "opacity-100 group-hover:opacity-0" : ""
+          className={`object-cover ${
+            hasLinerHover
+              ? "unique-route-image-cover--cycle opacity-100 transition-opacity duration-500 ease-in-out lg:group-hover:opacity-0"
+              : ""
           }`}
           sizes="(max-width: 1024px) 88vw, 33vw"
         />
@@ -42,7 +44,7 @@ export default function UniqueRouteCard({ route }: UniqueRouteCardProps) {
             src={route.linerImage!}
             alt=""
             fill
-            className="object-cover opacity-0 transition-opacity duration-500 ease-in-out group-hover:opacity-100"
+            className="unique-route-image-liner--cycle object-cover opacity-0 transition-opacity duration-500 ease-in-out lg:group-hover:opacity-100"
             sizes="(max-width: 1024px) 88vw, 33vw"
             aria-hidden
           />
@@ -55,28 +57,28 @@ export default function UniqueRouteCard({ route }: UniqueRouteCardProps) {
       />
 
       <div className="absolute inset-x-0 top-0 z-10 flex flex-wrap gap-2 p-4 sm:p-5">
-        <span className="max-w-full truncate rounded-full bg-white px-3.5 py-1.5 text-caption font-medium text-[color:var(--color-black)]">
+        <span className="max-w-full truncate rounded-full bg-white px-3.5 py-1.5 text-body font-medium text-[color:var(--color-black)] lg:text-caption">
           {route.region}
         </span>
-        <span className="max-w-full truncate rounded-full bg-white px-3.5 py-1.5 text-caption font-medium text-[color:var(--color-brand)]">
+        <span className="max-w-full truncate rounded-full bg-white px-3.5 py-1.5 text-body font-medium text-[color:var(--color-brand)] lg:text-caption">
           {route.line}
         </span>
       </div>
 
       <div className="relative z-10 flex h-full min-h-0 flex-col justify-end p-4 sm:p-5">
         <div className="flex min-w-0 flex-1 flex-col justify-end">
-          <h3 className="type-card-title line-clamp-2 min-h-[2.65em] text-white">
+          <h3 className="text-h3 line-clamp-2 min-h-[2.4em] font-bold leading-snug text-white lg:min-h-[2.65em] lg:text-h4">
             {route.title}
           </h3>
-          <p className="type-card-body mt-2 line-clamp-2 text-white/75">
+          <p className="text-body mt-2 line-clamp-2 leading-relaxed text-white/80">
             {route.route}
           </p>
 
           <div className="my-4 h-px bg-white/20" />
 
-          <div className="type-card-meta flex items-center justify-between gap-3 text-white/90">
+          <div className="flex items-center justify-between gap-3 text-body text-white/90 lg:text-caption">
             <span className="min-w-0 truncate">{route.dateRange}</span>
-            <span className="type-card-meta shrink-0 rounded-full bg-white px-3 py-1 font-medium text-[color:var(--color-brand)]">
+            <span className="shrink-0 rounded-full bg-white px-3 py-1 text-body font-medium text-[color:var(--color-brand)] lg:text-caption">
               {nightsLabel(route.nights)}
             </span>
           </div>
@@ -84,10 +86,10 @@ export default function UniqueRouteCard({ route }: UniqueRouteCardProps) {
           <div className="my-4 h-px bg-white/20" />
 
           <div className="flex items-end justify-between gap-3">
-            <span className="type-card-price-label max-w-[120px] text-white/70">
+            <span className="max-w-[8.5rem] text-body leading-snug text-white/75 lg:max-w-[120px] lg:text-caption">
               Ціна від / за особу
             </span>
-            <span className="type-card-price text-white">
+            <span className="text-h3 font-bold leading-none text-white lg:text-h4">
               {formatUsd(route.price)}
             </span>
           </div>

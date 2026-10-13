@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import CruiseSearchLoader from "@/components/cruise-search/CruiseSearchLoader";
+import CruiseSearchSkeleton from "@/components/cruise-search/CruiseSearchSkeleton";
 import JsonLd from "@/components/JsonLd";
 import { createMetadata } from "@/lib/seo";
 import { breadcrumbSchema, webPageSchema } from "@/lib/schema";
@@ -39,15 +40,7 @@ export default function SearchPage() {
         ]}
       />
       <Header forceSolid />
-      <Suspense
-        fallback={
-          <main className="bg-background pb-16 pt-28">
-            <div className="container-px mx-auto max-w-[1180px] py-20 text-center text-body text-subtitle">
-              Завантаження пошуку...
-            </div>
-          </main>
-        }
-      >
+      <Suspense fallback={<CruiseSearchSkeleton />}>
         <CruiseSearchLoader />
       </Suspense>
       <Footer />
