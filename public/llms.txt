@@ -19,16 +19,16 @@ VCRUISE (VCruise Agency) — турагентство, що спеціалізу
 
 ## Key sections
 
-- [Головна](https://vcruise.ua/): hero, пошук круїзів, актуальні пропозиції
-- [Найкращі пропозиції](https://vcruise.ua/#hot-deals): акційні маршрути
-- [Унікальні маршрути](https://vcruise.ua/#unique-routes): незвичні напрямки
-- [Пошук круїзів](https://vcruise.ua/search): каталог і фільтри
-- [Класи лайнерів](https://vcruise.ua/#liners): порівняння класів і лайнерів
-- [Напрямлення](https://vcruise.ua/#destinations): популярні регіони подорожей
-- [Підбір круїзу](https://vcruise.ua/#cruise-finder): форма індивідуального підбору
-- [Пакетні тури](https://vcruise.ua/#package-tours): готові туристичні пакети
-- [Про нас](https://vcruise.ua/#about): досвід команди та переваги агентства
-- [Контакти](https://vcruise.ua/#footer): зв'язок і підписка на пропозиції
+- [Головна](https://vcruise.com.ua/): hero, пошук круїзів, актуальні пропозиції
+- [Найкращі пропозиції](https://vcruise.com.ua/#hot-deals): акційні маршрути
+- [Унікальні маршрути](https://vcruise.com.ua/#unique-routes): незвичні напрямки
+- [Пошук круїзів](https://vcruise.com.ua/search): каталог і фільтри
+- [Класи лайнерів](https://vcruise.com.ua/#liners): порівняння класів і лайнерів
+- [Напрямлення](https://vcruise.com.ua/#destinations): популярні регіони подорожей
+- [Підбір круїзу](https://vcruise.com.ua/#cruise-finder): форма індивідуального підбору
+- [Пакетні тури](https://vcruise.com.ua/#package-tours): готові туристичні пакети
+- [Про нас](https://vcruise.com.ua/#about): досвід команди та переваги агентства
+- [Контакти](https://vcruise.com.ua/#footer): зв'язок і підписка на пропозиції
 
 ## Destinations
 
@@ -42,8 +42,8 @@ VCRUISE (VCruise Agency) — турагентство, що спеціалізу
 
 ## Contact
 
-- Website: https://vcruise.ua
-- Email: hello@vcruise.ua
+- Website: https://vcruise.com.ua
+- Email: hello@vcruise.com.ua
 - Phone: see website footer / contact form
 - Location: Київ, Україна
 - Instagram: https://www.instagram.com/vcruise
@@ -55,6 +55,6 @@ Primary language: Ukrainian (uk-UA)
 
 ## Crawling
 
-- Sitemap: https://vcruise.ua/sitemap.xml
-- Robots: https://vcruise.ua/robots.txt
-- LLMs: https://vcruise.ua/llms.txt
+- Sitemap: https://vcruise.com.ua/sitemap.xml
+- Robots: https://vcruise.com.ua/robots.txt
+- LLMs: https://vcruise.com.ua/llms.txt

@@ -12,7 +12,7 @@ export const siteConfig = {
   url: getSiteOrigin(),
   locale: "uk_UA",
   language: "uk",
-  email: process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "hello@vcruise.ua",
+  email: process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "hello@vcruise.com.ua",
   phone:
     process.env.NEXT_PUBLIC_CONTACT_PHONE?.replace(/\s/g, "") ||
     "+380000000000",

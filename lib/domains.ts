@@ -1,10 +1,10 @@
 /** Canonical production origin (no trailing slash). */
-export const DEFAULT_SITE_ORIGIN = "https://vcruise.ua";
+export const DEFAULT_SITE_ORIGIN = "https://vcruise.com.ua";
 
 /** Hostnames that must 301 to the primary host (comma-separated in env). */
 export const DEFAULT_REDIRECT_HOSTS = [
-  "vcruise.com.ua",
   "www.vcruise.com.ua",
+  "vcruise.ua",
   "www.vcruise.ua",
 ] as const;
 

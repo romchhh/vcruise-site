@@ -287,7 +287,7 @@ function defaultSettings(): SiteSettings {
   return {
     brandName: siteConfig.name,
     legalName: siteConfig.legalName,
-    domain: "vcruise.ua",
+    domain: "vcruise.com.ua",
     email: siteConfig.email,
     phone: siteConfig.phone,
     phoneDisplay: siteConfig.phoneDisplay,

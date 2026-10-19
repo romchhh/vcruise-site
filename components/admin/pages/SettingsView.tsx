@@ -126,7 +126,7 @@ export default function SettingsView() {
               <div className={ui.formGrid}>
                 {text("brandName", "Назва бренду")}
                 {text("legalName", "Юридична назва")}
-                {text("domain", "Домен", "text", "vcruise.ua")}
+                {text("domain", "Домен", "text", "vcruise.com.ua")}
               </div>
             ) : null}
 
