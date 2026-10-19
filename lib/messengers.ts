@@ -18,11 +18,21 @@ function viberChatUrl(phoneDigits: string) {
   return `viber://chat?number=%2B${phoneDigits}`;
 }
 
-function resolveTelegramHref(): string {
-  const direct = siteConfig.messengers.telegram.trim();
+type MessengerOverrides = {
+  telegram?: string;
+  telegramUsername?: string;
+  viber?: string;
+  phone?: string;
+};
+
+function resolveTelegramHref(overrides?: MessengerOverrides): string {
+  const direct = (
+    overrides?.telegram ?? siteConfig.messengers.telegram
+  ).trim();
   if (direct) return direct;
 
-  const username = siteConfig.messengers.telegramUsername
+  const username = (overrides?.telegramUsername ??
+    siteConfig.messengers.telegramUsername)
     .trim()
     .replace(/^@/, "");
   if (username) return `https://t.me/${username}`;
@@ -30,11 +40,11 @@ function resolveTelegramHref(): string {
   return "";
 }
 
-function resolveViberHref(): string {
-  const fromEnv = siteConfig.messengers.viber.trim();
+function resolveViberHref(overrides?: MessengerOverrides): string {
+  const fromEnv = (overrides?.viber ?? siteConfig.messengers.viber).trim();
   if (fromEnv) return fromEnv;
 
-  const phoneDigits = digitsOnlyPhone(siteConfig.phone);
+  const phoneDigits = digitsOnlyPhone(overrides?.phone ?? siteConfig.phone);
   if (phoneDigits.length >= 10) return viberChatUrl(phoneDigits);
 
   return "";
@@ -45,9 +55,11 @@ const labels: Record<MessengerId, string> = {
   viber: "Написати у Viber",
 };
 
-export function getMessengerLinks(): MessengerLink[] {
-  const telegramHref = resolveTelegramHref();
-  const viberHref = resolveViberHref();
+export function getMessengerLinks(
+  overrides?: MessengerOverrides
+): MessengerLink[] {
+  const telegramHref = resolveTelegramHref(overrides);
+  const viberHref = resolveViberHref(overrides);
 
   const resolved: Partial<Record<MessengerId, MessengerLink>> = {
     telegram: telegramHref

@@ -1,25 +1,28 @@
 import { getHotDeals } from "@/lib/cruise-search/hot-deals";
+import { cmsBlock } from "@/lib/cms/content";
 import HotDealCard from "./HotDealCard";
 import MobileHorizontalScroll from "./MobileHorizontalScroll";
 
 export default async function HotDeals() {
   const deals = await getHotDeals();
+  const block = cmsBlock("hot-deals");
 
   return (
     <section id="hot-deals" className="bg-background py-14 sm:py-20 lg:py-24">
       <div className="container-px mx-auto max-w-[1400px]">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-16">
           <div>
-            <span className="section-badge">Найкращі пропозиції</span>
+            <span className="section-badge">
+              {block?.badge || "Найкращі пропозиції"}
+            </span>
           </div>
           <div>
             <h2 className="text-h2 text-[color:var(--color-black)]">
-              Найближчі маршрути за спеціальною ціною
+              {block?.title || "Найближчі маршрути за спеціальною ціною"}
             </h2>
             <p className="type-section-lead text-subtitle mt-4">
-              Зібрали найближчі круїзи зі спеціальними цінами в одному місці.
-              Обирайте маршрут, який підходить за датами, напрямком і бюджетом,
-              — а про решту подбаємо ми.
+              {block?.description ||
+                "Зібрали найближчі круїзи зі спеціальними цінами в одному місці. Обирайте маршрут, який підходить за датами, напрямком і бюджетом, — а про решту подбаємо ми."}
             </p>
           </div>
         </div>

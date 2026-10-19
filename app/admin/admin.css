@@ -1,0 +1,55 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+
+.vcruise-admin,
+.vcruise-admin *,
+.vcruise-admin *::before,
+.vcruise-admin *::after {
+  box-sizing: border-box;
+}
+
+.vcruise-admin {
+  --admin-bg: #f3f3f1;
+  --admin-surface: #ffffff;
+  --admin-sidebar: #0e0e0e;
+  --admin-sidebar-muted: rgba(255, 255, 255, 0.55);
+  --admin-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --admin-sidebar-active: rgba(6, 110, 121, 0.22);
+  --admin-text: #0e0e0e;
+  --admin-muted: #6e6e6e;
+  --admin-border: rgba(14, 14, 14, 0.08);
+  --admin-orange: #066e79;
+  --admin-orange-soft: rgba(6, 110, 121, 0.12);
+  --admin-green: #16a34a;
+  --admin-green-soft: rgba(22, 163, 74, 0.12);
+  --admin-yellow: #ca8a04;
+  --admin-yellow-soft: rgba(202, 138, 4, 0.12);
+  --admin-blue: #2563eb;
+  --admin-blue-soft: rgba(37, 99, 235, 0.12);
+  --admin-radius: 18px;
+  --admin-radius-sm: 12px;
+  --admin-shadow: 0 18px 48px rgba(14, 14, 14, 0.06);
+  --admin-font: "Manrope", "Helvetica Neue", sans-serif;
+  --admin-brand: "Manrope", sans-serif;
+  --admin-sidebar-width: 272px;
+  min-height: 100vh;
+  color: var(--admin-text);
+  background: var(--admin-bg);
+  font-family: var(--admin-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+.vcruise-admin button,
+.vcruise-admin input,
+.vcruise-admin select,
+.vcruise-admin textarea {
+  font: inherit;
+}
+
+.vcruise-admin a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.vcruise-admin ::selection {
+  background: rgba(6, 110, 121, 0.25);
+}

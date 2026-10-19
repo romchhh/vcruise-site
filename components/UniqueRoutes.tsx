@@ -1,9 +1,11 @@
 import { getUniqueRoutes } from "@/lib/cruise-search/unique-routes";
+import { cmsBlock } from "@/lib/cms/content";
 import MobileHorizontalScroll from "./MobileHorizontalScroll";
 import UniqueRouteCard from "./UniqueRouteCard";
 
 export default async function UniqueRoutes() {
   const routes = await getUniqueRoutes();
+  const block = cmsBlock("unique-routes");
 
   return (
     <section id="unique-routes" className="section-frame">
@@ -16,17 +18,16 @@ export default async function UniqueRoutes() {
                   className="h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--color-brand)]"
                   aria-hidden
                 />
-                Унікальні маршрути
+                {block?.badge || "Унікальні маршрути"}
               </span>
             </div>
             <div>
               <h2 className="text-h2 text-white">
-                Маршрути поза звичними сценаріями
+                {block?.title || "Маршрути поза звичними сценаріями"}
               </h2>
               <p className="type-section-lead mt-4 text-white/75">
-                Ретельно відібрані маршрути для тих, хто шукає не стандартну
-                відпустку, а особливий досвід. Більше напрямків, незвичні порти
-                та подорожі, які залишаються в пам&apos;яті надовго.
+                {block?.description ||
+                  "Ретельно відібрані маршрути для тих, хто шукає не стандартну відпустку, а особливий досвід. Більше напрямків, незвичні порти та подорожі, які залишаються в пам'яті надовго."}
               </p>
             </div>
           </div>

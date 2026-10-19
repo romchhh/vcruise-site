@@ -5,9 +5,11 @@ import {
   footerLinkColumns,
   footerTagline,
 } from "@/lib/footer";
-import { siteConfig } from "@/lib/site";
+import { resolveSiteSettings } from "@/lib/cms/resolve-site";
 
 export default function Footer() {
+  const site = resolveSiteSettings();
+
   return (
     <footer id="footer" className="section-frame">
       <div className="overflow-hidden rounded-shell bg-[color:var(--color-brand)] text-white">
@@ -16,7 +18,7 @@ export default function Footer() {
             <div>
               <Image
                 src="/VCRUISE.svg"
-                alt={siteConfig.name}
+                alt={site.name}
                 width={104}
                 height={15}
                 className="h-[18px] w-auto"

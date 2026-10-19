@@ -10,6 +10,7 @@ import FinderDatePanel, {
 import { formatShortDate } from "@/lib/cruise-finder/calendar";
 import { buildSearchParams } from "@/lib/cruise-search/params";
 import { isMonthSelectable } from "@/lib/cruise-search/month-helpers";
+import type { ContentBlock } from "@/lib/cms/store";
 
 const regions = [
   "Середземномор'я",
@@ -34,6 +35,10 @@ const budgetOptions = [
   "до 10 000$",
   "будь-який",
 ];
+
+type CruiseFinderProps = {
+  section?: ContentBlock | null;
+};
 
 const travelerRows = [
   { key: "adults" as const, label: "Дорослі", hint: "Вік: від 18 р." },
@@ -94,7 +99,7 @@ function getDatesFieldLabel(state: FinderDateState) {
   return `${formatShortDate(dateFrom)} – ${formatShortDate(dateTo)}`;
 }
 
-export default function CruiseFinder() {
+export default function CruiseFinder({ section }: CruiseFinderProps) {
   const router = useRouter();
   const dateSectionRef = useRef<HTMLDivElement>(null);
 
@@ -176,12 +181,13 @@ export default function CruiseFinder() {
           <div className="grid grid-cols-1 overflow-hidden rounded-[24px] bg-white lg:grid-cols-2 lg:rounded-shell">
             <div className="relative min-h-[360px] lg:min-h-[720px]">
               <Image
-                src="/images/cruise-finder.jpg"
-                alt="Мальовнича прибережна дорога"
+                src={section?.image || "/images/cruise-finder.jpg"}
+                alt={section?.imageAlt || "Мальовнича прибережна дорога"}
                 fill
                 className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 priority={false}
+                unoptimized={Boolean(section?.image?.startsWith("/api/media/"))}
               />
               <div
                 className="absolute inset-0 bg-gradient-to-b from-black/65 via-black/25 to-black/15"
@@ -194,18 +200,21 @@ export default function CruiseFinder() {
                     className="h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--color-brand)]"
                     aria-hidden
                   />
-                  Підібрати круїз
+                  {section?.badge || "Підібрати круїз"}
                 </span>
 
                 <h2 className="text-h2 mt-6 max-w-md text-white lg:mt-8">
-                  Не знаєте, який круїз обрати?
-                  <br />
-                  Ми підберемо його за вас
+                  {section?.title || "Не знаєте, який круїз обрати?"}
+                  {(section?.titleLine2 || !section) && (
+                    <>
+                      <br />
+                      {section?.titleLine2 || "Ми підберемо його за вас"}
+                    </>
+                  )}
                 </h2>
                 <p className="text-body mt-4 max-w-md text-white/80">
-                  Розкажіть трохи про свою майбутню подорож — ми підберемо
-                  варіанти відповідно до ваших побажань, бюджету та формату
-                  відпочинку.
+                  {section?.description ||
+                    "Розкажіть трохи про свою майбутню подорож — ми підберемо варіанти відповідно до ваших побажань, бюджету та формату відпочинку."}
                 </p>
               </div>
             </div>

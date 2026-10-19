@@ -1,6 +1,18 @@
-import type { CruiseDate, CruiseRecord } from "./types";
+import type { CabinPriceMap, CruiseDate, CruiseRecord } from "./types";
 
-function serializeDate(date: CruiseDate): CruiseDate {
+function hasCabinPrices(cabins?: CabinPriceMap) {
+  if (!cabins) return false;
+  return Object.values(cabins).some(
+    (prices) =>
+      prices &&
+      Object.values(prices).some(
+        (value) => typeof value === "number" && Number.isFinite(value)
+      )
+  );
+}
+
+function serializeDate(date: CruiseDate): CruiseDate | null {
+  if (!date.date || !hasCabinPrices(date.cabins)) return null;
   return {
     date: date.date,
     cabins: date.cabins,
@@ -10,21 +22,27 @@ function serializeDate(date: CruiseDate): CruiseDate {
 export function serializeCruisesForClient(
   cruises: CruiseRecord[]
 ): CruiseRecord[] {
-  return cruises.map((cruise) => ({
-    key: cruise.key,
-    cruise_id: cruise.cruise_id,
-    cruise_title: cruise.cruise_title,
-    liner_slug: cruise.liner_slug,
-    liner_name: cruise.liner_name,
-    liner_logo: cruise.liner_logo,
-    region_name: cruise.region_name,
-    region_id: cruise.region_id,
-    route: cruise.route,
-    nights: cruise.nights,
-    nights_str: cruise.nights_str,
-    ship_built_year: cruise.ship_built_year,
-    base_date_start: cruise.base_date_start,
-    from_price: cruise.from_price,
-    available_dates: cruise.available_dates?.map(serializeDate),
-  }));
+  return cruises.map((cruise) => {
+    const available_dates = (cruise.available_dates || [])
+      .map(serializeDate)
+      .filter((item): item is CruiseDate => Boolean(item));
+
+    return {
+      key: cruise.key,
+      cruise_id: cruise.cruise_id,
+      cruise_title: cruise.cruise_title,
+      liner_slug: cruise.liner_slug,
+      liner_name: cruise.liner_name,
+      liner_logo: cruise.liner_logo,
+      region_name: cruise.region_name,
+      region_id: cruise.region_id,
+      route: cruise.route,
+      nights: cruise.nights,
+      nights_str: cruise.nights_str,
+      ship_built_year: cruise.ship_built_year,
+      base_date_start: cruise.base_date_start,
+      from_price: cruise.from_price,
+      available_dates,
+    };
+  });
 }

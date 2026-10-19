@@ -54,3 +54,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Admin CMS (SQLite + uploads)
+/cms-data/*
+!/cms-data/.gitkeep

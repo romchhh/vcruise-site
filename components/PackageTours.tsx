@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 import { packageTours } from "@/data/tours";
 import TourCard from "./TourCard";
+import SectionIntro from "./SectionIntro";
+import type { ContentBlock } from "@/lib/cms/store";
 import type { PackageTour } from "@/types";
 
 const PackageTourModal = dynamic(
@@ -11,27 +13,22 @@ const PackageTourModal = dynamic(
   { ssr: false }
 );
 
-export default function PackageTours() {
+export default function PackageTours({
+  section,
+}: {
+  section?: ContentBlock | null;
+}) {
   const [activeTour, setActiveTour] = useState<PackageTour | null>(null);
 
   return (
     <section id="package-tours" className="bg-background py-14 sm:py-20 lg:py-24">
       <div className="container-px mx-auto max-w-[1400px]">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-16">
-          <div>
-            <span className="section-badge">Пакетні тури</span>
-          </div>
-          <div>
-            <h2 className="text-h2 text-[color:var(--color-black)]">
-              Подорожі, створені під вас
-            </h2>
-            <p className="type-section-lead text-subtitle mt-4">
-              Не тільки круїзи. Ми створюємо готові пакетні тури, поєднуючи
-              готелі, перельоти, трансфери, екскурсії та інші послуги в одну
-              комфортну подорож.
-            </p>
-          </div>
-        </div>
+        <SectionIntro
+          block={section}
+          fallbackBadge="Пакетні тури"
+          fallbackTitle="Подорожі, створені під вас"
+          fallbackDescription="Не тільки круїзи. Ми створюємо готові пакетні тури, поєднуючи готелі, перельоти, трансфери, екскурсії та інші послуги в одну комфортну подорож."
+        />
 
         <div className="mt-14 grid grid-cols-2 gap-2.5 sm:gap-5 lg:grid-cols-3 lg:gap-6">
           {packageTours.map((tour) => (

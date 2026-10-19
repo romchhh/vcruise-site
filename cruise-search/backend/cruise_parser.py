@@ -65,37 +65,69 @@ MAX_ITEMS = None
 
 
 class IncrementalJsonArrayWriter:
-    """Пише JSON-масив інкрементально; після flush дані вже на диску."""
+    """Пише компактний JSON-масив у .tmp, потім атомарно замінює цільовий файл."""
 
     def __init__(self, path: Path):
         self.path = path
+        self.tmp_path = path.with_suffix(path.suffix + ".tmp")
         path.parent.mkdir(parents=True, exist_ok=True)
-        self._file = path.open("w", encoding="utf-8")
-        self._file.write("[\n")
+        if self.tmp_path.exists():
+            self.tmp_path.unlink()
+        self._file = self.tmp_path.open("w", encoding="utf-8")
+        self._file.write("[")
         self.count = 0
         self._closed = False
+        self._finalized = False
 
     def append_items(self, items: list) -> None:
         if not items:
             return
         for item in items:
             if self.count > 0:
-                self._file.write(",\n")
-            json.dump(item, self._file, ensure_ascii=False, indent=2)
+                self._file.write(",")
+            json.dump(
+                item,
+                self._file,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
             self.count += 1
         self._file.flush()
 
     def close(self) -> None:
         if self._closed:
             return
-        self._file.write("\n]\n")
+        self._file.write("]")
         self._file.close()
         self._closed = True
+        if self.count > 0:
+            backup = self.path.with_suffix(self.path.suffix + ".bak")
+            if self.path.exists():
+                try:
+                    if backup.exists():
+                        backup.unlink()
+                    self.path.replace(backup)
+                except OSError:
+                    pass
+            self.tmp_path.replace(self.path)
+            self._finalized = True
+        elif self.tmp_path.exists():
+            self.tmp_path.unlink()
 
     def __enter__(self):
         return self
 
-    def __exit__(self, *exc):
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type is not None:
+            try:
+                if not self._closed:
+                    self._file.close()
+                    self._closed = True
+                if self.tmp_path.exists() and not self._finalized:
+                    self.tmp_path.unlink()
+            except OSError:
+                pass
+            return False
         self.close()
         return False
 

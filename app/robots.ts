@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { getSiteOrigin } from "@/lib/domains";
 import { absoluteUrl } from "@/lib/site";
 
 export default function robots(): MetadataRoute.Robots {
@@ -23,6 +24,6 @@ export default function robots(): MetadataRoute.Robots {
       },
     ],
     sitemap: absoluteUrl("/sitemap.xml"),
-    host: absoluteUrl("/"),
+    host: getSiteOrigin(),
   };
 }

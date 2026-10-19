@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 import { destinations } from "@/data/destinations";
 import DestinationCard from "./DestinationCard";
+import SectionIntro from "./SectionIntro";
+import type { ContentBlock } from "@/lib/cms/store";
 import type { Destination } from "@/types";
 
 const DestinationModal = dynamic(
@@ -11,7 +13,11 @@ const DestinationModal = dynamic(
   { ssr: false }
 );
 
-export default function PopularDestinations() {
+export default function PopularDestinations({
+  section,
+}: {
+  section?: ContentBlock | null;
+}) {
   const [activeDestination, setActiveDestination] = useState<Destination | null>(
     null
   );
@@ -19,21 +25,12 @@ export default function PopularDestinations() {
   return (
     <section id="destinations" className="bg-background py-14 sm:py-20 lg:py-24">
       <div className="container-px mx-auto max-w-[1400px]">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-16">
-          <div>
-            <span className="section-badge">Найпопулярніші напрямки</span>
-          </div>
-          <div>
-            <h2 className="text-h2 text-[color:var(--color-black)]">
-              Ваш наступний маршрут може бути тут
-            </h2>
-            <p className="type-section-lead mt-4 max-w-xl leading-relaxed text-subtitle">
-              Добірка актуальних круїзів на найближчі дати. Обирайте напрямок,
-              лайнер або формат подорожі — допоможемо розібратися в деталях і
-              підібрати найкращий варіант.
-            </p>
-          </div>
-        </div>
+        <SectionIntro
+          block={section}
+          fallbackBadge="Найпопулярніші напрямки"
+          fallbackTitle="Ваш наступний маршрут може бути тут"
+          fallbackDescription="Добірка актуальних круїзів на найближчі дати. Обирайте напрямок, лайнер або формат подорожі — допоможемо розібратися в деталях і підібрати найкращий варіант."
+        />
 
         <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:gap-6">
           {destinations.map((destination) => (

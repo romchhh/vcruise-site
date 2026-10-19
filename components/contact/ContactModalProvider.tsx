@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -9,11 +10,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { MessengerLink } from "@/lib/messengers";
 
 const ContactModal = dynamic(() => import("./ContactModal"), { ssr: false });
 const FloatingMessengerButtons = dynamic(
   () => import("./FloatingMessengerButtons"),
-  { ssr: false },
+  { ssr: false }
 );
 
 type ContactModalContextValue = {
@@ -21,7 +23,9 @@ type ContactModalContextValue = {
   closeContactModal: () => void;
 };
 
-const ContactModalContext = createContext<ContactModalContextValue | null>(null);
+const ContactModalContext = createContext<ContactModalContextValue | null>(
+  null
+);
 
 export function useContactModal() {
   const context = useContext(ContactModalContext);
@@ -33,9 +37,13 @@ export function useContactModal() {
 
 export default function ContactModalProvider({
   children,
+  messengerLinks,
 }: {
   children: ReactNode;
+  messengerLinks?: MessengerLink[];
 }) {
+  const pathname = usePathname();
+  const isAdmin = pathname?.startsWith("/admin");
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -70,8 +78,10 @@ export default function ContactModalProvider({
       value={{ openContactModal, closeContactModal }}
     >
       {children}
-      <FloatingMessengerButtons />
-      {mounted ? (
+      {!isAdmin ? (
+        <FloatingMessengerButtons links={messengerLinks} />
+      ) : null}
+      {!isAdmin && mounted ? (
         <ContactModal open={open} onClose={closeContactModal} />
       ) : null}
     </ContactModalContext.Provider>

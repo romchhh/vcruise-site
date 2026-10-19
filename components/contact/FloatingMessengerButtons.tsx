@@ -3,12 +3,16 @@
 import { useEffect, useState } from "react";
 import BrandMessengerIcon from "@/components/icons/BrandMessengerIcon";
 import { messengerBrandHex } from "@/lib/messenger-brands";
-import { getMessengerLinks } from "@/lib/messengers";
+import { getMessengerLinks, type MessengerLink } from "@/lib/messengers";
 
 const SCROLL_SHOW_PX = 200;
 
-export default function FloatingMessengerButtons() {
-  const links = getMessengerLinks();
+export default function FloatingMessengerButtons({
+  links: linksProp,
+}: {
+  links?: MessengerLink[];
+}) {
+  const links = linksProp?.length ? linksProp : getMessengerLinks();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -27,7 +31,7 @@ export default function FloatingMessengerButtons() {
 
   return (
     <div
-      className={`fixed bottom-5 right-4 z-40 flex flex-col gap-3 pb-[env(safe-area-inset-bottom)] transition-all duration-300 ease-out sm:bottom-6 sm:right-6 ${
+      className={`fixed bottom-24 right-4 z-40 flex flex-col gap-3 pb-[env(safe-area-inset-bottom)] transition-all duration-300 ease-out sm:bottom-28 sm:right-6 ${
         visible
           ? "pointer-events-auto translate-y-0 opacity-100"
           : "pointer-events-none translate-y-3 opacity-0"

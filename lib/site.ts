@@ -1,3 +1,5 @@
+import { getSiteOrigin } from "./domains";
+
 export const siteConfig = {
   name: "VCRUISE",
   legalName: "VCruise Agency",
@@ -6,9 +8,8 @@ export const siteConfig = {
     "VCRUISE — ваш особистий турагент у світі круїзів. Підбір круїзів, пакетні тури, візова підтримка та повний супровід подорожі від першого дзвінка до повернення додому.",
   shortDescription:
     "Круїзне агентство в Україні: підбір круїзів, пакетні тури та супровід подорожі.",
-  url:
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-    "https://vcruise.ua",
+  /** Canonical site origin — must match PRIMARY (see lib/domains.ts). */
+  url: getSiteOrigin(),
   locale: "uk_UA",
   language: "uk",
   email: process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "hello@vcruise.ua",

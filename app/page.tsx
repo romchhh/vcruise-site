@@ -22,6 +22,8 @@ const PopularDestinations = dynamic(
 );
 import { createMetadata } from "@/lib/seo";
 import { siteConfig } from "@/lib/site";
+import { cmsBlock } from "@/lib/cms/content";
+import { resolveSiteSettings } from "@/lib/cms/resolve-site";
 import {
   faqSchema,
   organizationSchema,
@@ -37,6 +39,12 @@ export const metadata: Metadata = createMetadata({
 });
 
 export default function Home() {
+  const site = resolveSiteSettings();
+  const linerClassesSection = cmsBlock("liner-classes");
+  const destinationsSection = cmsBlock("destinations");
+  const packageToursSection = cmsBlock("package-tours");
+  const cruiseFinderSection = cmsBlock("cruise-finder");
+
   return (
     <>
       <JsonLd
@@ -46,8 +54,8 @@ export default function Home() {
           serviceSchema(),
           faqSchema(),
           webPageSchema({
-            title: siteConfig.title,
-            description: siteConfig.description,
+            title: site.title,
+            description: site.description,
             path: "/",
           }),
         ]}
@@ -67,16 +75,16 @@ export default function Home() {
           </Suspense>
         </ScrollReveal>
         <ScrollReveal>
-          <LinerClasses />
+          <LinerClasses section={linerClassesSection} />
         </ScrollReveal>
         <ScrollReveal>
-          <PopularDestinations />
+          <PopularDestinations section={destinationsSection} />
         </ScrollReveal>
         <ScrollReveal>
-          <CruiseFinder />
+          <CruiseFinder section={cruiseFinderSection} />
         </ScrollReveal>
         <ScrollReveal>
-          <PackageTours />
+          <PackageTours section={packageToursSection} />
         </ScrollReveal>
         <ScrollReveal>
           <AboutUs />

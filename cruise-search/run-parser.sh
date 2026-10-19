@@ -149,13 +149,15 @@ backup_output() {
 }
 
 run_parser() {
-  local parser_args=()
-  [[ -n "$LIMIT" ]] && parser_args+=(--limit "$LIMIT")
-
   log "Парсер 4gates.cruises..."
   (
     cd "$PARSER_DIR"
-    python cruise_parser.py "${parser_args[@]}"
+    # macOS bash + set -u: empty "${arr[@]}" is "unbound variable"
+    if [[ -n "$LIMIT" ]]; then
+      python cruise_parser.py --limit "$LIMIT"
+    else
+      python cruise_parser.py
+    fi
   ) 2>&1 | tee -a "$LOG_FILE"
 }
 
