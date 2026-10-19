@@ -212,7 +212,6 @@ export default function LeadsView() {
         method: "DELETE",
       });
       setLeads((current) => current.filter((item) => item.id !== lead.id));
-      knownIds.current?.delete(lead.id);
       setDetailId((current) => (current === lead.id ? null : current));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не вдалося видалити заявку");
@@ -255,7 +254,6 @@ export default function LeadsView() {
           );
           lead = patched.lead;
         }
-        knownIds.current?.add(lead.id);
         setLeads((current) => [lead, ...current]);
       }
       setForm(null);
