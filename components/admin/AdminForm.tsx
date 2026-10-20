@@ -21,14 +21,18 @@ export function Field({
 
 export function Modal({
   title,
+  subtitle,
   onClose,
   children,
   wide,
+  xwide,
 }: {
   title: string;
+  subtitle?: string;
   onClose: () => void;
   children: React.ReactNode;
   wide?: boolean;
+  xwide?: boolean;
 }) {
   useEffect(() => {
     lockScroll();
@@ -52,12 +56,19 @@ export function Modal({
         onClick={onClose}
       />
       <div
-        className={`${styles.modal} ${wide ? styles.modalWide : ""}`}
+        className={`${styles.modal} ${xwide ? styles.modalXWide : wide ? styles.modalWide : ""}`}
         role="dialog"
         aria-modal="true"
       >
         <div className={styles.modalHead}>
-          <h3>{title}</h3>
+          <div>
+            <h3>{title}</h3>
+            {subtitle ? (
+              <p className={styles.cardSubtitle} style={{ marginTop: 4 }}>
+                {subtitle}
+              </p>
+            ) : null}
+          </div>
           <button type="button" className={styles.ghostBtn} onClick={onClose}>
             Закрити
           </button>

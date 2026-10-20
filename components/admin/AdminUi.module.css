@@ -282,6 +282,11 @@
   width: min(100%, 820px);
 }
 
+.modalXWide {
+  width: min(100%, 960px);
+  max-height: min(92vh, 900px);
+}
+
 .modalHead {
   display: flex;
   align-items: center;
