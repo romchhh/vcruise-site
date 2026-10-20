@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { UNIQUE_ROUTE_COVER_IMAGE as SHARED_UNIQUE_COVER } from "@/lib/cms/section-card-shared";
 import { buildSearchParams } from "./params";
 import { loadClientCruises } from "./load-cruises";
 import { matchesCruiseRegion } from "./region-match";
@@ -12,7 +13,7 @@ import type { UniqueRoute } from "@/types";
  * (наприклад, data/unique-routes-curation.json з cruise key / liner_slug).
  */
 export const UNIQUE_ROUTES_COUNT = 6;
-export const UNIQUE_ROUTE_COVER_IMAGE = "/images/sections/unique-routes-cover.jpg";
+export const UNIQUE_ROUTE_COVER_IMAGE = SHARED_UNIQUE_COVER;
 
 const MEDITERRANEAN = "Середземномор'я";
 

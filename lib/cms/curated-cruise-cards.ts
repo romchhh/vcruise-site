@@ -1,12 +1,23 @@
 import { buildSearchParams } from "@/lib/cruise-search/params";
-import { HOT_DEAL_DISCOUNT_PERCENT } from "@/lib/cruise-search/hot-deals";
-import { UNIQUE_ROUTE_COVER_IMAGE } from "@/lib/cruise-search/unique-routes";
 import { cheapestPrice } from "@/lib/cruise-search/utils";
 import type { CruiseRecord } from "@/lib/cruise-search/types";
-import type { ContentBlockCard } from "@/lib/cms/store";
+import {
+  HOT_DEAL_COVER_IMAGE,
+  HOT_DEAL_DISCOUNT_PERCENT,
+  SECTION_CARD_LIMIT,
+  UNIQUE_ROUTE_COVER_IMAGE,
+  type CruisePickOption,
+} from "@/lib/cms/section-card-shared";
+import { cardsToHotDeals, cardsToUniqueRoutes } from "@/lib/cms/section-items";
+import type { ContentBlock, ContentBlockCard } from "@/lib/cms/store";
 import type { HotDeal, UniqueRoute } from "@/types";
 
-export const SECTION_CARD_LIMIT = 6;
+export {
+  SECTION_CARD_LIMIT,
+  emptyCruiseCard,
+  curatedCardFromPick,
+} from "@/lib/cms/section-card-shared";
+export type { CruisePickOption } from "@/lib/cms/section-card-shared";
 
 function addDays(iso: string, days: number) {
   const [year, month, day] = iso.split("-").map((part) => Number(part));
@@ -73,10 +84,7 @@ function priceOnDate(cruise: CruiseRecord, date: string) {
   const entry = (cruise.available_dates ?? []).find((item) => item.date === date);
   if (entry?.cabins) {
     const fromCabins =
-      cheapestPrice(
-        { ...cruise, from_price: entry.cabins },
-        "USD",
-      ) ??
+      cheapestPrice({ ...cruise, from_price: entry.cabins }, "USD") ??
       cheapestPrice({ ...cruise, from_price: entry.cabins }, "EUR") ??
       cheapestPrice({ ...cruise, from_price: entry.cabins }, "NAT");
     if (fromCabins != null) return fromCabins;
@@ -139,9 +147,7 @@ export function cardToHotDeal(
     price,
     originalPrice: originalPriceFromDeal(price, discountPercent),
     discountPercent,
-    image:
-      asString(card.image) ||
-      "/images/sections/hot-deals-cover.jpg",
+    image: asString(card.image) || HOT_DEAL_COVER_IMAGE,
     href: `/search?${buildSearchParams({
       regions: [region],
       company: cruise.cruise_title,
@@ -219,13 +225,29 @@ export function resolveCuratedUniqueRoutes(
     .filter((item): item is UniqueRoute => item !== null);
 }
 
-/** Compact options for admin cruise picker. */
-export type CruisePickOption = {
-  company: string;
-  linerSlug: string;
-  linerName: string;
-  dates: string[];
-};
+export function resolveHotDeals(
+  block: ContentBlock | undefined,
+  fallback: HotDeal[],
+  cruises: CruiseRecord[] = [],
+): HotDeal[] {
+  if (!block?.items?.length) return fallback;
+  const curated = resolveCuratedHotDeals(block.items, cruises);
+  if (curated.length) return curated;
+  const legacy = cardsToHotDeals(block.items);
+  return legacy.length ? legacy : fallback;
+}
+
+export function resolveUniqueRoutes(
+  block: ContentBlock | undefined,
+  fallback: UniqueRoute[],
+  cruises: CruiseRecord[] = [],
+): UniqueRoute[] {
+  if (!block?.items?.length) return fallback;
+  const curated = resolveCuratedUniqueRoutes(block.items, cruises);
+  if (curated.length) return curated;
+  const legacy = cardsToUniqueRoutes(block.items);
+  return legacy.length ? legacy : fallback;
+}
 
 export function buildCruisePickOptions(
   cruises: CruiseRecord[],
@@ -258,46 +280,9 @@ export function buildCruisePickOptions(
     });
   }
 
-  return [...map.values()].sort((a, b) =>
-    a.company.localeCompare(b.company, "uk") ||
-    a.linerName.localeCompare(b.linerName, "uk"),
+  return [...map.values()].sort(
+    (a, b) =>
+      a.company.localeCompare(b.company, "uk") ||
+      a.linerName.localeCompare(b.linerName, "uk"),
   );
-}
-
-export function emptyCruiseCard(
-  kind: "hot-deals" | "unique-routes",
-): ContentBlockCard {
-  const id = `card-${Date.now().toString(36)}`;
-  if (kind === "hot-deals") {
-    return {
-      id,
-      company: "",
-      liner: "",
-      date: "",
-      discountPercent: HOT_DEAL_DISCOUNT_PERCENT,
-      image: "/images/sections/hot-deals-cover.jpg",
-    };
-  }
-  return {
-    id,
-    company: "",
-    liner: "",
-    date: "",
-    coverImage: UNIQUE_ROUTE_COVER_IMAGE,
-    linerImage: "",
-  };
-}
-
-export function curatedCardFromPick(
-  kind: "hot-deals" | "unique-routes",
-  pick: { company: string; liner: string; date: string; id?: string },
-): ContentBlockCard {
-  const base = emptyCruiseCard(kind);
-  return {
-    ...base,
-    id: pick.id || base.id,
-    company: pick.company,
-    liner: pick.liner,
-    date: pick.date,
-  };
 }

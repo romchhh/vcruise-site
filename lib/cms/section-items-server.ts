@@ -2,7 +2,7 @@ import { loadClientCruises } from "@/lib/cruise-search/load-cruises";
 import { pickHotDeals } from "@/lib/cruise-search/hot-deals";
 import { pickUniqueRoutes } from "@/lib/cruise-search/unique-routes";
 import { nearestDate } from "@/lib/cruise-search/utils";
-import { curatedCardFromPick } from "@/lib/cms/curated-cruise-cards";
+import { curatedCardFromPick } from "@/lib/cms/section-card-shared";
 import { defaultCardsFor } from "@/lib/cms/section-items";
 import type { ContentBlockCard, ContentBlockKey } from "@/lib/cms/store";
 

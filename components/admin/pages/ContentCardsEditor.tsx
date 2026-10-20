@@ -11,7 +11,7 @@ import {
 import ui from "@/components/admin/AdminUi.module.css";
 import ImageGalleryField from "@/components/admin/ImageGalleryField";
 import AdminCruisePickFields from "@/components/admin/pages/AdminCruisePickFields";
-import { SECTION_CARD_LIMIT } from "@/lib/cms/curated-cruise-cards";
+import { SECTION_CARD_LIMIT } from "@/lib/cms/section-card-shared";
 import {
   emptyCardFor,
   isCardSection,

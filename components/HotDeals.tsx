@@ -1,7 +1,7 @@
 import { getHotDeals } from "@/lib/cruise-search/hot-deals";
 import { loadClientCruises } from "@/lib/cruise-search/load-cruises";
 import { cmsBlock } from "@/lib/cms/content";
-import { resolveHotDeals } from "@/lib/cms/section-items";
+import { resolveHotDeals } from "@/lib/cms/curated-cruise-cards";
 import HotDealCard from "./HotDealCard";
 import MobileHorizontalScroll from "./MobileHorizontalScroll";
 

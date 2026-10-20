@@ -5,9 +5,14 @@ import { cheapestPrice, hasBookableDates } from "./utils";
 import type { CruiseRecord } from "./types";
 import type { HotDeal } from "@/types";
 
+import {
+  HOT_DEAL_COVER_IMAGE,
+  HOT_DEAL_DISCOUNT_PERCENT as SHARED_HOT_DEAL_DISCOUNT,
+} from "@/lib/cms/section-card-shared";
+
 export const HOT_DEALS_COUNT = 6;
-export const HOT_DEAL_DISCOUNT_PERCENT = 25;
-const HOT_DEAL_IMAGE = "/images/sections/hot-deals-cover.jpg";
+export const HOT_DEAL_DISCOUNT_PERCENT = SHARED_HOT_DEAL_DISCOUNT;
+const HOT_DEAL_IMAGE = HOT_DEAL_COVER_IMAGE;
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);

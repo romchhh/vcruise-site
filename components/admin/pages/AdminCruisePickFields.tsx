@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { adminFetch } from "@/components/admin/adminApi";
 import { Field } from "@/components/admin/AdminForm";
 import ui from "@/components/admin/AdminUi.module.css";
-import type { CruisePickOption } from "@/lib/cms/curated-cruise-cards";
+import type { CruisePickOption } from "@/lib/cms/section-card-shared";
 import type { ContentBlockCard } from "@/lib/cms/store";
 
 function asString(value: unknown) {

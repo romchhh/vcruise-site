@@ -1,7 +1,7 @@
 import { getUniqueRoutes } from "@/lib/cruise-search/unique-routes";
 import { loadClientCruises } from "@/lib/cruise-search/load-cruises";
 import { cmsBlock } from "@/lib/cms/content";
-import { resolveUniqueRoutes } from "@/lib/cms/section-items";
+import { resolveUniqueRoutes } from "@/lib/cms/curated-cruise-cards";
 import MobileHorizontalScroll from "./MobileHorizontalScroll";
 import UniqueRouteCard from "./UniqueRouteCard";
 

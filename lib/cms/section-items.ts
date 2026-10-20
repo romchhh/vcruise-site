@@ -2,12 +2,11 @@ import { destinations } from "@/data/destinations";
 import { linerClasses } from "@/data/liner-classes";
 import { packageTours } from "@/data/tours";
 import {
+  CARD_SECTION_KEYS,
   emptyCruiseCard,
-  resolveCuratedHotDeals,
-  resolveCuratedUniqueRoutes,
-} from "@/lib/cms/curated-cruise-cards";
+  isCardSection,
+} from "@/lib/cms/section-card-shared";
 import type { ContentBlock, ContentBlockCard, ContentBlockKey } from "@/lib/cms/store";
-import type { CruiseRecord } from "@/lib/cruise-search/types";
 import type {
   Destination,
   HotDeal,
@@ -16,18 +15,7 @@ import type {
   UniqueRoute,
 } from "@/types";
 
-/** Sections whose homepage cards are curated in CMS. */
-export const CARD_SECTION_KEYS: ContentBlockKey[] = [
-  "hot-deals",
-  "unique-routes",
-  "destinations",
-  "liner-classes",
-  "package-tours",
-];
-
-export function isCardSection(key: ContentBlockKey) {
-  return CARD_SECTION_KEYS.includes(key);
-}
+export { CARD_SECTION_KEYS, isCardSection } from "@/lib/cms/section-card-shared";
 
 /** Static defaults for curated (non-cruise) sections. */
 export function defaultCardsFor(key: ContentBlockKey): ContentBlockCard[] {
@@ -56,6 +44,7 @@ function asStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
+/** Legacy free-form hot-deal cards (pre company/liner/date curation). */
 export function cardsToHotDeals(cards: ContentBlockCard[]): HotDeal[] {
   return cards.map((card, index) => ({
     id: asString(card.id, `deal-${index + 1}`),
@@ -66,11 +55,15 @@ export function cardsToHotDeals(cards: ContentBlockCard[]): HotDeal[] {
     price: asNumber(card.price, 0),
     originalPrice: asNumber(card.originalPrice, asNumber(card.price, 0)),
     discountPercent: asNumber(card.discountPercent, 25),
-    image: asString(card.image || card.coverImage, "/images/sections/hot-deals-cover.jpg"),
+    image: asString(
+      card.image || card.coverImage,
+      "/images/sections/hot-deals-cover.jpg",
+    ),
     href: asString(card.href, "/search"),
   }));
 }
 
+/** Legacy free-form unique-route cards. */
 export function cardsToUniqueRoutes(cards: ContentBlockCard[]): UniqueRoute[] {
   return cards.map((card, index) => {
     const linerRaw = card.linerImage;
@@ -188,31 +181,6 @@ export function cardsToPackageTours(cards: ContentBlockCard[]): PackageTour[] {
     amenities: asStringArray(card.amenities),
     included: asStringArray(card.included),
   }));
-}
-
-export function resolveHotDeals(
-  block: ContentBlock | undefined,
-  fallback: HotDeal[],
-  cruises: CruiseRecord[] = [],
-): HotDeal[] {
-  if (!block?.items?.length) return fallback;
-  const curated = resolveCuratedHotDeals(block.items, cruises);
-  if (curated.length) return curated;
-  // Legacy free-form cards (pre-curation) still render if present.
-  const legacy = cardsToHotDeals(block.items);
-  return legacy.length ? legacy : fallback;
-}
-
-export function resolveUniqueRoutes(
-  block: ContentBlock | undefined,
-  fallback: UniqueRoute[],
-  cruises: CruiseRecord[] = [],
-): UniqueRoute[] {
-  if (!block?.items?.length) return fallback;
-  const curated = resolveCuratedUniqueRoutes(block.items, cruises);
-  if (curated.length) return curated;
-  const legacy = cardsToUniqueRoutes(block.items);
-  return legacy.length ? legacy : fallback;
 }
 
 export function resolveDestinations(block?: ContentBlock | null): Destination[] {
