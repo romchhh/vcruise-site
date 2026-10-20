@@ -1,10 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
-import { packageTours } from "@/data/tours";
+import { useMemo, useState } from "react";
 import TourCard from "./TourCard";
 import SectionIntro from "./SectionIntro";
+import { resolvePackageTours } from "@/lib/cms/section-items";
 import type { ContentBlock } from "@/lib/cms/store";
 import type { PackageTour } from "@/types";
 
@@ -18,6 +18,7 @@ export default function PackageTours({
 }: {
   section?: ContentBlock | null;
 }) {
+  const list = useMemo(() => resolvePackageTours(section), [section]);
   const [activeTour, setActiveTour] = useState<PackageTour | null>(null);
 
   return (
@@ -31,7 +32,7 @@ export default function PackageTours({
         />
 
         <div className="mt-14 grid grid-cols-2 gap-2.5 sm:gap-5 lg:grid-cols-3 lg:gap-6">
-          {packageTours.map((tour) => (
+          {list.map((tour) => (
             <TourCard
               key={tour.id}
               tour={tour}

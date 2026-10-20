@@ -1,10 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
-import { linerClasses } from "@/data/liner-classes";
+import { useMemo, useState } from "react";
 import LinerClassCard from "./LinerClassCard";
 import SectionIntro from "./SectionIntro";
+import { resolveLinerClasses } from "@/lib/cms/section-items";
 import type { ContentBlock } from "@/lib/cms/store";
 import type { LinerClass } from "@/types";
 
@@ -18,6 +18,7 @@ export default function LinerClasses({
 }: {
   section?: ContentBlock | null;
 }) {
+  const list = useMemo(() => resolveLinerClasses(section), [section]);
   const [activeClass, setActiveClass] = useState<LinerClass | null>(null);
 
   return (
@@ -31,7 +32,7 @@ export default function LinerClasses({
         />
 
         <div className="mt-14 grid grid-cols-2 items-stretch gap-2.5 sm:gap-5 lg:grid-cols-4 lg:gap-6">
-          {linerClasses.map((linerClass) => (
+          {list.map((linerClass) => (
             <LinerClassCard
               key={linerClass.id}
               linerClass={linerClass}

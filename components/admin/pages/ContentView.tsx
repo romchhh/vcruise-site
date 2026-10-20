@@ -11,6 +11,8 @@ import {
 } from "@/components/admin/AdminUi";
 import ui from "@/components/admin/AdminUi.module.css";
 import ImageGalleryField from "@/components/admin/ImageGalleryField";
+import ContentCardsEditor from "@/components/admin/pages/ContentCardsEditor";
+import { isCardSection } from "@/lib/cms/section-items";
 import type {
   ContentBlock,
   ContentBlockFeature,
@@ -119,6 +121,7 @@ function normalizeBlock(block: ContentBlock): ContentBlock {
     paragraphs: Array.isArray(block.paragraphs) ? block.paragraphs : [],
     images: Array.isArray(block.images) ? block.images : [],
     features: Array.isArray(block.features) ? block.features : [],
+    items: Array.isArray(block.items) ? block.items : [],
   };
 }
 
@@ -178,11 +181,31 @@ export default function ContentView() {
     [editing],
   );
 
-  function openEditor(block: ContentBlock) {
+  async function openEditor(block: ContentBlock) {
     const next = normalizeBlock(block);
     setEditing(next);
     setParagraphsText(next.paragraphs.join("\n\n"));
     setFormError("");
+
+    const needsSuggest =
+      (next.key === "hot-deals" || next.key === "unique-routes") &&
+      next.items.length === 0;
+    if (!needsSuggest) return;
+
+    try {
+      const data = await adminFetch<{
+        ok: boolean;
+        items: ContentBlock["items"];
+      }>(`/api/admin/content/suggest?key=${encodeURIComponent(next.key)}`);
+      if (!data.items?.length) return;
+      setEditing((current) =>
+        current && current.id === next.id && current.items.length === 0
+          ? { ...current, items: data.items }
+          : current,
+      );
+    } catch {
+      // Keep empty — admin can pull manually.
+    }
   }
 
   function update<K extends keyof ContentBlock>(
@@ -329,7 +352,7 @@ export default function ContentView() {
                 key={block.id}
                 type="button"
                 className={styles.blockCard}
-                onClick={() => openEditor(block)}
+                onClick={() => void openEditor(block)}
                 aria-label={`Редагувати блок ${block.label}`}
               >
                 <div className={styles.blockCover}>
@@ -373,6 +396,14 @@ export default function ContentView() {
                     {fields.features ? (
                       <span className={styles.chip}>
                         Переваги · {block.features.length}
+                      </span>
+                    ) : null}
+                    {isCardSection(block.key) ? (
+                      <span
+                        className={`${styles.chip} ${block.items.length ? styles.chipOn : ""}`}
+                      >
+                        Картки
+                        {block.items.length ? ` · ${block.items.length}` : ""}
                       </span>
                     ) : null}
                     {fields.paragraphs ? (
@@ -663,6 +694,14 @@ export default function ContentView() {
                   </GhostButton>
                 </div>
               </section>
+            ) : null}
+
+            {isCardSection(editing.key) ? (
+              <ContentCardsEditor
+                blockKey={editing.key}
+                items={editing.items}
+                onChange={(items) => update("items", items)}
+              />
             ) : null}
 
             {formError ? <p style={errorStyle}>{formError}</p> : null}

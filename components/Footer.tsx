@@ -2,13 +2,14 @@ import Image from "next/image";
 import FooterSubscribe from "@/components/footer/FooterSubscribe";
 import {
   footerLegal,
-  footerLinkColumns,
+  getFooterLinkColumns,
   footerTagline,
 } from "@/lib/footer";
 import { resolveSiteSettings } from "@/lib/cms/resolve-site";
 
 export default function Footer() {
   const site = resolveSiteSettings();
+  const footerLinkColumns = getFooterLinkColumns();
 
   return (
     <footer id="footer" className="section-frame">

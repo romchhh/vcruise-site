@@ -2,6 +2,9 @@ import fs from "fs";
 import path from "path";
 import type BetterSqlite3 from "better-sqlite3";
 import { aboutFeatures } from "@/data/about";
+import { destinations } from "@/data/destinations";
+import { linerClasses } from "@/data/liner-classes";
+import { packageTours } from "@/data/tours";
 import { siteConfig } from "@/lib/site";
 
 export type LeadStatus = "new" | "in_progress" | "done" | "archived";
@@ -84,6 +87,12 @@ export type ContentBlockFeature = {
   icon: string;
 };
 
+/** Curated homepage cards (hot deals, destinations, liner classes, etc.). */
+export type ContentBlockCard = {
+  id: string;
+  [key: string]: unknown;
+};
+
 export type ContentBlock = {
   id: string;
   key: ContentBlockKey;
@@ -99,6 +108,8 @@ export type ContentBlock = {
   ctaLabel: string;
   ctaHref: string;
   features: ContentBlockFeature[];
+  /** Editable cards/tiles shown inside the section. */
+  items: ContentBlockCard[];
   sortOrder: number;
 };
 
@@ -170,6 +181,7 @@ function defaultBlocks(): ContentBlock[] {
     ctaLabel: "",
     ctaHref: "",
     features: [] as ContentBlockFeature[],
+    items: [] as ContentBlockCard[],
   };
 
   const blocks: Array<
@@ -212,6 +224,7 @@ function defaultBlocks(): ContentBlock[] {
       title: "Оберіть свій клас лайнера",
       description:
         "Не всі лайнери однакові: від мегалайнерів з аквапарками до камерних преміальних суден. Ми допоможемо зрозуміти відмінності та обрати формат подорожі саме для вас.",
+      items: linerClasses.map((item) => ({ ...item })),
     },
     {
       ...empty,
@@ -221,6 +234,7 @@ function defaultBlocks(): ContentBlock[] {
       title: "Ваш наступний маршрут може бути тут",
       description:
         "Добірка актуальних круїзів на найближчі дати. Обирайте напрямок, лайнер або формат подорожі — допоможемо розібратися в деталях і підібрати найкращий варіант.",
+      items: destinations.map((item) => ({ ...item })),
     },
     {
       ...empty,
@@ -242,6 +256,7 @@ function defaultBlocks(): ContentBlock[] {
       title: "Подорожі, створені під вас",
       description:
         "Не тільки круїзи. Ми створюємо готові пакетні тури, поєднуючи готелі, перельоти, трансфери, екскурсії та інші послуги в одну комфортну подорож.",
+      items: packageTours.map((item) => ({ ...item })),
     },
     {
       ...empty,
@@ -358,11 +373,19 @@ function defaultDb(): CmsDb {
 function normalizeBlock(block: ContentBlock): ContentBlock {
   const fallback = defaultBlocks().find((entry) => entry.key === block.key);
   const merged: ContentBlock = { ...(fallback ?? block), ...block };
+  const storedItems = Array.isArray(merged.items) ? merged.items : [];
+  const seededItems =
+    storedItems.length > 0
+      ? storedItems
+      : Array.isArray(fallback?.items)
+        ? fallback.items
+        : [];
   return {
     ...merged,
     paragraphs: Array.isArray(merged.paragraphs) ? merged.paragraphs : [],
     images: Array.isArray(merged.images) ? merged.images : [],
     features: Array.isArray(merged.features) ? merged.features : [],
+    items: seededItems,
   };
 }
 

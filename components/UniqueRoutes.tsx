@@ -1,11 +1,12 @@
 import { getUniqueRoutes } from "@/lib/cruise-search/unique-routes";
 import { cmsBlock } from "@/lib/cms/content";
+import { resolveUniqueRoutes } from "@/lib/cms/section-items";
 import MobileHorizontalScroll from "./MobileHorizontalScroll";
 import UniqueRouteCard from "./UniqueRouteCard";
 
 export default async function UniqueRoutes() {
-  const routes = await getUniqueRoutes();
   const block = cmsBlock("unique-routes");
+  const routes = resolveUniqueRoutes(block, await getUniqueRoutes());
 
   return (
     <section id="unique-routes" className="section-frame">

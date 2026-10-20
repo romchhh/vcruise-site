@@ -1,10 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
-import { destinations } from "@/data/destinations";
+import { useMemo, useState } from "react";
 import DestinationCard from "./DestinationCard";
 import SectionIntro from "./SectionIntro";
+import { resolveDestinations } from "@/lib/cms/section-items";
 import type { ContentBlock } from "@/lib/cms/store";
 import type { Destination } from "@/types";
 
@@ -18,6 +18,7 @@ export default function PopularDestinations({
 }: {
   section?: ContentBlock | null;
 }) {
+  const list = useMemo(() => resolveDestinations(section), [section]);
   const [activeDestination, setActiveDestination] = useState<Destination | null>(
     null
   );
@@ -33,7 +34,7 @@ export default function PopularDestinations({
         />
 
         <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:gap-6">
-          {destinations.map((destination) => (
+          {list.map((destination) => (
             <DestinationCard
               key={destination.id}
               destination={destination}
