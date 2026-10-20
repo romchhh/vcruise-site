@@ -1,7 +1,7 @@
 "use client";
 
 import { useContactModal } from "@/components/contact/ContactModalProvider";
-import { footerSubscribe } from "@/lib/footer";
+import { footerSubscribe } from "@/lib/footer-copy";
 
 export default function FooterSubscribe() {
   const { openContactModal } = useContactModal();

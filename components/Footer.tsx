@@ -1,10 +1,7 @@
 import Image from "next/image";
 import FooterSubscribe from "@/components/footer/FooterSubscribe";
-import {
-  footerLegal,
-  getFooterLinkColumns,
-  footerTagline,
-} from "@/lib/footer";
+import { footerLegal, footerTagline } from "@/lib/footer-copy";
+import { getFooterLinkColumns } from "@/lib/footer";
 import { resolveSiteSettings } from "@/lib/cms/resolve-site";
 
 export default function Footer() {
