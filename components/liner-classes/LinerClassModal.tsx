@@ -26,6 +26,44 @@ function buildClassSearchHref(linerClass: LinerClass) {
   return `/search?${query}`;
 }
 
+function slugifyLinerName(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/[()]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function resolvePopularLiner(linerClass: LinerClass, linerName: string) {
+  const normalized = linerName.trim().toLowerCase();
+  const ship =
+    linerClass.ships.find((item) => item.name === linerName) ||
+    linerClass.ships.find(
+      (item) => item.name.trim().toLowerCase() === normalized,
+    );
+
+  const liner = ship?.linerSlug || slugifyLinerName(linerName);
+  if (!liner) return null;
+
+  return {
+    name: linerName,
+    liner,
+    company: ship?.company ?? "",
+  };
+}
+
+function buildLinerSearchHref(linerClass: LinerClass, linerName: string) {
+  const match = resolvePopularLiner(linerClass, linerName);
+  if (!match) return null;
+
+  const query = buildSearchParams({
+    company: match.company,
+    liner: match.liner,
+    newLinersOnly: false,
+  });
+  return `/search?${query}`;
+}
+
 export default function LinerClassModal({
   linerClass,
   onClose,
@@ -182,11 +220,27 @@ export default function LinerClassModal({
                     Найпопулярніші лайнери
                   </h4>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {linerClass.popularLiners.map((liner) => (
-                      <span key={liner} className="liner-class-modal-chip">
-                        {liner}
-                      </span>
-                    ))}
+                    {linerClass.popularLiners.map((liner) => {
+                      const href = buildLinerSearchHref(linerClass, liner);
+                      if (!href) {
+                        return (
+                          <span key={liner} className="liner-class-modal-chip">
+                            {liner}
+                          </span>
+                        );
+                      }
+
+                      return (
+                        <Link
+                          key={liner}
+                          href={href}
+                          onClick={onClose}
+                          className="liner-class-modal-chip liner-class-modal-chip--link"
+                        >
+                          {liner}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
 

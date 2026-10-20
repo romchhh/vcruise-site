@@ -10,6 +10,8 @@ import {
 } from "@/components/admin/AdminUi";
 import ui from "@/components/admin/AdminUi.module.css";
 import ImageGalleryField from "@/components/admin/ImageGalleryField";
+import AdminCruisePickFields from "@/components/admin/pages/AdminCruisePickFields";
+import { SECTION_CARD_LIMIT } from "@/lib/cms/curated-cruise-cards";
 import {
   emptyCardFor,
   isCardSection,
@@ -42,6 +44,13 @@ function fromLines(text: string) {
 }
 
 function cardTitle(card: ContentBlockCard, key: ContentBlockKey) {
+  if (key === "hot-deals" || key === "unique-routes") {
+    const company = asString(card.company);
+    const date = asString(card.date);
+    if (company && date) return `${company} · ${date}`;
+    if (company) return company;
+    return "Оберіть круїз";
+  }
   if (key === "package-tours") {
     return asString(card.hotel) || asString(card.title) || "Тур";
   }
@@ -96,6 +105,7 @@ export default function ContentCardsEditor({
   }
 
   function addCard() {
+    if (items.length >= SECTION_CARD_LIMIT) return;
     const card = emptyCardFor(blockKey);
     onChange([...items, card]);
     setOpenId(card.id);
@@ -117,8 +127,9 @@ export default function ContentCardsEditor({
       const data = await adminFetch<{ ok: boolean; items: ContentBlockCard[] }>(
         `/api/admin/content/suggest?key=${encodeURIComponent(blockKey)}`,
       );
-      onChange(data.items || []);
-      setOpenId(data.items?.[0]?.id ?? null);
+      const next = (data.items || []).slice(0, SECTION_CARD_LIMIT);
+      onChange(next);
+      setOpenId(next[0]?.id ?? null);
     } catch (err) {
       setError(
         err instanceof Error
@@ -134,12 +145,12 @@ export default function ContentCardsEditor({
     <section className={styles.section}>
       <div className={styles.sectionHead}>
         <h4 className={styles.sectionTitle}>
-          Картки секції · {items.length}
+          Картки секції · {items.length}/{SECTION_CARD_LIMIT}
         </h4>
         <p className={styles.sectionHint}>
           {cruiseDriven
-            ? "Якщо список порожній — на сайті показуються автоматичні круїзи з бази"
-            : "Ці картки показуються на головній у цій секції"}
+            ? "До 6 вікон. Порожній список = автопідбір з бази на сайті"
+            : "До 6 карток. Ці блоки показуються на головній у цій секції"}
         </p>
       </div>
 
@@ -148,10 +159,15 @@ export default function ContentCardsEditor({
           {suggesting
             ? "Завантаження…"
             : cruiseDriven
-              ? "Підтягнути з бази круїзів"
+              ? "Підтягнути 6 з бази"
               : "Скинути до стандартних"}
         </GhostButton>
-        <PrimaryButton onClick={addCard}>Додати картку</PrimaryButton>
+        <PrimaryButton
+          onClick={addCard}
+          disabled={items.length >= SECTION_CARD_LIMIT}
+        >
+          Додати вікно
+        </PrimaryButton>
         {cruiseDriven && items.length > 0 ? (
           <GhostButton
             onClick={() => {
@@ -233,153 +249,11 @@ export default function ContentCardsEditor({
 
                     {(blockKey === "hot-deals" ||
                       blockKey === "unique-routes") && (
-                      <>
-                        <div className={ui.formGrid}>
-                          <Field label="Заголовок картки">
-                            <input
-                              value={asString(card.title)}
-                              onChange={(event) =>
-                                updateCard(index, {
-                                  title: event.target.value,
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="Маршрут">
-                            <input
-                              value={asString(card.route)}
-                              onChange={(event) =>
-                                updateCard(index, {
-                                  route: event.target.value,
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="Дати">
-                            <input
-                              value={asString(card.dateRange)}
-                              onChange={(event) =>
-                                updateCard(index, {
-                                  dateRange: event.target.value,
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="Ночі">
-                            <input
-                              type="number"
-                              value={asNumber(card.nights)}
-                              onChange={(event) =>
-                                updateCard(index, {
-                                  nights: Number(event.target.value) || 0,
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="Ціна ($)">
-                            <input
-                              type="number"
-                              value={asNumber(card.price)}
-                              onChange={(event) =>
-                                updateCard(index, {
-                                  price: Number(event.target.value) || 0,
-                                })
-                              }
-                            />
-                          </Field>
-                          {blockKey === "hot-deals" ? (
-                            <>
-                              <Field label="Стара ціна ($)">
-                                <input
-                                  type="number"
-                                  value={asNumber(card.originalPrice)}
-                                  onChange={(event) =>
-                                    updateCard(index, {
-                                      originalPrice:
-                                        Number(event.target.value) || 0,
-                                    })
-                                  }
-                                />
-                              </Field>
-                              <Field label="Знижка (%)">
-                                <input
-                                  type="number"
-                                  value={asNumber(card.discountPercent)}
-                                  onChange={(event) =>
-                                    updateCard(index, {
-                                      discountPercent:
-                                        Number(event.target.value) || 0,
-                                    })
-                                  }
-                                />
-                              </Field>
-                              <Field label="Зображення (URL)">
-                                <input
-                                  value={asString(card.image)}
-                                  onChange={(event) =>
-                                    updateCard(index, {
-                                      image: event.target.value,
-                                    })
-                                  }
-                                />
-                              </Field>
-                            </>
-                          ) : (
-                            <>
-                              <Field label="Регіон">
-                                <input
-                                  value={asString(card.region)}
-                                  onChange={(event) =>
-                                    updateCard(index, {
-                                      region: event.target.value,
-                                    })
-                                  }
-                                />
-                              </Field>
-                              <Field label="Компанія / лінія">
-                                <input
-                                  value={asString(card.line)}
-                                  onChange={(event) =>
-                                    updateCard(index, {
-                                      line: event.target.value,
-                                    })
-                                  }
-                                />
-                              </Field>
-                              <Field label="Обкладинка (URL)">
-                                <input
-                                  value={asString(card.coverImage)}
-                                  onChange={(event) =>
-                                    updateCard(index, {
-                                      coverImage: event.target.value,
-                                    })
-                                  }
-                                />
-                              </Field>
-                              <Field label="Фото лайнера (hover)">
-                                <input
-                                  value={asString(card.linerImage)}
-                                  onChange={(event) =>
-                                    updateCard(index, {
-                                      linerImage: event.target.value,
-                                    })
-                                  }
-                                />
-                              </Field>
-                            </>
-                          )}
-                          <Field label="Посилання">
-                            <input
-                              value={asString(card.href)}
-                              onChange={(event) =>
-                                updateCard(index, {
-                                  href: event.target.value,
-                                })
-                              }
-                            />
-                          </Field>
-                        </div>
-                      </>
+                      <AdminCruisePickFields
+                        blockKey={blockKey}
+                        card={card}
+                        onChange={(patch) => updateCard(index, patch)}
+                      />
                     )}
 
                     {blockKey === "destinations" && (
@@ -666,6 +540,10 @@ export default function ContentCardsEditor({
 
                     {blockKey === "package-tours" && (
                       <>
+                        <p className={ui.tableHint}>
+                          Пакетний тур: маршрут/готель, опис (маршрут, пересадки,
+                          готель) і 3–5 фото.
+                        </p>
                         <div className={ui.formGrid}>
                           <Field label="Готель">
                             <input
@@ -677,7 +555,7 @@ export default function ContentCardsEditor({
                               }
                             />
                           </Field>
-                          <Field label="Місто">
+                          <Field label="Місто / маршрут">
                             <input
                               value={asString(card.city)}
                               onChange={(event) =>
@@ -749,70 +627,6 @@ export default function ContentCardsEditor({
                               }
                             />
                           </Field>
-                          <Field label="Гості">
-                            <input
-                              value={asString(card.guests)}
-                              onChange={(event) =>
-                                updateCard(index, {
-                                  guests: event.target.value,
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="Ліжко">
-                            <input
-                              value={asString(card.bed)}
-                              onChange={(event) =>
-                                updateCard(index, {
-                                  bed: event.target.value,
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="Рейтинг зірок">
-                            <input
-                              type="number"
-                              value={asNumber(card.rating)}
-                              onChange={(event) =>
-                                updateCard(index, {
-                                  rating: Number(event.target.value) || 0,
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="Оцінка відгуків">
-                            <input
-                              type="number"
-                              step="0.1"
-                              value={asNumber(card.reviewScore)}
-                              onChange={(event) =>
-                                updateCard(index, {
-                                  reviewScore: Number(event.target.value) || 0,
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="К-сть відгуків">
-                            <input
-                              type="number"
-                              value={asNumber(card.reviewCount)}
-                              onChange={(event) =>
-                                updateCard(index, {
-                                  reviewCount: Number(event.target.value) || 0,
-                                })
-                              }
-                            />
-                          </Field>
-                          <Field label="Мітка відгуку">
-                            <input
-                              value={asString(card.reviewLabel)}
-                              onChange={(event) =>
-                                updateCard(index, {
-                                  reviewLabel: event.target.value,
-                                })
-                              }
-                            />
-                          </Field>
                           <Field label="Головне фото (URL)">
                             <input
                               value={asString(card.image)}
@@ -824,8 +638,9 @@ export default function ContentCardsEditor({
                             />
                           </Field>
                         </div>
-                        <Field label="Опис">
+                        <Field label="Опис (маршрут, пересадки, готель)">
                           <textarea
+                            style={{ minHeight: 140 }}
                             value={asString(card.about)}
                             onChange={(event) =>
                               updateCard(index, {
@@ -834,6 +649,27 @@ export default function ContentCardsEditor({
                             }
                           />
                         </Field>
+                        <div>
+                          <span className={ui.detailLabel}>
+                            Фото 3–5 (готель, маршрут…)
+                          </span>
+                          <ImageGalleryField
+                            images={
+                              Array.isArray(card.gallery)
+                                ? card.gallery.filter(
+                                    (item): item is string =>
+                                      typeof item === "string",
+                                  )
+                                : []
+                            }
+                            onChange={(gallery) =>
+                              updateCard(index, {
+                                gallery: gallery.slice(0, 5),
+                                image: gallery[0] || asString(card.image),
+                              })
+                            }
+                          />
+                        </div>
                         <Field label="Зручності (по одному в рядку)">
                           <textarea
                             value={asLines(card.amenities)}
@@ -854,22 +690,6 @@ export default function ContentCardsEditor({
                             }
                           />
                         </Field>
-                        <div>
-                          <span className={ui.detailLabel}>Галерея</span>
-                          <ImageGalleryField
-                            images={
-                              Array.isArray(card.gallery)
-                                ? card.gallery.filter(
-                                    (item): item is string =>
-                                      typeof item === "string",
-                                  )
-                                : []
-                            }
-                            onChange={(gallery) =>
-                              updateCard(index, { gallery })
-                            }
-                          />
-                        </div>
                       </>
                     )}
                   </div>

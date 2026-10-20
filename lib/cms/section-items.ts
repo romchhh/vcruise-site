@@ -1,7 +1,13 @@
 import { destinations } from "@/data/destinations";
 import { linerClasses } from "@/data/liner-classes";
 import { packageTours } from "@/data/tours";
+import {
+  emptyCruiseCard,
+  resolveCuratedHotDeals,
+  resolveCuratedUniqueRoutes,
+} from "@/lib/cms/curated-cruise-cards";
 import type { ContentBlock, ContentBlockCard, ContentBlockKey } from "@/lib/cms/store";
+import type { CruiseRecord } from "@/lib/cruise-search/types";
 import type {
   Destination,
   HotDeal,
@@ -187,17 +193,26 @@ export function cardsToPackageTours(cards: ContentBlockCard[]): PackageTour[] {
 export function resolveHotDeals(
   block: ContentBlock | undefined,
   fallback: HotDeal[],
+  cruises: CruiseRecord[] = [],
 ): HotDeal[] {
-  if (block?.items?.length) return cardsToHotDeals(block.items);
-  return fallback;
+  if (!block?.items?.length) return fallback;
+  const curated = resolveCuratedHotDeals(block.items, cruises);
+  if (curated.length) return curated;
+  // Legacy free-form cards (pre-curation) still render if present.
+  const legacy = cardsToHotDeals(block.items);
+  return legacy.length ? legacy : fallback;
 }
 
 export function resolveUniqueRoutes(
   block: ContentBlock | undefined,
   fallback: UniqueRoute[],
+  cruises: CruiseRecord[] = [],
 ): UniqueRoute[] {
-  if (block?.items?.length) return cardsToUniqueRoutes(block.items);
-  return fallback;
+  if (!block?.items?.length) return fallback;
+  const curated = resolveCuratedUniqueRoutes(block.items, cruises);
+  if (curated.length) return curated;
+  const legacy = cardsToUniqueRoutes(block.items);
+  return legacy.length ? legacy : fallback;
 }
 
 export function resolveDestinations(block?: ContentBlock | null): Destination[] {
@@ -219,32 +234,9 @@ export function emptyCardFor(key: ContentBlockKey): ContentBlockCard {
   const id = `card-${Date.now().toString(36)}`;
   switch (key) {
     case "hot-deals":
-      return {
-        id,
-        title: "Нова пропозиція",
-        route: "",
-        dateRange: "",
-        nights: 7,
-        price: 0,
-        originalPrice: 0,
-        discountPercent: 25,
-        image: "/images/sections/hot-deals-cover.jpg",
-        href: "/search",
-      };
+      return emptyCruiseCard("hot-deals");
     case "unique-routes":
-      return {
-        id,
-        region: "",
-        line: "",
-        title: "Новий маршрут",
-        route: "",
-        dateRange: "",
-        nights: 7,
-        price: 0,
-        coverImage: "/images/sections/unique-routes-cover.jpg",
-        linerImage: "",
-        href: "/search",
-      };
+      return emptyCruiseCard("unique-routes");
     case "destinations":
       return {
         id,

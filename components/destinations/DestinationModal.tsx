@@ -44,9 +44,12 @@ export default function DestinationModal({
 
   if (!mounted || !destination) return null;
 
-  const searchHref = `/search?${buildSearchParams({
-    regions: [destination.searchLabel],
-  })}`;
+  const region =
+    destination.searchLabel?.trim() || destination.title?.trim() || "";
+  const searchQuery = buildSearchParams({
+    regions: region ? [region] : [],
+  });
+  const searchHref = searchQuery ? `/search?${searchQuery}` : "/search";
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4">

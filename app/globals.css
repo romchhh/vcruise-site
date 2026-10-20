@@ -678,6 +678,19 @@ body {
   color: color-mix(in srgb, var(--color-brand) 88%, var(--color-black));
 }
 
+.liner-class-modal-chip--link {
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.liner-class-modal-chip--link:hover {
+  background: color-mix(in srgb, var(--color-brand) 12%, white);
+  color: var(--color-brand);
+  transform: translateY(-1px);
+}
+
 .liner-class-modal-logo-cell {
   display: flex;
   min-height: 5.5rem;

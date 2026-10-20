@@ -1,4 +1,5 @@
 import { getHotDeals } from "@/lib/cruise-search/hot-deals";
+import { loadClientCruises } from "@/lib/cruise-search/load-cruises";
 import { cmsBlock } from "@/lib/cms/content";
 import { resolveHotDeals } from "@/lib/cms/section-items";
 import HotDealCard from "./HotDealCard";
@@ -6,7 +7,11 @@ import MobileHorizontalScroll from "./MobileHorizontalScroll";
 
 export default async function HotDeals() {
   const block = cmsBlock("hot-deals");
-  const deals = resolveHotDeals(block, await getHotDeals());
+  const deals = resolveHotDeals(
+    block,
+    await getHotDeals(),
+    loadClientCruises(),
+  );
 
   return (
     <section id="hot-deals" className="bg-background py-14 sm:py-20 lg:py-24">

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  HERO_DESTINATIONS,
   HERO_DURATION_OPTIONS,
   MONTH_LABELS,
   REGION_TREE,
@@ -78,6 +79,15 @@ export default function CruiseSearchFilters({
             className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
           >
             <option value="">Усі регіони</option>
+            <optgroup label="Популярні напрямки">
+              {HERO_DESTINATIONS.filter((item) => item !== "Будь-який").map(
+                (label) => (
+                  <option key={label} value={label}>
+                    {label}
+                  </option>
+                ),
+              )}
+            </optgroup>
             {REGION_TREE.map((group) =>
               group.group ? (
                 <optgroup key={group.group} label={group.group}>
@@ -93,7 +103,7 @@ export default function CruiseSearchFilters({
                     {label}
                   </option>
                 ))
-              )
+              ),
             )}
           </select>
         </label>
@@ -220,6 +230,42 @@ export default function CruiseSearchFilters({
             value={filters.dateTo}
             onChange={(event) => onChange({ dateTo: event.target.value })}
             className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
+          />
+        </label>
+
+        <label className="flex flex-col gap-2">
+          <span className="text-caption font-semibold text-[color:var(--color-black)]">
+            Бюджет від (
+            {filters.currency === "NAT" ? "₴" : filters.currency})
+          </span>
+          <input
+            type="number"
+            min={0}
+            step={50}
+            value={filters.priceMin}
+            onChange={(event) =>
+              onChange({ priceMin: Number(event.target.value) || 0 })
+            }
+            className="field-control h-12 bg-white px-4 text-body text-[color:var(--color-black)]"
+            placeholder="Від"
+          />
+        </label>
+
+        <label className="flex flex-col gap-2">
+          <span className="text-caption font-semibold text-[color:var(--color-black)]">
+            Бюджет до (
+            {filters.currency === "NAT" ? "₴" : filters.currency})
+          </span>
+          <input
+            type="number"
+            min={0}
+            step={50}
+            value={filters.priceMax}
+            onChange={(event) =>
+              onChange({ priceMax: Number(event.target.value) || 0 })
+            }
+            className="field-control h-12 bg-white px-4 text-body text-[color:var(--color-black)]"
+            placeholder="До"
           />
         </label>
       </div>

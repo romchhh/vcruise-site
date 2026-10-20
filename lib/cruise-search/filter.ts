@@ -142,6 +142,13 @@ export function filterCruises(
       return false;
     }
 
+    const price = cheapestPrice(cruise, filters.currency);
+    if (price != null) {
+      if (price < filters.priceMin || price > filters.priceMax) {
+        return false;
+      }
+    }
+
     return true;
   });
 }

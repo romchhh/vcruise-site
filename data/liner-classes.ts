@@ -43,8 +43,12 @@ export const linerClasses: LinerClass[] = [
         linerSlug: "msc-world-europa",
         company: "MSC Cruises",
       },
-      { name: "Norwegian Viva" },
-      { name: "Aqua" },
+      {
+        name: "Norwegian Viva",
+        linerSlug: "norwegian-viva",
+        company: "Norwegian Cruise Line",
+      },
+      { name: "Aqua", linerSlug: "aqua", company: "MSC Cruises" },
       {
         name: "Icon of the Seas",
         linerSlug: "icon-of-the-seas",

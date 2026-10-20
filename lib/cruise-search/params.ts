@@ -108,6 +108,8 @@ export function parseSearchParams(
     adults: parseNumber(params.adults, 0),
     children: parseNumber(params.children, 0),
     infants: parseNumber(params.infants, 0),
+    priceMin: parseNumber(params.priceMin, defaults.priceMin),
+    priceMax: parseNumber(params.priceMax, defaults.priceMax),
     sort: (sortRaw as CruiseSort) || defaults.sort,
     currency: (currencyRaw as CurrencyCode) || defaults.currency,
     newLinersOnly: newLinersRaw === "1",
@@ -140,6 +142,18 @@ export function buildSearchParams(filters: Partial<CruiseSearchFilters>) {
   if (filters.adults) params.set("adults", String(filters.adults));
   if (filters.children) params.set("children", String(filters.children));
   if (filters.infants) params.set("infants", String(filters.infants));
+  if (
+    typeof filters.priceMin === "number" &&
+    Number.isFinite(filters.priceMin)
+  ) {
+    params.set("priceMin", String(Math.round(filters.priceMin)));
+  }
+  if (
+    typeof filters.priceMax === "number" &&
+    Number.isFinite(filters.priceMax)
+  ) {
+    params.set("priceMax", String(Math.round(filters.priceMax)));
+  }
   if (filters.sort && filters.sort !== "date_asc") {
     params.set("sort", filters.sort);
   }

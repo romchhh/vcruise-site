@@ -52,12 +52,21 @@ export default function CruiseSearchApp({
 
   const companies = useMemo(() => {
     const available = new Set(
-      bookableCruises.map((cruise) => cruise.cruise_title)
+      bookableCruises.map((cruise) => cruise.cruise_title),
     );
-    return FEATURED_CRUISE_COMPANIES.filter((company) =>
-      available.has(company)
+    const list: string[] = FEATURED_CRUISE_COMPANIES.filter((company) =>
+      available.has(company),
     );
-  }, [bookableCruises]);
+    // Keep a company from deep-links even if it's outside the featured list.
+    if (
+      filters.company &&
+      !list.includes(filters.company) &&
+      available.has(filters.company)
+    ) {
+      list.push(filters.company);
+    }
+    return list.sort((a, b) => a.localeCompare(b, "uk"));
+  }, [bookableCruises, filters.company]);
 
   const liners = useMemo(() => {
     const pool = filters.company
@@ -66,14 +75,26 @@ export default function CruiseSearchApp({
         )
       : bookableCruises;
 
-    return [...new Map(
+    const map = new Map(
       pool
         .filter((cruise) => cruise.liner_slug && cruise.liner_name)
-        .map((cruise) => [cruise.liner_slug, cruise.liner_name])
-    ).entries()]
-      .map(([slug, name]) => ({ slug, name: name! }))
+        .map((cruise) => [cruise.liner_slug, cruise.liner_name!]),
+    );
+
+    // Ensure the selected liner from URL is always visible in the dropdown.
+    if (filters.liner && !map.has(filters.liner)) {
+      const match = bookableCruises.find(
+        (cruise) => cruise.liner_slug === filters.liner,
+      );
+      if (match?.liner_name) {
+        map.set(filters.liner, match.liner_name);
+      }
+    }
+
+    return [...map.entries()]
+      .map(([slug, name]) => ({ slug, name }))
       .sort((left, right) => left.name.localeCompare(right.name, "uk"));
-  }, [bookableCruises, filters.company]);
+  }, [bookableCruises, filters.company, filters.liner]);
 
   const results = useMemo(() => {
     const filtered = filterCruises(bookableCruises, filters);
@@ -140,7 +161,13 @@ export default function CruiseSearchApp({
     filters.duration !== "Будь-яка" ||
     filters.dateFrom ||
     filters.dateTo ||
+    filters.priceMin > defaults.priceMin ||
+    filters.priceMax < defaults.priceMax ||
     filters.newLinersOnly;
+
+  const activeRegionLabel = filters.regions[0] || "";
+  const activeLinerLabel =
+    liners.find((item) => item.slug === filters.liner)?.name || "";
 
   return (
     <main className="bg-background pb-16 pt-28 sm:pt-32">
@@ -155,6 +182,25 @@ export default function CruiseSearchApp({
               Актуальні пропозиції від провідних круїзних компаній. Оберіть
               напрямок, дати та тривалість — ми покажемо найкращі варіанти.
             </p>
+            {activeRegionLabel || activeLinerLabel || filters.company ? (
+              <div className="mt-3 flex flex-col gap-1">
+                {activeRegionLabel ? (
+                  <p className="text-caption font-semibold text-[color:var(--color-brand)]">
+                    Обраний напрямок: {activeRegionLabel}
+                  </p>
+                ) : null}
+                {filters.company ? (
+                  <p className="text-caption font-semibold text-[color:var(--color-brand)]">
+                    Компанія: {filters.company}
+                  </p>
+                ) : null}
+                {activeLinerLabel ? (
+                  <p className="text-caption font-semibold text-[color:var(--color-brand)]">
+                    Обраний лайнер: {activeLinerLabel}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <CruiseSearchFilters
