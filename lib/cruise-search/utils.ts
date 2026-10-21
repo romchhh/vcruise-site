@@ -92,15 +92,6 @@ export function getDurationBounds(durationLabel: string) {
   }
 }
 
-function percentile(sorted: number[], p: number) {
-  if (!sorted.length) return 0;
-  const index = Math.min(
-    sorted.length - 1,
-    Math.max(0, Math.floor((sorted.length - 1) * p)),
-  );
-  return sorted[index]!;
-}
-
 export function getSearchBounds(
   cruises: CruiseRecord[],
   currency: CurrencyCode = "NAT",
@@ -108,13 +99,11 @@ export function getSearchBounds(
   const nights = cruises.map((cruise) => cruise.nights).filter((n) => n > 0);
   const prices = cruises
     .map((cruise) => cheapestPrice(cruise, currency))
-    .filter((price): price is number => price != null)
-    .sort((left, right) => left - right);
+    .filter((price): price is number => price != null);
 
-  // Ignore extreme outliers so the budget slider stays usable.
-  const priceMin = prices.length ? Math.floor(prices[0]!) : 0;
+  const priceMin = prices.length ? Math.floor(Math.min(...prices)) : 0;
   const priceMax = prices.length
-    ? Math.ceil(Math.max(percentile(prices, 0.98), priceMin + 1))
+    ? Math.ceil(Math.max(Math.max(...prices), priceMin + 1))
     : 100_000;
 
   return {
