@@ -18,7 +18,7 @@ let cachedClient: ReturnType<typeof serializeCruisesForClient> | null = null;
 
 function readMtimeMs(filePath = OUTPUT_FILE) {
   try {
-    return fs.statSync(filePath).mtimeMs;
+    return fs.statSync(/*turbopackIgnore: true*/ filePath).mtimeMs;
   } catch {
     return 0;
   }
@@ -68,8 +68,8 @@ function parseCruiseJson(raw: string): CruiseRecord[] | null {
 
 function readCruiseFile(filePath: string): CruiseRecord[] | null {
   try {
-    if (!fs.existsSync(filePath)) return null;
-    const raw = fs.readFileSync(filePath, "utf-8");
+    if (!fs.existsSync(/*turbopackIgnore: true*/ filePath)) return null;
+    const raw = fs.readFileSync(/*turbopackIgnore: true*/ filePath, "utf-8");
     return parseCruiseJson(raw);
   } catch {
     return null;

@@ -144,8 +144,9 @@ export type AdminSessionRecord = {
   expiresAt: string;
 };
 
-const DATA_DIR =
-  process.env.CMS_DATA_DIR || path.join(process.cwd(), "cms-data");
+/** Default CMS dir — statically scoped so Turbopack does not trace the whole repo. */
+const DEFAULT_CMS_DATA_DIR = path.join(process.cwd(), "cms-data");
+const DATA_DIR = process.env.CMS_DATA_DIR?.trim() || DEFAULT_CMS_DATA_DIR;
 const SQLITE_FILE = path.join(DATA_DIR, "vcruise.sqlite");
 
 /** Keep the sync history table from growing without bound. */
@@ -390,8 +391,8 @@ function normalizeBlock(block: ContentBlock): ContentBlock {
 }
 
 function ensureDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(/*turbopackIgnore: true*/ DATA_DIR)) {
+    fs.mkdirSync(/*turbopackIgnore: true*/ DATA_DIR, { recursive: true });
   }
 }
 

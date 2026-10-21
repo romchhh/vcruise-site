@@ -41,7 +41,10 @@ let cruiseCountCache: { mtimeMs: number; count: number } | null = null;
 function readCruiseDataUpdatedAt(): string | undefined {
   try {
     const raw = fs
-      .readFileSync(path.join(CRUISE_DATA_DIR, ".last-update"), "utf-8")
+      .readFileSync(
+        /*turbopackIgnore: true*/ path.join(CRUISE_DATA_DIR, ".last-update"),
+        "utf-8",
+      )
       .trim();
     const seconds = Number(raw);
     if (!Number.isFinite(seconds) || seconds <= 0) return undefined;
@@ -55,12 +58,12 @@ function readCruiseDataUpdatedAt(): string | undefined {
 function readCruiseCount(): number | undefined {
   try {
     const file = path.join(CRUISE_DATA_DIR, "cruises_output.json");
-    const { mtimeMs } = fs.statSync(file);
+    const { mtimeMs } = fs.statSync(/*turbopackIgnore: true*/ file);
     if (cruiseCountCache && cruiseCountCache.mtimeMs === mtimeMs) {
       return cruiseCountCache.count;
     }
 
-    const raw = fs.readFileSync(file, "utf-8").trim();
+    const raw = fs.readFileSync(/*turbopackIgnore: true*/ file, "utf-8").trim();
     if (!raw) return undefined;
 
     let count: number;
