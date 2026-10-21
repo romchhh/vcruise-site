@@ -92,16 +92,35 @@ export function getDurationBounds(durationLabel: string) {
   }
 }
 
-export function getSearchBounds(cruises: CruiseRecord[]) {
+function percentile(sorted: number[], p: number) {
+  if (!sorted.length) return 0;
+  const index = Math.min(
+    sorted.length - 1,
+    Math.max(0, Math.floor((sorted.length - 1) * p)),
+  );
+  return sorted[index]!;
+}
+
+export function getSearchBounds(
+  cruises: CruiseRecord[],
+  currency: CurrencyCode = "NAT",
+) {
   const nights = cruises.map((cruise) => cruise.nights).filter((n) => n > 0);
   const prices = cruises
-    .map((cruise) => cheapestPrice(cruise, "NAT"))
-    .filter((price): price is number => price != null);
+    .map((cruise) => cheapestPrice(cruise, currency))
+    .filter((price): price is number => price != null)
+    .sort((left, right) => left - right);
+
+  // Ignore extreme outliers so the budget slider stays usable.
+  const priceMin = prices.length ? Math.floor(prices[0]!) : 0;
+  const priceMax = prices.length
+    ? Math.ceil(Math.max(percentile(prices, 0.98), priceMin + 1))
+    : 100_000;
 
   return {
     durMin: nights.length ? Math.min(...nights) : 1,
     durMax: nights.length ? Math.max(...nights) : 30,
-    priceMin: prices.length ? Math.min(...prices) : 0,
-    priceMax: prices.length ? Math.max(...prices) : 100000,
+    priceMin,
+    priceMax,
   };
 }

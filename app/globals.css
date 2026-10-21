@@ -950,3 +950,65 @@ body {
     opacity: 1;
   }
 }
+
+/* Dual budget range slider (search filters) */
+.budget-range-input {
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  outline: none;
+}
+
+.budget-range-input::-webkit-slider-runnable-track {
+  height: 1.5rem;
+  background: transparent;
+}
+
+.budget-range-input::-moz-range-track {
+  height: 1.5rem;
+  background: transparent;
+  border: 0;
+}
+
+.budget-range-input::-webkit-slider-thumb {
+  pointer-events: auto;
+  appearance: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.1875rem;
+  border-radius: 999px;
+  border: 2px solid var(--color-brand);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(14, 14, 14, 0.18);
+  cursor: grab;
+}
+
+.budget-range-input::-moz-range-thumb {
+  pointer-events: auto;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 999px;
+  border: 2px solid var(--color-brand);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(14, 14, 14, 0.18);
+  cursor: grab;
+}
+
+.budget-range-input:active::-webkit-slider-thumb,
+.budget-range-input:active::-moz-range-thumb {
+  cursor: grabbing;
+}
+
+.budget-range-input--min {
+  z-index: 2;
+}
+
+.budget-range-input--max {
+  z-index: 3;
+}

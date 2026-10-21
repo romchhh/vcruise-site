@@ -30,9 +30,10 @@ function parseNumber(
 }
 
 export function createDefaultFilters(
-  cruises: CruiseRecord[]
+  cruises: CruiseRecord[],
+  currency: CurrencyCode = "NAT",
 ): CruiseSearchFilters {
-  const bounds = getSearchBounds(cruises);
+  const bounds = getSearchBounds(cruises, currency);
 
   return {
     regions: [],
@@ -51,7 +52,7 @@ export function createDefaultFilters(
     children: 0,
     infants: 0,
     sort: "date_asc",
-    currency: "NAT",
+    currency,
     newLinersOnly: false,
   };
 }
@@ -83,9 +84,14 @@ export function parseSearchParams(
   const currencyRaw = Array.isArray(params.currency)
     ? params.currency[0]
     : params.currency;
+  const currency = (currencyRaw as CurrencyCode) || defaults.currency;
+  const bounds = getSearchBounds(cruises, currency);
   const newLinersRaw = Array.isArray(params.newLiners)
     ? params.newLiners[0]
     : params.newLiners;
+
+  const priceMin = parseNumber(params.priceMin, bounds.priceMin);
+  const priceMax = parseNumber(params.priceMax, bounds.priceMax);
 
   return {
     ...defaults,
@@ -108,10 +114,12 @@ export function parseSearchParams(
     adults: parseNumber(params.adults, 0),
     children: parseNumber(params.children, 0),
     infants: parseNumber(params.infants, 0),
-    priceMin: parseNumber(params.priceMin, defaults.priceMin),
-    priceMax: parseNumber(params.priceMax, defaults.priceMax),
+    durMin: bounds.durMin,
+    durMax: bounds.durMax,
+    priceMin: Math.min(Math.max(priceMin, bounds.priceMin), bounds.priceMax),
+    priceMax: Math.max(Math.min(priceMax, bounds.priceMax), bounds.priceMin),
     sort: (sortRaw as CruiseSort) || defaults.sort,
-    currency: (currencyRaw as CurrencyCode) || defaults.currency,
+    currency,
     newLinersOnly: newLinersRaw === "1",
   };
 }

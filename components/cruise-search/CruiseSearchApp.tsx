@@ -11,7 +11,7 @@ import {
   parseSearchParams,
 } from "@/lib/cruise-search/params";
 import { sanitizeSelectedMonths } from "@/lib/cruise-search/month-helpers";
-import { hasBookableDates } from "@/lib/cruise-search/utils";
+import { getSearchBounds, hasBookableDates } from "@/lib/cruise-search/utils";
 import type {
   CruiseRecord,
   CruiseSearchFilters as CruiseSearchFiltersState,
@@ -32,11 +32,6 @@ export default function CruiseSearchApp({
     [cruises]
   );
 
-  const defaults = useMemo(
-    () => createDefaultFilters(bookableCruises),
-    [bookableCruises]
-  );
-
   const initialFilters = useMemo(() => {
     const params: Record<string, string | string[] | undefined> = {};
     searchParams.forEach((value, key) => {
@@ -47,6 +42,16 @@ export default function CruiseSearchApp({
 
   const [filters, setFilters] =
     useState<CruiseSearchFiltersState>(initialFilters);
+
+  const priceBounds = useMemo(
+    () => getSearchBounds(bookableCruises, filters.currency),
+    [bookableCruises, filters.currency],
+  );
+
+  const defaults = useMemo(
+    () => createDefaultFilters(bookableCruises, filters.currency),
+    [bookableCruises, filters.currency],
+  );
   const [visibleCount, setVisibleCount] = useState(SEARCH_RESULTS_PAGE_SIZE);
   const [bookingCruise, setBookingCruise] = useState<CruiseRecord | null>(null);
 
@@ -129,6 +134,12 @@ export default function CruiseSearchApp({
         next.months = sanitizeSelectedMonths(next.months, next.year);
       }
 
+      if ("currency" in patch && patch.currency) {
+        const bounds = getSearchBounds(bookableCruises, patch.currency);
+        next.priceMin = bounds.priceMin;
+        next.priceMax = bounds.priceMax;
+      }
+
       if ("newLinersOnly" in patch) {
         const query = buildSearchParams(next);
         router.replace(query ? `/search?${query}` : "/search", { scroll: false });
@@ -148,7 +159,8 @@ export default function CruiseSearchApp({
   };
 
   const resetFilters = () => {
-    setFilters(defaults);
+    const reset = createDefaultFilters(bookableCruises, "NAT");
+    setFilters(reset);
     router.replace("/search", { scroll: false });
   };
 
@@ -161,8 +173,8 @@ export default function CruiseSearchApp({
     filters.duration !== "Будь-яка" ||
     filters.dateFrom ||
     filters.dateTo ||
-    filters.priceMin > defaults.priceMin ||
-    filters.priceMax < defaults.priceMax ||
+    filters.priceMin > priceBounds.priceMin ||
+    filters.priceMax < priceBounds.priceMax ||
     filters.newLinersOnly;
 
   const activeRegionLabel = filters.regions[0] || "";
@@ -207,6 +219,8 @@ export default function CruiseSearchApp({
             filters={filters}
             companies={companies}
             liners={liners}
+            priceBoundMin={priceBounds.priceMin}
+            priceBoundMax={priceBounds.priceMax}
             onChange={updateFilters}
             onApply={applyFilters}
             onReset={resetFilters}

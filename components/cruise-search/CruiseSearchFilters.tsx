@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CURRENCY_SYMBOL,
   HERO_DESTINATIONS,
   HERO_DURATION_OPTIONS,
   MONTH_LABELS,
@@ -13,12 +14,15 @@ import type {
 } from "@/lib/cruise-search/types";
 import { isMonthSelectable } from "@/lib/cruise-search/month-helpers";
 import { todayIso } from "@/lib/cruise-search/utils";
+import BudgetRangeSlider from "./BudgetRangeSlider";
 import NewLinersToggle from "./NewLinersToggle";
 
 type Props = {
   filters: CruiseSearchFilters;
   companies: string[];
   liners: Array<{ slug: string; name: string }>;
+  priceBoundMin: number;
+  priceBoundMax: number;
   onChange: (patch: Partial<CruiseSearchFilters>) => void;
   onApply: () => void;
   onReset: () => void;
@@ -40,6 +44,8 @@ export default function CruiseSearchFilters({
   filters,
   companies,
   liners,
+  priceBoundMin,
+  priceBoundMax,
   onChange,
   onApply,
   onReset,
@@ -233,41 +239,14 @@ export default function CruiseSearchFilters({
           />
         </label>
 
-        <label className="flex flex-col gap-2">
-          <span className="text-caption font-semibold text-[color:var(--color-black)]">
-            Бюджет від (
-            {filters.currency === "NAT" ? "₴" : filters.currency})
-          </span>
-          <input
-            type="number"
-            min={0}
-            step={50}
-            value={filters.priceMin}
-            onChange={(event) =>
-              onChange({ priceMin: Number(event.target.value) || 0 })
-            }
-            className="field-control h-12 bg-white px-4 text-body text-[color:var(--color-black)]"
-            placeholder="Від"
-          />
-        </label>
-
-        <label className="flex flex-col gap-2">
-          <span className="text-caption font-semibold text-[color:var(--color-black)]">
-            Бюджет до (
-            {filters.currency === "NAT" ? "₴" : filters.currency})
-          </span>
-          <input
-            type="number"
-            min={0}
-            step={50}
-            value={filters.priceMax}
-            onChange={(event) =>
-              onChange({ priceMax: Number(event.target.value) || 0 })
-            }
-            className="field-control h-12 bg-white px-4 text-body text-[color:var(--color-black)]"
-            placeholder="До"
-          />
-        </label>
+        <BudgetRangeSlider
+          minBound={priceBoundMin}
+          maxBound={priceBoundMax}
+          valueMin={filters.priceMin}
+          valueMax={filters.priceMax}
+          currencyLabel={CURRENCY_SYMBOL[filters.currency]}
+          onChange={(next) => onChange(next)}
+        />
       </div>
 
       <div className="mt-5">
