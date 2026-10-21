@@ -5,6 +5,8 @@ export type CruiseBookingDetails = {
   route: string;
   nights: number;
   cruiseDate: string;
+  /** Selected cabin category, e.g. «З балконом». */
+  cabinType?: string;
   priceLabel?: string;
 };
 
@@ -34,8 +36,12 @@ export function formatContactTelegramMessage(payload: ContactFormPayload) {
       `🗺 Маршрут: ${booking.route}`,
     ];
 
+    if (booking.cabinType) {
+      lines.push(`🚪 Каюта: ${booking.cabinType}`);
+    }
+
     if (booking.priceLabel) {
-      lines.push(`💰 Ціна від: ${booking.priceLabel}`);
+      lines.push(`💰 Ціна: ${booking.priceLabel}`);
     }
 
     lines.push(

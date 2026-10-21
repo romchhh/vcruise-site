@@ -147,7 +147,13 @@ export function cardToHotDeal(
     price,
     originalPrice: originalPriceFromDeal(price, discountPercent),
     discountPercent,
-    image: asString(card.image) || HOT_DEAL_COVER_IMAGE,
+    image: (() => {
+      const override = asString(card.image);
+      if (override && override !== HOT_DEAL_COVER_IMAGE) return override;
+      const logo = cruise.liner_logo?.trim();
+      if (logo && (logo.startsWith("http") || logo.startsWith("/"))) return logo;
+      return override || HOT_DEAL_COVER_IMAGE;
+    })(),
     href: `/search?${buildSearchParams({
       regions: [region],
       company: cruise.cruise_title,

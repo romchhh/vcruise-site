@@ -27,6 +27,9 @@ export default function HotDealCard({ deal }: { deal: HotDeal }) {
           fill
           className="object-cover object-[50%_70%]"
           sizes="(max-width: 1024px) 92vw, 33vw"
+          unoptimized={
+            deal.image.startsWith("http") || deal.image.startsWith("/api/media/")
+          }
         />
         <div
           className="absolute inset-x-2 top-2 z-10 flex flex-col items-start gap-1 sm:inset-x-3 sm:top-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2"

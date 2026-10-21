@@ -2,15 +2,21 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
-import { CURRENCY_SYMBOL } from "@/lib/cruise-search/constants";
+import { ArrowLeft, X } from "lucide-react";
 import {
-  cheapestPrice,
+  CABIN_ORDER,
+  CURRENCY_SYMBOL,
+} from "@/lib/cruise-search/constants";
+import {
   formatDate,
   formatMoney,
   getUpcomingDates,
 } from "@/lib/cruise-search/utils";
-import type { CruiseRecord, CurrencyCode } from "@/lib/cruise-search/types";
+import type {
+  CabinPriceMap,
+  CruiseRecord,
+  CurrencyCode,
+} from "@/lib/cruise-search/types";
 import {
   formatUaPhoneInput,
   isValidUaPhone,
@@ -22,11 +28,14 @@ type CruiseBookingModalProps = {
   onClose: () => void;
 };
 
+type Step = "cabins" | "form";
+
 type FormState = {
   name: string;
   phone: string;
   details: string;
   cruiseDate: string;
+  cabinType: string;
 };
 
 const initialForm: FormState = {
@@ -34,6 +43,14 @@ const initialForm: FormState = {
   phone: "+380 ",
   details: "",
   cruiseDate: "",
+  cabinType: "",
+};
+
+const CABIN_HINTS: Record<(typeof CABIN_ORDER)[number], string> = {
+  Внутрішня: "Без вікна — найдоступніший варіант",
+  "З вікном": "Вікно або ілюмінатор з видом на море",
+  "З балконом": "Приватний балкон і свіже повітря",
+  Сьют: "Більша площа та підвищений комфорт",
 };
 
 function Field({
@@ -51,6 +68,24 @@ function Field({
   );
 }
 
+function cabinPrice(
+  cabins: CabinPriceMap | undefined,
+  cabinType: string,
+  currency: CurrencyCode,
+) {
+  const entry = cabins?.[cabinType as keyof CabinPriceMap];
+  return entry?.[currency] ?? null;
+}
+
+function availableCabinsForDate(
+  cabins: CabinPriceMap | undefined,
+  currency: CurrencyCode,
+) {
+  return CABIN_ORDER.filter(
+    (cabin) => cabinPrice(cabins, cabin, currency) != null,
+  );
+}
+
 export default function CruiseBookingModal({
   cruise,
   currency,
@@ -60,6 +95,7 @@ export default function CruiseBookingModal({
   const formOpenedAtRef = useRef(0);
   const open = Boolean(cruise);
   const [mounted, setMounted] = useState(false);
+  const [step, setStep] = useState<Step>("cabins");
   const [form, setForm] = useState<FormState>(initialForm);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -68,7 +104,7 @@ export default function CruiseBookingModal({
 
   const upcomingDates = useMemo(
     () => (cruise ? getUpcomingDates(cruise) : []),
-    [cruise]
+    [cruise],
   );
 
   const routeLabel = useMemo(() => {
@@ -80,24 +116,35 @@ export default function CruiseBookingModal({
 
   const selectedDateEntry = useMemo(
     () => upcomingDates.find((item) => item.date === form.cruiseDate),
-    [form.cruiseDate, upcomingDates]
+    [form.cruiseDate, upcomingDates],
   );
 
+  const cabinOptions = useMemo(() => {
+    const fromDate = availableCabinsForDate(
+      selectedDateEntry?.cabins,
+      currency,
+    );
+    if (fromDate.length) return fromDate;
+    return availableCabinsForDate(cruise?.from_price, currency);
+  }, [cruise?.from_price, currency, selectedDateEntry?.cabins]);
+
+  const selectedCabinPrice = useMemo(() => {
+    if (!form.cabinType) return null;
+    return (
+      cabinPrice(selectedDateEntry?.cabins, form.cabinType, currency) ??
+      cabinPrice(cruise?.from_price, form.cabinType, currency)
+    );
+  }, [
+    cruise?.from_price,
+    currency,
+    form.cabinType,
+    selectedDateEntry?.cabins,
+  ]);
+
   const priceLabel = useMemo(() => {
-    if (!cruise) return "";
-
-    const datePrice = selectedDateEntry
-      ? Object.values(selectedDateEntry.cabins ?? {})
-          .map((prices) => prices?.[currency])
-          .filter((value): value is number => value != null)
-          .sort((left, right) => left - right)[0]
-      : null;
-
-    const price = datePrice ?? cheapestPrice(cruise, currency);
-    if (price == null) return "";
-
-    return `${formatMoney(price)} ${CURRENCY_SYMBOL[currency]}`;
-  }, [cruise, currency, selectedDateEntry]);
+    if (selectedCabinPrice == null) return "";
+    return `${formatMoney(selectedCabinPrice)} ${CURRENCY_SYMBOL[currency]}`;
+  }, [currency, selectedCabinPrice]);
 
   useEffect(() => {
     setMounted(true);
@@ -111,14 +158,21 @@ export default function CruiseBookingModal({
 
     setError("");
     setSuccess(false);
+    setStep("cabins");
+    const firstDate = upcomingDates[0]?.date ?? "";
+    const firstCabins = availableCabinsForDate(
+      upcomingDates[0]?.cabins ?? cruise.from_price,
+      currency,
+    );
     setForm({
       ...initialForm,
-      cruiseDate: upcomingDates[0]?.date ?? "",
+      cruiseDate: firstDate,
+      cabinType: firstCabins[0] ?? "",
     });
     const openedAt = Date.now();
     formOpenedAtRef.current = openedAt;
     setStartedAt(openedAt);
-  }, [open, cruise?.key, upcomingDates[0]?.date]);
+  }, [open, cruise?.key, upcomingDates[0]?.date, currency]);
 
   useEffect(() => {
     if (!open) return;
@@ -138,16 +192,36 @@ export default function CruiseBookingModal({
     };
   }, [open, onClose]);
 
-  const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+  const updateField = <K extends keyof FormState>(
+    key: K,
+    value: FormState[K],
+  ) => {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
   const phoneValid = isValidUaPhone(form.phone);
+  const canContinueToForm =
+    Boolean(form.cruiseDate) && Boolean(form.cabinType);
   const canSubmit =
     form.name.trim().length >= 2 &&
     phoneValid &&
-    Boolean(form.cruiseDate) &&
+    canContinueToForm &&
     !submitting;
+
+  const handleDateChange = (date: string) => {
+    const entry = upcomingDates.find((item) => item.date === date);
+    const cabins = availableCabinsForDate(
+      entry?.cabins ?? cruise?.from_price,
+      currency,
+    );
+    setForm((current) => ({
+      ...current,
+      cruiseDate: date,
+      cabinType: cabins.includes(current.cabinType as (typeof CABIN_ORDER)[number])
+        ? current.cabinType
+        : (cabins[0] ?? ""),
+    }));
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -175,6 +249,7 @@ export default function CruiseBookingModal({
             route: routeLabel,
             nights: cruise.nights || 1,
             cruiseDate: form.cruiseDate,
+            cabinType: form.cabinType,
             priceLabel,
           },
           _hp: honeypot,
@@ -194,7 +269,7 @@ export default function CruiseBookingModal({
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Не вдалося надіслати заявку."
+          : "Не вдалося надіслати заявку.",
       );
     } finally {
       setSubmitting(false);
@@ -216,15 +291,24 @@ export default function CruiseBookingModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="cruise-booking-modal-title"
-        className="relative z-[101] w-full max-w-[480px] overflow-hidden rounded-t-card bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)] sm:rounded-card"
+        className="relative z-[101] w-full max-w-[560px] overflow-hidden rounded-t-card bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)] sm:rounded-card"
       >
         <div className="flex items-center justify-between gap-4 px-5 pt-5 sm:px-6">
-          <h2
-            id="cruise-booking-modal-title"
-            className="text-h4 font-bold text-[color:var(--color-black)]"
-          >
-            Забронювати круїз
-          </h2>
+          <div className="min-w-0">
+            <p className="text-caption font-semibold text-[color:var(--color-brand)]">
+              {step === "cabins" ? "Крок 1 з 2 · Каюта" : "Крок 2 з 2 · Заявка"}
+            </p>
+            <h2
+              id="cruise-booking-modal-title"
+              className="text-h4 mt-1 font-bold text-[color:var(--color-black)]"
+            >
+              {success
+                ? "Заявку надіслано"
+                : step === "cabins"
+                  ? "Оберіть каюту"
+                  : "Оформлення бронювання"}
+            </h2>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -246,47 +330,113 @@ export default function CruiseBookingModal({
             <p className="text-caption mt-2 text-subtitle">
               {routeLabel} · {cruise.nights_str ?? `${cruise.nights} ночей`}
             </p>
+            {step === "form" && form.cabinType ? (
+              <p className="text-caption mt-2 font-semibold text-[color:var(--color-brand)]">
+                {form.cabinType}
+                {priceLabel ? ` · ${priceLabel}` : ""} ·{" "}
+                {formatDate(form.cruiseDate)}
+              </p>
+            ) : null}
           </div>
 
           {success ? (
             <div className="py-6 text-center">
               <p className="text-body font-semibold text-[color:var(--color-black)]">
                 Дякуємо! Менеджер зв&apos;яжеться з вами для підтвердження
-                бронювання.
+                бронювання та уточнення деталей.
               </p>
-              <button type="button" onClick={onClose} className="btn-primary mt-5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn-primary mt-5"
+              >
                 Закрити
               </button>
             </div>
-          ) : (
-            <form className="mt-4 space-y-4" onSubmit={handleSubmit} noValidate>
+          ) : step === "cabins" ? (
+            <div className="mt-4 space-y-4">
               <Field label="Дата відправлення *">
                 <select
                   required
                   value={form.cruiseDate}
-                  onChange={(event) =>
-                    updateField("cruiseDate", event.target.value)
-                  }
+                  onChange={(event) => handleDateChange(event.target.value)}
                   className="field-control h-12 w-full bg-white px-4 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
                 >
-                  {upcomingDates.map((item) => {
-                    const datePrice = Object.values(item.cabins ?? {})
-                      .map((prices) => prices?.[currency])
-                      .filter((value): value is number => value != null)
-                      .sort((left, right) => left - right)[0];
-
-                    const optionLabel = datePrice
-                      ? `${formatDate(item.date)} · від ${formatMoney(datePrice)} ${CURRENCY_SYMBOL[currency]}`
-                      : formatDate(item.date);
-
-                    return (
-                      <option key={item.date} value={item.date}>
-                        {optionLabel}
-                      </option>
-                    );
-                  })}
+                  {upcomingDates.map((item) => (
+                    <option key={item.date} value={item.date}>
+                      {formatDate(item.date)}
+                    </option>
+                  ))}
                 </select>
               </Field>
+
+              <div>
+                <p className="text-caption mb-2 text-subtitle">
+                  Тип каюти *
+                </p>
+                {cabinOptions.length === 0 ? (
+                  <p className="rounded-card bg-amber-50 px-3 py-2 text-caption text-amber-800">
+                    Для цієї дати немає цін по каютах. Оберіть іншу дату або
+                    залиште заявку — менеджер уточнить варіанти.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    {cabinOptions.map((cabin) => {
+                      const price =
+                        cabinPrice(
+                          selectedDateEntry?.cabins,
+                          cabin,
+                          currency,
+                        ) ?? cabinPrice(cruise.from_price, cabin, currency);
+                      const selected = form.cabinType === cabin;
+                      return (
+                        <button
+                          key={cabin}
+                          type="button"
+                          onClick={() => updateField("cabinType", cabin)}
+                          className={`rounded-card border px-4 py-3 text-left transition-colors ${
+                            selected
+                              ? "border-[color:var(--color-brand)] bg-[color:var(--color-brand-light)]"
+                              : "border-[color:var(--color-line)] bg-white hover:border-[color:var(--color-brand)]/40"
+                          }`}
+                        >
+                          <span className="text-body font-semibold text-[color:var(--color-black)]">
+                            {cabin}
+                          </span>
+                          <span className="text-caption mt-1 block text-subtitle">
+                            {CABIN_HINTS[cabin]}
+                          </span>
+                          <span className="text-body mt-2 block font-bold text-[color:var(--color-brand)]">
+                            {price != null
+                              ? `від ${formatMoney(price)} ${CURRENCY_SYMBOL[currency]}`
+                              : "Ціну уточнимо"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                disabled={!canContinueToForm}
+                onClick={() => setStep("form")}
+                className="btn-primary btn-primary--block disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Далі — оформити заявку
+              </button>
+            </div>
+          ) : (
+            <form className="mt-4 space-y-4" onSubmit={handleSubmit} noValidate>
+              <button
+                type="button"
+                onClick={() => setStep("cabins")}
+                className="inline-flex items-center gap-1.5 text-caption font-semibold text-[color:var(--color-brand)]"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Змінити каюту або дату
+              </button>
 
               <Field label="Ім'я *">
                 <input
@@ -324,11 +474,13 @@ export default function CruiseBookingModal({
               <Field label="Коментар">
                 <textarea
                   value={form.details}
-                  onChange={(event) => updateField("details", event.target.value)}
+                  onChange={(event) =>
+                    updateField("details", event.target.value)
+                  }
                   rows={3}
                   maxLength={1000}
                   className="field-control w-full resize-none bg-white px-4 py-3 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
-                  placeholder="Каюта, кількість людей, особливі побажання..."
+                  placeholder="Кількість гостей, паспортні питання, особливі побажання..."
                 />
               </Field>
 
@@ -354,13 +506,18 @@ export default function CruiseBookingModal({
                 disabled={!canSubmit}
                 className="btn-primary btn-primary--block disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submitting ? "Надсилання..." : "Надіслати заявку"}
+                {submitting ? "Надсилання..." : "Надіслати заявку на бронювання"}
               </button>
+
+              <p className="text-caption text-center text-subtitle">
+                Це заявка, не онлайн-оплата. Менеджер підтвердить наявність і
+                умови.
+              </p>
             </form>
           )}
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

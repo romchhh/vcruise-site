@@ -88,6 +88,14 @@ function originalPriceFromDeal(price: number, discountPercent: number) {
   return Math.round(price / factor);
 }
 
+function resolveLinerImage(cruise: CruiseRecord): string {
+  const logo = cruise.liner_logo?.trim();
+  if (logo && (logo.startsWith("http") || logo.startsWith("/"))) {
+    return logo;
+  }
+  return HOT_DEAL_IMAGE;
+}
+
 function mapToHotDeal(
   cruise: CruiseRecord,
   startDate: string,
@@ -116,7 +124,7 @@ function mapToHotDeal(
     price,
     originalPrice: originalPriceFromDeal(price, HOT_DEAL_DISCOUNT_PERCENT),
     discountPercent: HOT_DEAL_DISCOUNT_PERCENT,
-    image: HOT_DEAL_IMAGE,
+    image: resolveLinerImage(cruise),
     href: searchUrl,
   };
 }

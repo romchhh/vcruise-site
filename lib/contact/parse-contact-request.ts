@@ -17,6 +17,7 @@ function parseBooking(value: unknown): CruiseBookingDetails | null | undefined {
     ? Math.round(nightsRaw)
     : 1;
   const priceLabel = String(booking.priceLabel ?? "").trim();
+  const cabinType = String(booking.cabinType ?? "").trim();
 
   if (!company && !linerName) {
     return null;
@@ -33,6 +34,7 @@ function parseBooking(value: unknown): CruiseBookingDetails | null | undefined {
     route: (route || "Уточнюється").slice(0, 500),
     cruiseDate: cruiseDate || new Date().toISOString().slice(0, 10),
     nights,
+    cabinType: cabinType ? cabinType.slice(0, 80) : undefined,
     priceLabel: priceLabel ? priceLabel.slice(0, 80) : undefined,
   };
 }

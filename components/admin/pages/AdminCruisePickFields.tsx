@@ -103,7 +103,7 @@ export default function AdminCruisePickFields({
         Оберіть компанію, лайнер і дату — ціна та маршрут підтягнуться з бази
         автоматично.
         {blockKey === "hot-deals"
-          ? " Бейджі «Гаряча пропозиція» і знижка залишаються на картці."
+          ? " Бейджі «Гаряча пропозиція» і знижка залишаються. Фото лайнера підтягується з бази автоматично."
           : " Друге фото (лайнер) береться з бази; можете додати своє фото обкладинки."}
       </p>
 
@@ -178,10 +178,10 @@ export default function AdminCruisePickFields({
                 }
               />
             </Field>
-            <Field label="Фото картки (URL, опційно)">
+            <Field label="Фото картки (опційно; порожнє = фото лайнера з бази)">
               <input
                 value={asString(card.image)}
-                placeholder="/images/sections/hot-deals-cover.jpg"
+                placeholder="Залишити порожнім = фото лайнера"
                 onChange={(event) => onChange({ image: event.target.value })}
               />
             </Field>
