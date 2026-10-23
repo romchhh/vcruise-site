@@ -110,7 +110,7 @@ export default function CruiseDetailApp({
   }, [cruise, preferredDate, upcomingDates]);
 
   return (
-    <main className="overflow-x-hidden bg-background pb-28 pt-28 sm:pt-32 lg:pb-16">
+    <main className="overflow-x-hidden bg-background pb-16 pt-28 sm:pt-32">
       <div className="section-frame">
         <div className="container-px mx-auto max-w-[1180px] min-w-0">
           <Link

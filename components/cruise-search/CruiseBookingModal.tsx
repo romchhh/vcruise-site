@@ -636,6 +636,22 @@ export default function CruiseBookingModal({
     }));
   }, []);
 
+  const scrollToContactCta = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById("cruise-contact-cta")
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, []);
+
+  const selectOfferAndScroll = useCallback(
+    (offer: CruiseCabinOffer) => {
+      selectOffer(offer);
+      scrollToContactCta();
+    },
+    [selectOffer, scrollToContactCta],
+  );
+
   const phoneValid = isValidUaPhone(form.phone);
   const cabinSelected = hasOffers
     ? Boolean(form.offerKey && selectedOffer)
@@ -754,16 +770,51 @@ export default function CruiseBookingModal({
       ? `На жаль, немає вільних кают при розміщенні на ${cabinPlacementLabel(form.adults, form.children, form.infants)}. Спробуйте вибрати меншу кількість.`
       : null;
 
+    const showContactUnderOffers =
+      hasOffers || offersLoading || Boolean(emptyMessage);
+
     onOffersPanel(
-      <CabinOffersTable
-        offers={filteredOffers}
-        currency={currency}
-        selectedKey={form.offerKey}
-        scalePrice={scalePrice}
-        onSelect={selectOffer}
-        loading={offersLoading && !hasOffers}
-        emptyMessage={emptyMessage}
-      />,
+      <div className="min-w-0 space-y-4">
+        <CabinOffersTable
+          offers={filteredOffers}
+          currency={currency}
+          selectedKey={form.offerKey}
+          scalePrice={scalePrice}
+          onSelect={selectOfferAndScroll}
+          loading={offersLoading && !hasOffers}
+          emptyMessage={emptyMessage}
+        />
+        {showContactUnderOffers ? (
+          <div
+            id="cruise-contact-cta"
+            className="rounded-card border border-[color:var(--color-line)] bg-white px-4 py-4 sm:px-5"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-caption font-semibold text-[color:var(--color-black)]">
+                  Готові обговорити бронювання?
+                </p>
+                <p className="text-caption mt-1 text-subtitle">
+                  {form.offerKey
+                    ? "Менеджер уточнить наявність і оформить заявку"
+                    : "Спочатку оберіть каюту та тариф у таблиці вище"}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={!canContinueToForm}
+                onClick={() => {
+                  setStep("form");
+                  setContactModalOpen(true);
+                }}
+                className="btn-primary w-full shrink-0 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-6"
+              >
+                Звʼязатися щодо бронювання
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>,
     );
 
     return () => onOffersPanel(null);
@@ -781,7 +832,8 @@ export default function CruiseBookingModal({
     hasOffers,
     noCabins,
     scalePrice,
-    selectOffer,
+    selectOfferAndScroll,
+    canContinueToForm,
   ]);
 
   if (!mounted || !open || !cruise) return null;
@@ -1090,9 +1142,7 @@ export default function CruiseBookingModal({
                 type="button"
                 disabled={!canContinueToForm}
                 onClick={isPage ? openContactModal : () => setStep("form")}
-                className={`btn-primary btn-primary--block disabled:cursor-not-allowed disabled:opacity-60 ${
-                  isPage ? "hidden lg:inline-flex" : ""
-                }`}
+                className="btn-primary btn-primary--block disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isPage ? "Звʼязатися щодо бронювання" : "Далі"}
               </button>
@@ -1350,51 +1400,9 @@ export default function CruiseBookingModal({
       : null;
 
   if (isPage) {
-    const mobileCta = (
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[color:var(--color-line)] bg-white/95 px-3 pt-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-sm lg:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="mx-auto flex max-w-[1180px] items-center gap-3">
-          <div className="min-w-0 flex-1">
-            {selectedOffer && priceLabel ? (
-              <>
-                <p className="truncate text-caption font-semibold text-[color:var(--color-black)]">
-                  {selectedOffer.cabinCode} ·{" "}
-                  {normalizeTariffName(selectedOffer.tariffName)}
-                </p>
-                <p className="text-body font-bold text-[color:var(--color-brand)]">
-                  {priceLabel}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-caption font-semibold text-[color:var(--color-black)]">
-                  Бронювання
-                </p>
-                <p className="text-caption text-subtitle">
-                  {hasOffers
-                    ? "Оберіть каюту в списку нижче"
-                    : offersLoading
-                      ? "Підбираємо тарифи…"
-                      : "Оберіть дату та тип каюти"}
-                </p>
-              </>
-            )}
-          </div>
-          <button
-            type="button"
-            disabled={!canContinueToForm}
-            onClick={openContactModal}
-            className="btn-primary shrink-0 px-5 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            Звʼязатися
-          </button>
-        </div>
-      </div>
-    );
-
     return (
       <>
         {panel}
-        {mobileCta}
         {contactModal}
       </>
     );
