@@ -1,8 +1,17 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, Minus, Plus, X } from "lucide-react";
+import CabinOffersTable from "./CabinOffersTable";
 import {
   CABIN_ORDER,
   CURRENCY_SYMBOL,
@@ -57,6 +66,8 @@ type CruiseBookingModalProps = {
   initialGuests?: GuestCounts;
   onClose: () => void;
   variant?: "modal" | "page";
+  /** Page layout: full-width cabin table rendered outside the sticky sidebar. */
+  onOffersPanel?: (node: ReactNode) => void;
 };
 
 type Step = "cabins" | "form";
@@ -246,6 +257,7 @@ export default function CruiseBookingModal({
   initialGuests,
   onClose,
   variant = "modal",
+  onOffersPanel,
 }: CruiseBookingModalProps) {
   const honeypotId = useId();
   const formOpenedAtRef = useRef(0);
@@ -337,16 +349,24 @@ export default function CruiseBookingModal({
     [offers, form.offerKey],
   );
 
-  const scalePrice = (base: number | null) => {
-    if (base == null) return null;
-    if (guestSpecificPrices) return base;
-    return scaleCabinPriceForGuests(
-      base,
+  const scalePrice = useCallback(
+    (base: number | null | undefined) => {
+      if (base == null) return null;
+      if (guestSpecificPrices) return base;
+      return scaleCabinPriceForGuests(
+        base,
+        form.adults,
+        form.children,
+        form.infants,
+      );
+    },
+    [
+      guestSpecificPrices,
       form.adults,
       form.children,
       form.infants,
-    );
-  };
+    ],
+  );
 
   const selectedCabinPrice = useMemo(() => {
     if (selectedOffer?.price?.[currency] != null) {
@@ -608,13 +628,13 @@ export default function CruiseBookingModal({
     }));
   };
 
-  const selectOffer = (offer: CruiseCabinOffer) => {
+  const selectOffer = useCallback((offer: CruiseCabinOffer) => {
     setForm((current) => ({
       ...current,
       cabinType: offer.cabinCategory || current.cabinType,
       offerKey: offerKeyOf(offer),
     }));
-  };
+  }, []);
 
   const phoneValid = isValidUaPhone(form.phone);
   const cabinSelected = hasOffers
@@ -720,9 +740,51 @@ export default function CruiseBookingModal({
     }
   };
 
-  if (!mounted || !open || !cruise) return null;
-
   const isPage = variant === "page";
+
+  useEffect(() => {
+    if (!isPage || !onOffersPanel) return;
+
+    if (!cruise) {
+      onOffersPanel(null);
+      return;
+    }
+
+    const emptyMessage = noCabins
+      ? `На жаль, немає вільних кают при розміщенні на ${cabinPlacementLabel(form.adults, form.children, form.infants)}. Спробуйте вибрати меншу кількість.`
+      : null;
+
+    onOffersPanel(
+      <CabinOffersTable
+        offers={filteredOffers}
+        currency={currency}
+        selectedKey={form.offerKey}
+        scalePrice={scalePrice}
+        onSelect={selectOffer}
+        loading={offersLoading && !hasOffers}
+        emptyMessage={emptyMessage}
+      />,
+    );
+
+    return () => onOffersPanel(null);
+  }, [
+    isPage,
+    onOffersPanel,
+    cruise,
+    filteredOffers,
+    currency,
+    form.offerKey,
+    form.adults,
+    form.children,
+    form.infants,
+    offersLoading,
+    hasOffers,
+    noCabins,
+    scalePrice,
+    selectOffer,
+  ]);
+
+  if (!mounted || !open || !cruise) return null;
 
   const closeContactModal = () => {
     setContactModalOpen(false);
@@ -864,7 +926,7 @@ export default function CruiseBookingModal({
                 </div>
               </div>
 
-              {noCabins ? (
+              {!isPage && noCabins ? (
                 <p className="rounded-card bg-amber-50 px-3 py-2 text-caption text-amber-800">
                   На жаль, немає вільних кают при розміщенні на{" "}
                   {cabinPlacementLabel(form.adults, form.children, form.infants)}
@@ -934,11 +996,11 @@ export default function CruiseBookingModal({
                 )}
               </div>
 
-              {offersLoading && !hasOffers ? (
+              {!isPage && offersLoading && !hasOffers ? (
                 <BookingSpinner label="Підбираємо каюти та тарифи…" />
               ) : null}
 
-              {hasOffers ? (
+              {!isPage && hasOffers ? (
                 <div>
                   <p className="text-caption mb-2 text-subtitle">
                     Каюта та тариф *
@@ -996,6 +1058,30 @@ export default function CruiseBookingModal({
                     включаючи портові збори та чайові
                   </p>
                 </div>
+              ) : null}
+
+              {isPage && selectedOffer ? (
+                <div className="rounded-card border border-[color:var(--color-brand)]/30 bg-[color:var(--color-brand-light)] px-3.5 py-3">
+                  <p className="text-caption text-[color:var(--color-silver)]">
+                    Обрано
+                  </p>
+                  <p className="text-caption mt-1 font-bold text-[color:var(--color-black)]">
+                    {selectedOffer.cabinCode}
+                    <span className="font-semibold text-[color:var(--color-brand)]">
+                      {" · "}
+                      {normalizeTariffName(selectedOffer.tariffName)}
+                    </span>
+                  </p>
+                  {priceLabel ? (
+                    <p className="text-body mt-1 font-bold text-[color:var(--color-brand)]">
+                      {priceLabel}
+                    </p>
+                  ) : null}
+                </div>
+              ) : isPage && hasOffers ? (
+                <p className="text-caption text-[color:var(--color-silver)]">
+                  Оберіть каюту та тариф у таблиці нижче.
+                </p>
               ) : null}
               </>
               )}

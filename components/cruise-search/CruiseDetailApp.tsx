@@ -2,13 +2,11 @@
 
 import CruiseLinerImage from "./CruiseLinerImage";
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CURRENCY_SYMBOL } from "@/lib/cruise-search/constants";
 import type { CruiseDetailQuery } from "@/lib/cruise-search/cruise-detail-url";
 import { buildSearchHrefFromListQuery } from "@/lib/cruise-search/cruise-detail-url";
-import {
-  prefetchCruiseOffers,
-} from "@/lib/cruise-search/fetch-cruise-offers-client";
+import { prefetchCruiseOffers } from "@/lib/cruise-search/fetch-cruise-offers-client";
 import { resolveBookingUrl } from "@/lib/cruise-search/booking-url";
 import {
   cheapestPriceOnDate,
@@ -83,6 +81,7 @@ export default function CruiseDetailApp({
   const returnHref = buildSearchHrefFromListQuery(detailQuery.from);
   const currency = detailQuery.currency;
   const symbol = CURRENCY_SYMBOL[currency];
+  const [offersPanel, setOffersPanel] = useState<ReactNode>(null);
 
   const upcomingDates = useMemo(() => getUpcomingDates(cruise), [cruise]);
   const preferredDate = useMemo(() => {
@@ -98,7 +97,8 @@ export default function CruiseDetailApp({
   const highlightPrice = cheapestPriceOnDate(cruise, preferredDate, currency);
   const fromPort = embarkationPort(cruise);
   const stops = useMemo(() => routeStops(cruise.route ?? []), [cruise.route]);
-  const nightsLabel = cruise.nights_str ?? (cruise.nights ? `${cruise.nights} ночей` : "");
+  const nightsLabel =
+    cruise.nights_str ?? (cruise.nights ? `${cruise.nights} ночей` : "");
 
   useEffect(() => {
     const preferredUrl = resolveBookingUrl(cruise, preferredDate);
@@ -120,7 +120,7 @@ export default function CruiseDetailApp({
             ← Назад до результатів пошуку
           </Link>
 
-          <div className="mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:items-start lg:gap-8">
+          <div className="mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:items-start lg:gap-8">
             <div className="min-w-0 overflow-hidden rounded-card bg-white">
               <div className="relative aspect-[16/9] bg-[color:var(--color-surface-muted)] lg:aspect-[2/1]">
                 {cruise.liner_logo ? (
@@ -193,7 +193,10 @@ export default function CruiseDetailApp({
                           key={`${stop.kind}-${index}`}
                           className="flex gap-3"
                         >
-                          <span className="flex w-3 flex-col items-center" aria-hidden>
+                          <span
+                            className="flex w-3 flex-col items-center"
+                            aria-hidden
+                          >
                             <span
                               className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${
                                 stop.kind === "sea"
@@ -205,7 +208,9 @@ export default function CruiseDetailApp({
                               <span className="mt-1 w-px flex-1 bg-[color:var(--color-line)]" />
                             ) : null}
                           </span>
-                          <div className={index < stops.length - 1 ? "pb-3" : ""}>
+                          <div
+                            className={index < stops.length - 1 ? "pb-3" : ""}
+                          >
                             {stop.kind === "sea" ? (
                               <p className="text-caption text-[color:var(--color-silver)]">
                                 {seaDaysLabel(stop.days)}
@@ -248,12 +253,19 @@ export default function CruiseDetailApp({
                   children: detailQuery.children,
                   infants: detailQuery.infants,
                 }}
+                onOffersPanel={setOffersPanel}
                 onClose={() => {
                   // Page variant uses contact modal; no-op for back arrow removal.
                 }}
               />
             </div>
           </div>
+
+          {offersPanel ? (
+            <section id="cabin-offers" className="mt-8 scroll-mt-28">
+              {offersPanel}
+            </section>
+          ) : null}
 
           <SimilarCruisesSection
             similarCruises={similarCruises}
