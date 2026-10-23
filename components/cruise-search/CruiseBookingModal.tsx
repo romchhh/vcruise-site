@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, ExternalLink, X } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import {
   CABIN_ORDER,
   CURRENCY_SYMBOL,
@@ -731,9 +731,6 @@ export default function CruiseBookingModal({
                   <p className="text-caption mb-1 text-subtitle">
                     Обрати тариф / каюту *
                   </p>
-                  <p className="text-caption mb-2.5 text-subtitle">
-                    Конкретний код каюти та тариф (як на 4gates).
-                  </p>
                   <div className="space-y-2">
                     {filteredOffers.map((offer) => {
                       const base = offer.price?.[currency] ?? null;
@@ -787,75 +784,15 @@ export default function CruiseBookingModal({
                     })}
                   </div>
                 </div>
-              ) : (
-                <div>
-                  <p className="text-caption mb-2 text-subtitle">
-                    Деталі каюти
-                  </p>
-                  {(categoryFilter || form.cabinType) && (
-                    <p className="rounded-card border border-[color:var(--color-line)] bg-white px-4 py-3 text-caption text-subtitle">
-                      {
-                        CABIN_HINTS[
-                          (categoryFilter ||
-                            form.cabinType) as (typeof CABIN_ORDER)[number]
-                        ]
-                      }
-                      . Повна матриця тарифів (IR1, FREE UPGRADE…) для цього
-                      рейсу ще не в базі — відкрийте 4gates або менеджер
-                      підбере.
-                    </p>
-                  )}
-                  {cabinOptions.length > 0 ? (
-                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      {cabinOptions.map((cabin) => {
-                        const base =
-                          cabinPrice(
-                            selectedDateEntry?.cabins,
-                            cabin,
-                            currency,
-                          ) ?? cabinPrice(cruise.from_price, cabin, currency);
-                        const scaled = scalePrice(base);
-                        const selected = form.cabinType === cabin;
-                        return (
-                          <button
-                            key={cabin}
-                            type="button"
-                            onClick={() => {
-                              setCategoryFilter(cabin);
-                              updateField("cabinType", cabin);
-                            }}
-                            className={`rounded-card border px-4 py-3 text-left transition-colors ${
-                              selected
-                                ? "border-[color:var(--color-brand)] bg-[color:var(--color-brand-light)]"
-                                : "border-[color:var(--color-line)] bg-white"
-                            }`}
-                          >
-                            <span className="text-body font-semibold text-[color:var(--color-black)]">
-                              {cabin}
-                            </span>
-                            <span className="text-body mt-2 block font-bold text-[color:var(--color-brand)]">
-                              {scaled != null
-                                ? `${formatMoney(scaled)} ${symbol}`
-                                : "Ціну уточнимо"}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-
-              {bookingUrl ? (
-                <a
-                  href={bookingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-secondary btn-secondary--block inline-flex items-center justify-center gap-2"
-                >
-                  Повний вибір тарифів на 4gates
-                  <ExternalLink className="h-4 w-4" strokeWidth={2} />
-                </a>
+              ) : (categoryFilter || form.cabinType) ? (
+                <p className="rounded-card border border-[color:var(--color-line)] bg-white px-4 py-3 text-caption text-subtitle">
+                  {
+                    CABIN_HINTS[
+                      (categoryFilter ||
+                        form.cabinType) as (typeof CABIN_ORDER)[number]
+                    ]
+                  }
+                </p>
               ) : null}
 
               <button
@@ -923,18 +860,6 @@ export default function CruiseBookingModal({
                   placeholder="Побажання щодо каюти, палуби, харчування..."
                 />
               </Field>
-
-              {bookingUrl ? (
-                <a
-                  href={bookingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-caption font-semibold text-[color:var(--color-brand)]"
-                >
-                  Відкрити тарифи цієї дати на 4gates
-                  <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} />
-                </a>
-              ) : null}
 
               <input
                 id={honeypotId}
