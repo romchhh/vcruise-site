@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { formatMoney } from "@/lib/cruise-search/utils";
 
 type BudgetRangeSliderProps = {
@@ -17,6 +17,8 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function stepForRange(span: number) {
+  if (span >= 5_000_000) return 50_000;
+  if (span >= 1_000_000) return 10_000;
   if (span >= 500_000) return 5_000;
   if (span >= 100_000) return 1_000;
   if (span >= 20_000) return 500;
@@ -36,19 +38,37 @@ export default function BudgetRangeSlider({
   const span = safeMaxBound - safeMinBound;
   const step = stepForRange(span);
 
-  const min = clamp(valueMin, safeMinBound, safeMaxBound);
-  const max = clamp(valueMax, safeMinBound, safeMaxBound);
-  const low = Math.min(min, max);
-  const high = Math.max(min, max);
+  const draggingRef = useRef(false);
+  const [draft, setDraft] = useState(() => ({
+    min: clamp(valueMin, safeMinBound, safeMaxBound),
+    max: clamp(valueMax, safeMinBound, safeMaxBound),
+  }));
 
+  useEffect(() => {
+    if (draggingRef.current) return;
+    setDraft({
+      min: clamp(valueMin, safeMinBound, safeMaxBound),
+      max: clamp(valueMax, safeMinBound, safeMaxBound),
+    });
+  }, [valueMin, valueMax, safeMinBound, safeMaxBound]);
+
+  const low = Math.min(draft.min, draft.max);
+  const high = Math.max(draft.min, draft.max);
   const leftPct = ((low - safeMinBound) / span) * 100;
   const rightPct = ((high - safeMinBound) / span) * 100;
 
-  const label = useMemo(
-    () =>
-      `${formatMoney(low)} – ${formatMoney(high)} ${currencyLabel}`,
-    [currencyLabel, high, low],
-  );
+  const commit = (nextMin: number, nextMax: number) => {
+    draggingRef.current = false;
+    const priceMin = Math.min(nextMin, nextMax);
+    const priceMax = Math.max(nextMin, nextMax);
+    startTransition(() => {
+      onChange({ priceMin, priceMax });
+    });
+  };
+
+  const beginDrag = () => {
+    draggingRef.current = true;
+  };
 
   return (
     <div className="col-span-full">
@@ -57,7 +77,7 @@ export default function BudgetRangeSlider({
           Бюджет
         </span>
         <span className="text-caption font-semibold text-[color:var(--color-brand)]">
-          {label}
+          {formatMoney(low)} – {formatMoney(high)} {currencyLabel}
         </span>
       </div>
 
@@ -75,13 +95,15 @@ export default function BudgetRangeSlider({
           max={safeMaxBound}
           step={step}
           value={low}
+          onPointerDown={beginDrag}
+          onTouchStart={beginDrag}
           onChange={(event) => {
             const next = Number(event.target.value);
-            onChange({
-              priceMin: Math.min(next, high),
-              priceMax: high,
-            });
+            setDraft({ min: Math.min(next, high), max: high });
           }}
+          onPointerUp={() => commit(low, high)}
+          onTouchEnd={() => commit(low, high)}
+          onBlur={() => commit(low, high)}
           className="budget-range-input budget-range-input--min"
         />
         <input
@@ -91,13 +113,15 @@ export default function BudgetRangeSlider({
           max={safeMaxBound}
           step={step}
           value={high}
+          onPointerDown={beginDrag}
+          onTouchStart={beginDrag}
           onChange={(event) => {
             const next = Number(event.target.value);
-            onChange({
-              priceMin: low,
-              priceMax: Math.max(next, low),
-            });
+            setDraft({ min: low, max: Math.max(next, low) });
           }}
+          onPointerUp={() => commit(low, high)}
+          onTouchEnd={() => commit(low, high)}
+          onBlur={() => commit(low, high)}
           className="budget-range-input budget-range-input--max"
         />
       </div>

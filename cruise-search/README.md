@@ -6,9 +6,13 @@
 |------|-------------|
 | `backend/cruise_parser.py` | Завантаження сторінок `ajax.php?act=getitems` |
 | `backend/structure_cruises.py` | Перетворення HTML-полів у JSON для фронтенду |
+| `backend/sync_offers.py` | Тарифи кают (`get_cabins`) для найближчих **90 днів** |
 | `run-parser.sh` | **Єдиний скрипт запуску** (venv, логи, інтервал 3 дні) |
 
-**Результат:** `data/cruise-search/cruises_output.json` (у git не комітиться).
+**Результат:** `data/cruise-search/cruises_output.json` + `offers_by_slug.json` (у git не комітяться).
+
+Після основного парсера автоматично запускається `sync_offers.py` (8 потоків, без popup m²).  
+Окремо: `npm run cruises:offers` або `python sync_offers.py --days 90 --workers 8`.
 
 ## Швидкий старт
 

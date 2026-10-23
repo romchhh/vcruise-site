@@ -32,9 +32,9 @@ export function formatSailingDateRange(startIso: string, nights: number) {
 }
 
 /**
- * Catalog cabin prices are for a cabin with 2 adults.
+ * Catalog and live 4gates rows are quoted for two adults in the cabin.
  * Scale to the selected party (children pay full berth in this estimate;
- * infants are free). Exact 4gates rates may differ — manager confirms.
+ * infants are free). Exact 4gates totals may differ — manager confirms.
  */
 export function scaleCabinPriceForGuests(
   baseForTwo: number,

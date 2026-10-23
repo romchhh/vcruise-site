@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, Minus, Plus, X } from "lucide-react";
 import {
   CABIN_ORDER,
   CURRENCY_SYMBOL,
@@ -25,6 +25,24 @@ import {
   formatUaPhoneInput,
   isValidUaPhone,
 } from "@/lib/contact/phone";
+import {
+  fetchCruiseOffers,
+  getCachedCruiseOffers,
+} from "@/lib/cruise-search/fetch-cruise-offers-client";
+import {
+  offerCabinSubtitle,
+  offerMetaLine,
+} from "@/lib/cruise-search/offer-display";
+import {
+  normalizeCruiseCabinOffer,
+  normalizeTariffName,
+  offerKeyOf,
+} from "@/lib/cruise-search/offer-key";
+import {
+  cabinPlacementLabel,
+  isReferenceOffersParty,
+  offersRequestKey,
+} from "@/lib/cruise-search/offers-request-key";
 
 type GuestCounts = {
   adults: number;
@@ -38,6 +56,7 @@ type CruiseBookingModalProps = {
   preferredDate?: string;
   initialGuests?: GuestCounts;
   onClose: () => void;
+  variant?: "modal" | "page";
 };
 
 type Step = "cabins" | "form";
@@ -72,15 +91,40 @@ const GUEST_FIELDS = [
   { key: "infants" as const, label: "Немовлята", hint: "до 2 р." },
 ];
 
-const CABIN_HINTS: Record<(typeof CABIN_ORDER)[number], string> = {
-  Внутрішня: "Без вікна — найдоступніший варіант",
-  "З вікном": "Вікно або ілюмінатор з видом на море",
-  "З балконом": "Приватний балкон і свіже повітря",
-  Сьют: "Більша площа та підвищений комфорт",
-};
+function pickFormAfterOffers(
+  nextOffers: CruiseCabinOffer[],
+  current: FormState,
+): Pick<FormState, "cabinType" | "offerKey"> {
+  if (!nextOffers.length) {
+    return { cabinType: current.cabinType, offerKey: "" };
+  }
 
-function offerKeyOf(offer: CruiseCabinOffer) {
-  return `${offer.cabinCode}::${offer.tariffName}`;
+  if (
+    current.offerKey &&
+    nextOffers.some((offer) => offerKeyOf(offer) === current.offerKey)
+  ) {
+    const match = nextOffers.find(
+      (offer) => offerKeyOf(offer) === current.offerKey,
+    )!;
+    return {
+      cabinType: match.cabinCategory || current.cabinType,
+      offerKey: current.offerKey,
+    };
+  }
+
+  const activeCategory =
+    current.cabinType ||
+    nextOffers.find((offer) => offer.cabinCategory)?.cabinCategory ||
+    "";
+  const inCategory = nextOffers.filter(
+    (offer) => offer.cabinCategory === activeCategory,
+  );
+  const pick = inCategory[0] ?? nextOffers[0];
+
+  return {
+    cabinType: pick.cabinCategory || current.cabinType,
+    offerKey: offerKeyOf(pick),
+  };
 }
 
 function Field({
@@ -116,11 +160,25 @@ function availableCabinsForDate(
   );
 }
 
-function MetaChip({ children }: { children: React.ReactNode }) {
+function BookingSpinner({
+  label,
+  className = "",
+}: {
+  label: string;
+  className?: string;
+}) {
   return (
-    <span className="rounded-full bg-white px-2.5 py-1 text-caption text-[color:var(--color-black)]">
-      {children}
-    </span>
+    <div
+      className={`flex items-center justify-center gap-3 py-4 ${className}`}
+      role="status"
+      aria-live="polite"
+    >
+      <div
+        className="h-9 w-9 shrink-0 animate-spin rounded-full border-[3px] border-[color:var(--color-line)] border-t-[color:var(--color-brand)]"
+        aria-hidden
+      />
+      <span className="text-caption text-subtitle">{label}</span>
+    </div>
   );
 }
 
@@ -130,32 +188,41 @@ function GuestStepper({
   value,
   min,
   onChange,
+  withDivider,
 }: {
   label: string;
   hint: string;
   value: number;
   min: number;
   onChange: (next: number) => void;
+  withDivider?: boolean;
 }) {
+  const stepBtn =
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-[color:var(--color-brand)] bg-white text-[color:var(--color-brand)] transition-colors hover:bg-[color:var(--color-brand-light)] disabled:cursor-not-allowed disabled:border-[color:var(--color-line)] disabled:text-[color:var(--color-silver)] disabled:hover:bg-white";
+
   return (
-    <div className="flex items-center justify-between gap-3 rounded-card border border-[color:var(--color-line)] bg-white px-3 py-2.5">
+    <div
+      className={`flex items-center justify-between gap-4 py-3 ${
+        withDivider ? "border-t border-[color:var(--color-line)]" : ""
+      }`}
+    >
       <div className="min-w-0">
         <p className="text-caption font-semibold text-[color:var(--color-black)]">
           {label}
         </p>
-        <p className="text-caption text-subtitle">{hint}</p>
+        <p className="text-caption mt-0.5 text-subtitle">{hint}</p>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-3">
         <button
           type="button"
           aria-label={`Менше: ${label}`}
           disabled={value <= min}
           onClick={() => onChange(Math.max(min, value - 1))}
-          className="btn-control h-9 w-9 disabled:opacity-40"
+          className={stepBtn}
         >
-          −
+          <Minus className="h-3.5 w-3.5" strokeWidth={2.5} />
         </button>
-        <span className="w-6 text-center text-body font-semibold text-[color:var(--color-black)]">
+        <span className="min-w-[1.25rem] text-center text-body font-semibold tabular-nums text-[color:var(--color-black)]">
           {value}
         </span>
         <button
@@ -163,9 +230,9 @@ function GuestStepper({
           aria-label={`Більше: ${label}`}
           disabled={value >= 12}
           onClick={() => onChange(Math.min(12, value + 1))}
-          className="btn-control h-9 w-9 disabled:opacity-40"
+          className={stepBtn}
         >
-          +
+          <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
         </button>
       </div>
     </div>
@@ -178,9 +245,12 @@ export default function CruiseBookingModal({
   preferredDate = "",
   initialGuests,
   onClose,
+  variant = "modal",
 }: CruiseBookingModalProps) {
   const honeypotId = useId();
   const formOpenedAtRef = useRef(0);
+  const offersRequestIdRef = useRef(0);
+  const offersLoadKeyRef = useRef("");
   const open = Boolean(cruise);
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<Step>("cabins");
@@ -190,6 +260,11 @@ export default function CruiseBookingModal({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [liveOffers, setLiveOffers] = useState<CruiseCabinOffer[]>([]);
+  const [offersLoading, setOffersLoading] = useState(false);
+  const [offersResolved, setOffersResolved] = useState(false);
+  const [guestSpecificPrices, setGuestSpecificPrices] = useState(false);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
 
   const upcomingDates = useMemo(
     () => (cruise ? getUpcomingDates(cruise) : []),
@@ -218,10 +293,12 @@ export default function CruiseBookingModal({
 
   const bookingUrl = selectedDateEntry?.booking_url?.trim() || "";
 
-  const offers = useMemo(
-    () => selectedDateEntry?.offers ?? [],
-    [selectedDateEntry?.offers],
-  );
+  const offers = useMemo(() => {
+    const reference = form.adults === 2 && form.children === 0;
+    if (liveOffers.length) return liveOffers;
+    if (reference) return selectedDateEntry?.offers ?? [];
+    return [];
+  }, [form.adults, form.children, liveOffers, selectedDateEntry?.offers]);
   const hasOffers = offers.length > 0;
 
   const cabinOptions = useMemo(() => {
@@ -262,6 +339,7 @@ export default function CruiseBookingModal({
 
   const scalePrice = (base: number | null) => {
     if (base == null) return null;
+    if (guestSpecificPrices) return base;
     return scaleCabinPriceForGuests(
       base,
       form.adults,
@@ -286,6 +364,7 @@ export default function CruiseBookingModal({
     form.children,
     form.cabinType,
     form.infants,
+    guestSpecificPrices,
     selectedDateEntry?.cabins,
     selectedOffer,
   ]);
@@ -304,6 +383,33 @@ export default function CruiseBookingModal({
 
   const symbol = CURRENCY_SYMBOL[currency];
 
+  const guestQuery = {
+    adults: form.adults,
+    children: form.children,
+    infants: form.infants,
+  };
+  const referenceParty = isReferenceOffersParty(guestQuery);
+  const noCabins =
+    Boolean(bookingUrl) &&
+    offersResolved &&
+    !offersLoading &&
+    offers.length === 0 &&
+    offersLoadKeyRef.current === offersRequestKey(bookingUrl, guestQuery);
+
+  const applyOffers = (
+    nextOffers: CruiseCabinOffer[],
+    guestSpecific = false,
+  ) => {
+    setLiveOffers(nextOffers.map(normalizeCruiseCabinOffer));
+    setGuestSpecificPrices(guestSpecific && nextOffers.length > 0);
+    setOffersResolved(true);
+    setForm((current) => {
+      const picked = pickFormAfterOffers(nextOffers, current);
+      if (picked.cabinType) setCategoryFilter(picked.cabinType);
+      return { ...current, ...picked };
+    });
+  };
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -317,46 +423,45 @@ export default function CruiseBookingModal({
     setError("");
     setSuccess(false);
     setStep("cabins");
+    const dates = getUpcomingDates(cruise);
     const preferredEntry = preferredDate
-      ? upcomingDates.find((item) => item.date === preferredDate)
+      ? dates.find((item) => item.date === preferredDate)
       : undefined;
-    const initialEntry = preferredEntry ?? upcomingDates[0];
+    const initialEntry = preferredEntry ?? dates[0];
     const firstDate = initialEntry?.date ?? "";
-    const firstOffers = initialEntry?.offers ?? [];
-    const firstCabins = firstOffers.length
-      ? CABIN_ORDER.filter((cat) =>
-          firstOffers.some((offer) => offer.cabinCategory === cat),
-        )
-      : availableCabinsForDate(
-          initialEntry?.cabins ?? cruise.from_price,
-          currency,
-        );
-    const firstCategory = firstCabins[0] ?? "";
-    const firstOffer =
-      firstOffers.find((offer) => offer.cabinCategory === firstCategory) ??
-      firstOffers[0];
     const adults =
       initialGuests?.adults && initialGuests.adults > 0
         ? initialGuests.adults
         : 2;
+    const children = initialGuests?.children ?? 0;
+    const infants = initialGuests?.infants ?? 0;
+
+    const firstCabins = availableCabinsForDate(
+      initialEntry?.cabins ?? cruise.from_price,
+      currency,
+    );
+    const firstCategory = firstCabins[0] ?? "";
     setCategoryFilter(firstCategory);
     setForm({
       ...initialForm,
       cruiseDate: firstDate,
-      cabinType: firstOffer?.cabinCategory || firstCategory,
-      offerKey: firstOffer ? offerKeyOf(firstOffer) : "",
+      cabinType: firstCategory,
+      offerKey: "",
       adults,
-      children: initialGuests?.children ?? 0,
-      infants: initialGuests?.infants ?? 0,
+      children,
+      infants,
     });
+    setLiveOffers([]);
+    setOffersResolved(false);
+    setGuestSpecificPrices(false);
+    offersLoadKeyRef.current = "";
     const openedAt = Date.now();
     formOpenedAtRef.current = openedAt;
     setStartedAt(openedAt);
   }, [
     open,
-    cruise?.key,
+    cruise,
     preferredDate,
-    upcomingDates,
     currency,
     initialGuests?.adults,
     initialGuests?.children,
@@ -364,7 +469,7 @@ export default function CruiseBookingModal({
   ]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || variant === "page") return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -379,7 +484,112 @@ export default function CruiseBookingModal({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, onClose]);
+  }, [open, onClose, variant]);
+
+  useEffect(() => {
+    if (variant !== "page" || !contactModalOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [contactModalOpen, variant]);
+
+  useEffect(() => {
+    if (!open) {
+      offersRequestIdRef.current += 1;
+      offersLoadKeyRef.current = "";
+      return;
+    }
+
+    if (!bookingUrl) {
+      setLiveOffers([]);
+      setOffersLoading(false);
+      setOffersResolved(true);
+      setGuestSpecificPrices(false);
+      offersLoadKeyRef.current = "";
+      return;
+    }
+
+    const loadKey = offersRequestKey(bookingUrl, guestQuery);
+    const seedOffers = referenceParty ? (selectedDateEntry?.offers ?? []) : [];
+
+    if (seedOffers.length > 0) {
+      setLiveOffers([]);
+      setGuestSpecificPrices(false);
+      setOffersResolved(true);
+      setOffersLoading(false);
+      offersLoadKeyRef.current = loadKey;
+      return;
+    }
+
+    const cached = getCachedCruiseOffers(bookingUrl, guestQuery);
+
+    if (cached) {
+      applyOffers(cached.offers, cached.guestSpecific);
+      setOffersLoading(false);
+      offersLoadKeyRef.current = loadKey;
+      return;
+    }
+
+    if (offersLoadKeyRef.current === loadKey) {
+      return;
+    }
+
+    const guestsOnlyChange =
+      offersLoadKeyRef.current.startsWith(`${bookingUrl}|`) &&
+      offersLoadKeyRef.current !== loadKey;
+    const debounceMs = guestsOnlyChange ? 450 : 0;
+
+    const requestId = offersRequestIdRef.current + 1;
+    offersRequestIdRef.current = requestId;
+    const showBlockingLoader = !liveOffers.length;
+    if (showBlockingLoader) {
+      setOffersLoading(true);
+      setOffersResolved(false);
+    }
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const payload = await fetchCruiseOffers({
+            bookingUrl,
+            guests: guestQuery,
+          });
+
+          if (requestId !== offersRequestIdRef.current) return;
+
+          applyOffers(payload.offers, payload.guestSpecific);
+          offersLoadKeyRef.current = loadKey;
+        } catch {
+          if (requestId !== offersRequestIdRef.current) return;
+
+          if (showBlockingLoader) {
+            setLiveOffers([]);
+          }
+          setOffersResolved(true);
+          setGuestSpecificPrices(false);
+        } finally {
+          if (requestId === offersRequestIdRef.current) {
+            setOffersLoading(false);
+          }
+        }
+      })();
+    }, debounceMs);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    open,
+    bookingUrl,
+    form.adults,
+    form.children,
+    referenceParty,
+    selectedDateEntry?.offers,
+  ]);
 
   const updateField = <K extends keyof FormState>(
     key: K,
@@ -411,7 +621,10 @@ export default function CruiseBookingModal({
     ? Boolean(form.offerKey && selectedOffer)
     : Boolean(form.cabinType);
   const canContinueToForm =
-    Boolean(form.cruiseDate) && cabinSelected && form.adults >= 1;
+    Boolean(form.cruiseDate) &&
+    cabinSelected &&
+    form.adults >= 1 &&
+    !(bookingUrl && offersLoading);
   const canSubmit =
     form.name.trim().length >= 2 &&
     phoneValid &&
@@ -420,26 +633,21 @@ export default function CruiseBookingModal({
 
   const handleDateChange = (date: string) => {
     const entry = upcomingDates.find((item) => item.date === date);
-    const nextOffers = entry?.offers ?? [];
-    const cabins = nextOffers.length
-      ? CABIN_ORDER.filter((cat) =>
-          nextOffers.some((offer) => offer.cabinCategory === cat),
-        )
-      : availableCabinsForDate(entry?.cabins ?? cruise?.from_price, currency);
+    const cabins = availableCabinsForDate(
+      entry?.cabins ?? cruise?.from_price,
+      currency,
+    );
     const nextCategory = cabins.includes(
       form.cabinType as (typeof CABIN_ORDER)[number],
     )
       ? form.cabinType
       : (cabins[0] ?? "");
-    const nextOffer =
-      nextOffers.find((offer) => offer.cabinCategory === nextCategory) ??
-      nextOffers[0];
     setCategoryFilter(nextCategory);
     setForm((current) => ({
       ...current,
       cruiseDate: date,
-      cabinType: nextOffer?.cabinCategory || nextCategory,
-      offerKey: nextOffer ? offerKeyOf(nextOffer) : "",
+      cabinType: nextCategory,
+      offerKey: "",
     }));
   };
 
@@ -514,39 +722,50 @@ export default function CruiseBookingModal({
 
   if (!mounted || !open || !cruise) return null;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4">
-      <button
-        type="button"
-        aria-label="Закрити"
-        className="absolute inset-0 bg-black/45"
-        onClick={onClose}
-      />
+  const isPage = variant === "page";
 
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="cruise-booking-modal-title"
-        className="relative z-[101] w-full max-w-[600px] overflow-hidden rounded-t-card bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)] sm:rounded-card"
-      >
-        <div className="flex items-center justify-between gap-4 px-5 pt-5 sm:px-6">
-          <div className="min-w-0">
+  const closeContactModal = () => {
+    setContactModalOpen(false);
+    if (!success) setStep("cabins");
+  };
+
+  const openContactModal = () => {
+    setStep("form");
+    setContactModalOpen(true);
+  };
+
+  const panel = (
+    <div
+      role={isPage ? "region" : "dialog"}
+      aria-modal={isPage ? undefined : true}
+      aria-labelledby="cruise-booking-modal-title"
+      className={
+        isPage
+          ? "w-full overflow-hidden rounded-card border border-[color:var(--color-line)] bg-white"
+          : "relative z-[101] w-full max-w-[600px] overflow-hidden rounded-t-card bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)] sm:rounded-card"
+      }
+    >
+      <div className="flex items-center justify-between gap-4 px-5 pt-5 sm:px-6">
+        <div className="min-w-0">
+          {isPage ? null : (
             <p className="text-caption font-semibold text-[color:var(--color-brand)]">
-              {step === "cabins"
-                ? "Крок 1 з 2 · Вибір каюти"
-                : "Крок 2 з 2 · Заявка"}
+              {step === "cabins" ? "1 / 2" : "2 / 2"}
             </p>
-            <h2
-              id="cruise-booking-modal-title"
-              className="text-h4 mt-1 font-bold text-[color:var(--color-black)]"
-            >
-              {success
+          )}
+          <h2
+            id="cruise-booking-modal-title"
+            className="text-h4 mt-1 font-bold text-[color:var(--color-black)]"
+          >
+            {isPage
+              ? "Параметри бронювання"
+              : success
                 ? "Заявку надіслано"
                 : step === "cabins"
-                  ? "Оберіть каюту"
-                  : "Оформлення бронювання"}
-            </h2>
-          </div>
+                  ? "Каюта та гості"
+                  : "Контакти"}
+          </h2>
+        </div>
+        {!isPage ? (
           <button
             type="button"
             onClick={onClose}
@@ -555,63 +774,46 @@ export default function CruiseBookingModal({
           >
             <X className="h-4 w-4" />
           </button>
-        </div>
+        ) : null}
+      </div>
 
-        <div className="max-h-[calc(100vh-2rem)] overflow-y-auto px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
-          <div className="rounded-card bg-[color:var(--color-surface-muted)] px-4 py-3">
-            <p className="text-caption font-semibold text-[color:var(--color-brand)]">
-              {cruise.region_name || "Круїз"}
-            </p>
-            <p className="text-body mt-1 font-semibold text-[color:var(--color-black)]">
-              {cruise.liner_name}
-            </p>
-            <p className="text-caption mt-1 text-subtitle">
-              {cruise.cruise_title}
-              {cruise.company_class ? ` · ${cruise.company_class}` : ""}
-            </p>
+      <div
+        className={
+          isPage
+            ? "relative px-5 pb-5 pt-4 sm:px-6 sm:pb-6"
+            : "relative max-h-[calc(100vh-2rem)] overflow-y-auto px-5 pb-5 pt-4 sm:px-6 sm:pb-6"
+        }
+      >
+          {submitting ? (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center rounded-b-card bg-white/85 backdrop-blur-[2px]"
+              aria-busy="true"
+            >
+              <BookingSpinner label="Надсилаємо заявку…" />
+            </div>
+          ) : null}
 
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {cruise.ship_built_year ? (
-                <MetaChip>{cruise.ship_built_year} р.</MetaChip>
-              ) : null}
-              {cruise.ship_renovated_year ? (
-                <MetaChip>Реновація {cruise.ship_renovated_year}</MetaChip>
-              ) : null}
-              {cruise.ship_class ? (
-                <MetaChip>Клас: {cruise.ship_class}</MetaChip>
-              ) : null}
-              {cruise.ship_size ? (
-                <MetaChip>Розмір: {cruise.ship_size}</MetaChip>
-              ) : null}
-              {cruise.star_rating != null ? (
-                <MetaChip>{cruise.star_rating}★</MetaChip>
+          {isPage ? null : (
+            <div className="rounded-card bg-[color:var(--color-surface-muted)] px-3.5 py-2.5 sm:px-4 sm:py-3">
+              <p className="text-body font-semibold text-[color:var(--color-black)]">
+                {cruise.liner_name}
+              </p>
+              <p className="text-caption mt-0.5 text-subtitle">
+                {cruise.region_name}
+                {sailingLabel ? ` · ${sailingLabel}` : ""}
+              </p>
+              {step === "form" && cabinSelected ? (
+                <p className="text-caption mt-2 font-semibold text-[color:var(--color-brand)]">
+                  {selectedOffer
+                    ? `${selectedOffer.cabinCode} · ${selectedOffer.tariffName}`
+                    : form.cabinType}
+                  {priceLabel ? ` · ${priceLabel}` : ""} · {guestSummary}
+                </p>
               ) : null}
             </div>
+          )}
 
-            {sailingLabel ? (
-              <p className="text-caption mt-3 font-semibold text-[color:var(--color-black)]">
-                {sailingLabel}
-              </p>
-            ) : null}
-
-            <p className="text-caption mt-2 leading-relaxed text-subtitle">
-              <span className="font-semibold text-[color:var(--color-black)]">
-                Маршрут:{" "}
-              </span>
-              {routeFull}
-            </p>
-
-            {step === "form" && cabinSelected ? (
-              <p className="text-caption mt-3 font-semibold text-[color:var(--color-brand)]">
-                {selectedOffer
-                  ? `${selectedOffer.cabinCode} · ${selectedOffer.tariffName}`
-                  : form.cabinType}
-                {priceLabel ? ` · ${priceLabel}` : ""} · {guestSummary}
-              </p>
-            ) : null}
-          </div>
-
-          {success ? (
+          {success && !isPage ? (
             <div className="py-6 text-center">
               <p className="text-body font-semibold text-[color:var(--color-black)]">
                 Дякуємо! Менеджер зв&apos;яжеться з вами для підтвердження
@@ -625,14 +827,14 @@ export default function CruiseBookingModal({
                 Закрити
               </button>
             </div>
-          ) : step === "cabins" ? (
-            <div className="mt-4 space-y-4">
-              <Field label="Дата відправлення *">
+          ) : isPage || step === "cabins" ? (
+            <div className="mt-3 space-y-3.5">
+              <Field label="Дата *">
                 <select
                   required
                   value={form.cruiseDate}
                   onChange={(event) => handleDateChange(event.target.value)}
-                  className="field-control h-12 w-full bg-white px-4 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
+                  className="field-control h-11 w-full bg-white px-3 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
                 >
                   {upcomingDates.map((item) => (
                     <option key={item.date} value={item.date}>
@@ -646,33 +848,39 @@ export default function CruiseBookingModal({
               </Field>
 
               <div>
-                <p className="text-caption mb-2 text-subtitle">
-                  Кількість туристів *
-                </p>
-                <p className="text-caption mb-2.5 text-subtitle">
-                  Ціни нижче перераховуються під обрану кількість гостей (база в
-                  каталозі — за каюту на 2 дорослих).
-                </p>
-                <div className="space-y-2">
-                  {GUEST_FIELDS.map((field) => (
+                <p className="text-caption mb-1.5 text-subtitle">Гості *</p>
+                <div className="rounded-card border border-[color:var(--color-line)] bg-white px-4">
+                  {GUEST_FIELDS.map((field, index) => (
                     <GuestStepper
                       key={field.key}
                       label={field.label}
                       hint={field.hint}
                       value={form[field.key]}
                       min={field.key === "adults" ? 1 : 0}
+                      withDivider={index > 0}
                       onChange={(next) => updateField(field.key, next)}
                     />
                   ))}
                 </div>
               </div>
 
-              <div>
-                <p className="text-caption mb-1 text-subtitle">
-                  Тип каюти *
+              {noCabins ? (
+                <p className="rounded-card bg-amber-50 px-3 py-2 text-caption text-amber-800">
+                  На жаль, немає вільних кают при розміщенні на{" "}
+                  {cabinPlacementLabel(form.adults, form.children, form.infants)}
+                  . Спробуйте вибрати меншу кількість.
                 </p>
-                <p className="text-caption mb-2.5 text-subtitle">
-                  Вартість за каюту на {guestSummary}, з портами та чайовими.
+              ) : (
+              <>
+              <div>
+                <p className="text-caption mb-2 text-subtitle">
+                  Тип каюти *
+                  {!guestSpecificPrices ? (
+                    <span className="text-[color:var(--color-silver)]">
+                      {" "}
+                      · орієнтовно на {guestSummary}
+                    </span>
+                  ) : null}
                 </p>
 
                 {cabinOptions.length === 0 ? (
@@ -726,12 +934,16 @@ export default function CruiseBookingModal({
                 )}
               </div>
 
+              {offersLoading && !hasOffers ? (
+                <BookingSpinner label="Підбираємо каюти та тарифи…" />
+              ) : null}
+
               {hasOffers ? (
                 <div>
-                  <p className="text-caption mb-1 text-subtitle">
-                    Обрати тариф / каюту *
+                  <p className="text-caption mb-2 text-subtitle">
+                    Каюта та тариф *
                   </p>
-                  <div className="space-y-2">
+                  <div className="max-h-52 space-y-1.5 overflow-y-auto pr-0.5 sm:max-h-60">
                     {filteredOffers.map((offer) => {
                       const base = offer.price?.[currency] ?? null;
                       const scaled = scalePrice(base);
@@ -742,7 +954,7 @@ export default function CruiseBookingModal({
                           key={key}
                           type="button"
                           onClick={() => selectOffer(offer)}
-                          className={`flex w-full items-start justify-between gap-3 rounded-card border px-4 py-3 text-left transition-colors ${
+                          className={`flex w-full items-start justify-between gap-3 rounded-card border px-3 py-2.5 text-left transition-colors sm:px-4 sm:py-3 ${
                             selected
                               ? "border-[color:var(--color-brand)] bg-[color:var(--color-brand-light)]"
                               : "border-[color:var(--color-line)] bg-white hover:border-[color:var(--color-brand)]/40"
@@ -750,24 +962,20 @@ export default function CruiseBookingModal({
                         >
                           <div className="min-w-0">
                             <p className="text-caption font-bold text-[color:var(--color-black)]">
-                              {offer.cabinCode}
-                              <span className="ml-2 font-semibold text-[color:var(--color-brand)]">
-                                {offer.tariffName}
+                              <span>{offer.cabinCode}</span>
+                              <span className="font-semibold text-[color:var(--color-brand)]">
+                                {" · "}
+                                {normalizeTariffName(offer.tariffName)}
                               </span>
                             </p>
                             <p className="text-caption mt-1 text-subtitle">
-                              {offer.cabinName}
+                              {offerCabinSubtitle(offer)}
                             </p>
-                            <p className="text-caption mt-0.5 text-subtitle">
-                              {[
-                                offer.areaM2 != null
-                                  ? `${offer.areaM2} м²`
-                                  : null,
-                                offer.decks ? `пал: ${offer.decks}` : null,
-                              ]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </p>
+                            {offerMetaLine(offer) ? (
+                              <p className="text-caption mt-0.5 text-subtitle">
+                                {offerMetaLine(offer)}
+                              </p>
+                            ) : null}
                           </div>
                           <div className="shrink-0 text-right">
                             <p className="text-body font-bold text-[color:var(--color-brand)]">
@@ -783,81 +991,85 @@ export default function CruiseBookingModal({
                       );
                     })}
                   </div>
+                  <p className="text-caption mt-2 text-[color:var(--color-silver)]">
+                    * Вартість вказана за каюту (на вибрану кількість гостей),
+                    включаючи портові збори та чайові
+                  </p>
                 </div>
-              ) : (categoryFilter || form.cabinType) ? (
-                <p className="rounded-card border border-[color:var(--color-line)] bg-white px-4 py-3 text-caption text-subtitle">
-                  {
-                    CABIN_HINTS[
-                      (categoryFilter ||
-                        form.cabinType) as (typeof CABIN_ORDER)[number]
-                    ]
-                  }
-                </p>
               ) : null}
+              </>
+              )}
 
               <button
                 type="button"
                 disabled={!canContinueToForm}
-                onClick={() => setStep("form")}
+                onClick={isPage ? openContactModal : () => setStep("form")}
                 className="btn-primary btn-primary--block disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Далі — оформити заявку
+                {isPage ? "Звʼязатися щодо бронювання" : "Далі"}
               </button>
             </div>
-          ) : (
-            <form className="mt-4 space-y-4" onSubmit={handleSubmit} noValidate>
+          ) : !isPage ? (
+            <form className="mt-3 space-y-3" onSubmit={handleSubmit} noValidate>
               <button
                 type="button"
                 onClick={() => setStep("cabins")}
                 className="inline-flex items-center gap-1.5 text-caption font-semibold text-[color:var(--color-brand)]"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                Змінити каюту або гостей
+                Назад
               </button>
 
-              <Field label="Ім'я *">
-                <input
-                  type="text"
-                  required
-                  autoComplete="name"
-                  value={form.name}
-                  onChange={(event) => updateField("name", event.target.value)}
-                  className="field-control h-12 w-full bg-white px-4 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
-                  placeholder="Ваше ім'я"
-                  maxLength={80}
-                />
-              </Field>
-
-              <Field label="Телефон *">
-                <input
-                  type="tel"
-                  required
-                  autoComplete="tel"
-                  inputMode="tel"
-                  value={form.phone}
-                  onChange={(event) =>
-                    updateField("phone", formatUaPhoneInput(event.target.value))
-                  }
-                  onFocus={(event) => {
-                    if (!event.target.value.trim()) {
-                      updateField("phone", "+380 ");
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Ім'я *">
+                  <input
+                    type="text"
+                    required
+                    autoComplete="name"
+                    value={form.name}
+                    onChange={(event) =>
+                      updateField("name", event.target.value)
                     }
-                  }}
-                  className="field-control h-12 w-full bg-white px-4 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
-                  placeholder="+380 (XX) XXX-XX-XX"
-                />
-              </Field>
+                    className="field-control h-11 w-full bg-white px-3 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
+                    placeholder="Ім'я"
+                    maxLength={80}
+                  />
+                </Field>
 
-              <Field label="Коментар">
+                <Field label="Телефон *">
+                  <input
+                    type="tel"
+                    required
+                    autoComplete="tel"
+                    inputMode="tel"
+                    value={form.phone}
+                    onChange={(event) =>
+                      updateField(
+                        "phone",
+                        formatUaPhoneInput(event.target.value),
+                      )
+                    }
+                    onFocus={(event) => {
+                      if (!event.target.value.trim()) {
+                        updateField("phone", "+380 ");
+                      }
+                    }}
+                    className="field-control h-11 w-full bg-white px-3 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
+                    placeholder="+380 (XX) XXX-XX-XX"
+                  />
+                </Field>
+              </div>
+
+              <Field label="Коментар (необов'язково)">
                 <textarea
                   value={form.details}
                   onChange={(event) =>
                     updateField("details", event.target.value)
                   }
-                  rows={3}
+                  rows={2}
                   maxLength={1000}
-                  className="field-control w-full resize-none bg-white px-4 py-3 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
-                  placeholder="Побажання щодо каюти, палуби, харчування..."
+                  className="field-control w-full resize-none bg-white px-3 py-2.5 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
+                  placeholder="Побажання, якщо є"
                 />
               </Field>
 
@@ -883,19 +1095,190 @@ export default function CruiseBookingModal({
                 disabled={!canSubmit}
                 className="btn-primary btn-primary--block disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submitting
-                  ? "Надсилання..."
-                  : "Надіслати заявку на бронювання"}
+                Надіслати заявку
               </button>
-
-              <p className="text-caption text-center text-subtitle">
-                Орієнтовна ціна за каюту на {guestSummary}. Менеджер підтвердить
-                точний тариф і наявність.
-              </p>
             </form>
-          )}
-        </div>
+          ) : null}
       </div>
+    </div>
+  );
+
+  const contactModal =
+    isPage && contactModalOpen
+      ? createPortal(
+          <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4">
+            <button
+              type="button"
+              aria-label="Закрити"
+              className="absolute inset-0 bg-black/45"
+              onClick={closeContactModal}
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="cruise-contact-modal-title"
+              className="relative z-[101] w-full max-w-[520px] overflow-hidden rounded-t-card bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)] sm:rounded-card"
+            >
+              <div className="flex items-center justify-between gap-4 px-5 pt-5 sm:px-6">
+                <div className="min-w-0">
+                  <p className="text-caption font-semibold text-[color:var(--color-brand)]">
+                    Заявка
+                  </p>
+                  <h2
+                    id="cruise-contact-modal-title"
+                    className="text-h4 mt-1 font-bold text-[color:var(--color-black)]"
+                  >
+                    {success ? "Заявку надіслано" : "Звʼязатися з менеджером"}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeContactModal}
+                  className="btn-control flex-shrink-0"
+                  aria-label="Закрити"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="relative max-h-[calc(100vh-2rem)] overflow-y-auto px-5 pb-5 pt-3 sm:px-6 sm:pb-6">
+                {submitting ? (
+                  <BookingSpinner label="Надсилаємо заявку…" />
+                ) : null}
+                <div className="rounded-card bg-[color:var(--color-surface-muted)] px-3.5 py-2.5 sm:px-4 sm:py-3">
+                  <p className="text-body font-semibold text-[color:var(--color-black)]">
+                    {cruise.liner_name}
+                  </p>
+                  <p className="text-caption mt-0.5 text-subtitle">
+                    {sailingLabel} · {guestSummary}
+                  </p>
+                  {cabinSelected ? (
+                    <p className="text-caption mt-2 font-semibold text-[color:var(--color-brand)]">
+                      {selectedOffer
+                        ? `${selectedOffer.cabinCode} · ${selectedOffer.tariffName}`
+                        : form.cabinType}
+                      {priceLabel ? ` · ${priceLabel}` : ""}
+                    </p>
+                  ) : null}
+                </div>
+                {success ? (
+                  <div className="py-6 text-center">
+                    <p className="text-body font-semibold text-[color:var(--color-black)]">
+                      Дякуємо! Менеджер зв&apos;яжеться з вами для підтвердження
+                      бронювання.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={closeContactModal}
+                      className="btn-primary mt-5"
+                    >
+                      Закрити
+                    </button>
+                  </div>
+                ) : (
+                  <form
+                    className="mt-3 space-y-3"
+                    onSubmit={handleSubmit}
+                    noValidate
+                  >
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <Field label="Ім'я *">
+                        <input
+                          type="text"
+                          required
+                          autoComplete="name"
+                          value={form.name}
+                          onChange={(event) =>
+                            updateField("name", event.target.value)
+                          }
+                          className="field-control h-11 w-full bg-white px-3 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
+                          placeholder="Ім'я"
+                          maxLength={80}
+                        />
+                      </Field>
+                      <Field label="Телефон *">
+                        <input
+                          type="tel"
+                          required
+                          autoComplete="tel"
+                          inputMode="tel"
+                          value={form.phone}
+                          onChange={(event) =>
+                            updateField(
+                              "phone",
+                              formatUaPhoneInput(event.target.value),
+                            )
+                          }
+                          onFocus={(event) => {
+                            if (!event.target.value.trim()) {
+                              updateField("phone", "+380 ");
+                            }
+                          }}
+                          className="field-control h-11 w-full bg-white px-3 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
+                          placeholder="+380 (XX) XXX-XX-XX"
+                        />
+                      </Field>
+                    </div>
+                    <Field label="Коментар (необов'язково)">
+                      <textarea
+                        value={form.details}
+                        onChange={(event) =>
+                          updateField("details", event.target.value)
+                        }
+                        rows={2}
+                        maxLength={1000}
+                        className="field-control w-full resize-none bg-white px-3 py-2.5 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
+                        placeholder="Побажання, якщо є"
+                      />
+                    </Field>
+                    <input
+                      id={honeypotId}
+                      type="text"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      aria-hidden="true"
+                      data-1p-ignore
+                      data-lpignore="true"
+                      className="pointer-events-none absolute -left-[9999px] h-0 w-0 opacity-0"
+                    />
+                    {error ? (
+                      <p className="rounded-card bg-red-50 px-3 py-2 text-caption text-red-700">
+                        {error}
+                      </p>
+                    ) : null}
+                    <button
+                      type="submit"
+                      disabled={!canSubmit}
+                      className="btn-primary btn-primary--block disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Надіслати заявку
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
+  if (isPage) {
+    return (
+      <>
+        {panel}
+        {contactModal}
+      </>
+    );
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4">
+      <button
+        type="button"
+        aria-label="Закрити"
+        className="absolute inset-0 bg-black/45"
+        onClick={onClose}
+      />
+      {panel}
     </div>,
     document.body,
   );

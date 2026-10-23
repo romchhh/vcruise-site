@@ -1,3 +1,5 @@
+import { offersForBookingUrl } from "./load-offers-cache";
+import { normalizeCruiseCabinOffer } from "./offer-key";
 import type {
   CabinPriceMap,
   CruiseCabinOffer,
@@ -20,20 +22,33 @@ function serializeOffers(
   offers: CruiseCabinOffer[] | undefined
 ): CruiseCabinOffer[] | undefined {
   if (!offers?.length) return undefined;
-  return offers.map((offer) => ({
-    cabinCode: offer.cabinCode,
-    cabinName: offer.cabinName,
-    cabinCategory: offer.cabinCategory,
-    tariffName: offer.tariffName,
-    areaM2: offer.areaM2,
-    decks: offer.decks,
-    price: offer.price,
-  }));
+  return offers.map((offer) => {
+    const normalized = normalizeCruiseCabinOffer(offer);
+    return {
+      cabinCode: normalized.cabinCode,
+      cabinName: normalized.cabinName,
+      cabinCategory: normalized.cabinCategory,
+      tariffName: normalized.tariffName,
+      areaM2: normalized.areaM2,
+      decks: normalized.decks,
+      price: normalized.price,
+    };
+  });
 }
 
-function serializeDate(date: CruiseDate): CruiseDate | null {
+function serializeDate(
+  date: CruiseDate,
+  offersBySlug: ReadonlyMap<string, CruiseCabinOffer[]>,
+  includeOffers: boolean,
+): CruiseDate | null {
   if (!date.date || !hasCabinPrices(date.cabins)) return null;
-  const offers = serializeOffers(date.offers);
+  const fromFile =
+    includeOffers && date.booking_url
+      ? offersForBookingUrl(date.booking_url, offersBySlug)
+      : undefined;
+  const offers = includeOffers
+    ? serializeOffers(fromFile ?? date.offers)
+    : undefined;
   return {
     date: date.date,
     booking_url: date.booking_url,
@@ -43,11 +58,14 @@ function serializeDate(date: CruiseDate): CruiseDate | null {
 }
 
 export function serializeCruisesForClient(
-  cruises: CruiseRecord[]
+  cruises: CruiseRecord[],
+  offersBySlug = new Map<string, CruiseCabinOffer[]>(),
+  options?: { includeOffers?: boolean },
 ): CruiseRecord[] {
+  const includeOffers = options?.includeOffers !== false;
   return cruises.map((cruise) => {
     const available_dates = (cruise.available_dates || [])
-      .map(serializeDate)
+      .map((date) => serializeDate(date, offersBySlug, includeOffers))
       .filter((item): item is CruiseDate => Boolean(item));
 
     return {

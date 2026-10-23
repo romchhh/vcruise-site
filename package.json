@@ -8,10 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "cruises:update": "./cruise-search/run-parser.sh --force",
-    "cruises:update:bg": "./cruise-search/run-parser.sh --force --background"
+    "cruises:update:bg": "./cruise-search/run-parser.sh --force --background",
+    "cruises:offers": "cd cruise-search/backend && python3 sync_offers.py --days 90 --workers 8"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
+    "country-flag-icons": "^1.6.20",
     "lucide-react": "^1.42.0",
     "next": "16.4.2",
     "react": "19.2.8",

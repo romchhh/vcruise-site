@@ -1,20 +1,6 @@
-const pulse = "animate-pulse bg-[#E8E8E8]";
+import CruisePagePreloader from "./CruisePagePreloader";
 
-function SearchPreloader() {
-  return (
-    <div
-      className="flex flex-col items-center gap-4 py-6"
-      role="status"
-      aria-live="polite"
-    >
-      <div
-        className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E8E8] border-t-[color:var(--color-brand)]"
-        aria-hidden
-      />
-      <span className="sr-only">Завантаження пошуку круїзів</span>
-    </div>
-  );
-}
+const pulse = "animate-pulse bg-[#E8E8E8]";
 
 export default function CruiseSearchSkeleton() {
   return (
@@ -27,7 +13,7 @@ export default function CruiseSearchSkeleton() {
             <div className={`mt-4 h-16 w-full max-w-2xl rounded-2xl ${pulse}`} />
           </div>
 
-          <SearchPreloader />
+          <CruisePagePreloader label="Завантажуємо каталог круїзів…" />
 
           <div className="rounded-card bg-white p-5 sm:p-6 lg:p-8">
             <div className={`mb-5 h-11 w-full max-w-xs rounded-xl ${pulse}`} />

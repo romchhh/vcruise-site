@@ -1,6 +1,12 @@
 import fs from "fs";
 import path from "path";
 import { isFeaturedCompany } from "./companies";
+import {
+  invalidateOffersCache,
+  loadOffersBySlugMap,
+  offersCacheMtimeMs,
+} from "./load-offers-cache";
+import { findSimilarCruises } from "./similar-cruises";
 import { serializeCruisesForClient } from "./serialize-cruises";
 import type { CruiseRecord } from "./types";
 
@@ -15,6 +21,7 @@ const BACKUP_FILE = `${OUTPUT_FILE}.bak`;
 let cachedCruises: CruiseRecord[] | null = null;
 let cachedMtimeMs = 0;
 let cachedClient: ReturnType<typeof serializeCruisesForClient> | null = null;
+let cachedOffersMtimeMs = 0;
 
 function readMtimeMs(filePath = OUTPUT_FILE) {
   try {
@@ -28,6 +35,8 @@ export function invalidateCruiseCache() {
   cachedCruises = null;
   cachedClient = null;
   cachedMtimeMs = 0;
+  cachedOffersMtimeMs = 0;
+  invalidateOffersCache();
 }
 
 /** Recover truncated JSON arrays cut mid-sync (missing trailing `]`). */
@@ -107,11 +116,36 @@ export function loadCruises() {
   return cachedCruises;
 }
 
+/** One cruise plus a few similar cards — does not serialize the full catalog. */
+export function loadCruisePage(key: number) {
+  const all = loadCruises();
+  const raw = all.find((cruise) => cruise.key === key);
+  if (!raw) return null;
+
+  const offersBySlug = loadOffersBySlugMap();
+  const [cruise] = serializeCruisesForClient([raw], offersBySlug);
+  const similar = serializeCruisesForClient(
+    findSimilarCruises(raw, all, 3),
+    offersBySlug,
+    { includeOffers: false },
+  );
+
+  return { cruise, similar };
+}
+
 export function loadClientCruises() {
   const cruises = loadCruises();
   const mtimeMs = readMtimeMs();
-  if (cachedClient && cachedMtimeMs === mtimeMs) return cachedClient;
-  cachedClient = serializeCruisesForClient(cruises);
+  const offersMtime = offersCacheMtimeMs();
+  if (
+    cachedClient &&
+    cachedMtimeMs === mtimeMs &&
+    cachedOffersMtimeMs === offersMtime
+  ) {
+    return cachedClient;
+  }
+  cachedClient = serializeCruisesForClient(cruises, loadOffersBySlugMap());
   cachedMtimeMs = mtimeMs || cachedMtimeMs;
+  cachedOffersMtimeMs = offersMtime;
   return cachedClient;
 }

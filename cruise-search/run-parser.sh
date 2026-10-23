@@ -161,6 +161,18 @@ run_parser() {
   ) 2>&1 | tee -a "$LOG_FILE"
 }
 
+run_offers_sync() {
+  log "Синхронізація тарифів кают (90 днів)..."
+  (
+    cd "$PARSER_DIR"
+    if [[ -n "$LIMIT" ]]; then
+      python sync_offers.py --days 90 --workers 8 --limit "$LIMIT"
+    else
+      python sync_offers.py --days 90 --workers 8
+    fi
+  ) 2>&1 | tee -a "$LOG_FILE"
+}
+
 verify_output() {
   if [[ ! -s "$OUTPUT_FILE" ]]; then
     log "Помилка: порожній або відсутній ${OUTPUT_FILE}"
@@ -202,6 +214,7 @@ main() {
   backup_output
   run_parser
   verify_output
+  run_offers_sync
   date +%s >"$STATE_FILE"
   log "Готово. Наступний запуск через ${INTERVAL_DAYS} дн. або з --force."
 }

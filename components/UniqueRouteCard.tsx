@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import CruiseLinerImage from "@/components/cruise-search/CruiseLinerImage";
 import type { UniqueRoute } from "@/types";
 
 function formatUsd(value: number) {
@@ -28,10 +28,9 @@ export default function UniqueRouteCard({ route }: UniqueRouteCardProps) {
   return (
     <article className="group relative flex aspect-[3/4] min-h-[420px] w-full min-w-0 flex-col overflow-hidden rounded-card sm:min-h-[440px]">
       <div className="absolute inset-0">
-        <Image
+        <CruiseLinerImage
           src={route.coverImage}
           alt={route.title}
-          fill
           className={`object-cover ${
             hasLinerHover
               ? "unique-route-image-cover--cycle opacity-100 transition-opacity duration-500 ease-in-out lg:group-hover:opacity-0"
@@ -40,13 +39,12 @@ export default function UniqueRouteCard({ route }: UniqueRouteCardProps) {
           sizes="(max-width: 1024px) 88vw, 33vw"
         />
         {hasLinerHover ? (
-          <Image
+          <CruiseLinerImage
             src={route.linerImage!}
             alt=""
-            fill
+            ariaHidden
             className="unique-route-image-liner--cycle object-cover opacity-0 transition-opacity duration-500 ease-in-out lg:group-hover:opacity-100"
             sizes="(max-width: 1024px) 88vw, 33vw"
-            aria-hidden
           />
         ) : null}
       </div>

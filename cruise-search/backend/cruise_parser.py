@@ -16,10 +16,14 @@
 
 import argparse
 import json
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date, timedelta
 from pathlib import Path
 
 import requests
+from requests.adapters import HTTPAdapter
 
 from structure_cruises import structure_items
 
@@ -43,22 +47,36 @@ HEADERS = {
     "Referer": SEARCH_PAGE + "?",
 }
 
-# Максимально широкі фільтри — щоб забрати геть усі круїзи з видачі.
-FILTERS = {
-    "act": "getitems",
-    "pg_num": "0",
-    "dates": "01.01.2020-31.12.2035",
-    "pr_min": "1",
-    "pr_max": "999",
-    "p_min": "1",
-    "p_max": "999999999",
-    "sort": "date_start,duration",
-    "curs": "NAT",
-    "locale": "ua",
-}
-
-REQUEST_PAUSE_SEC = 0.35
+REQUEST_PAUSE_SEC = 0.15
 MAX_RETRIES = 5
+PREFETCH_PAGES = 1  # overlap fetch of the next page while structuring the current one
+
+
+def build_date_filter(
+    past_days: int = 14,
+    future_months: int = 36,
+) -> str:
+    """Вужчий діапазон дат → менше сторінок getitems без втрати актуальних круїзів."""
+    today = date.today()
+    start = today - timedelta(days=max(0, past_days))
+    end = today + timedelta(days=max(30, future_months * 30))
+    return f"{start.strftime('%d.%m.%Y')}-{end.strftime('%d.%m.%Y')}"
+
+
+def build_filters() -> dict:
+    return {
+        "act": "getitems",
+        "pg_num": "0",
+        "dates": build_date_filter(),
+        "pr_min": "1",
+        "pr_max": "999",
+        "p_min": "1",
+        "p_max": "999999999",
+        "sort": "date_start,duration",
+        "curs": "NAT",
+        "locale": "ua",
+    }
+
 
 # Ліміт круїзів для вивантаження. None або 0 = без ліміту (все).
 MAX_ITEMS = None
@@ -134,6 +152,8 @@ class IncrementalJsonArrayWriter:
 
 def get_session() -> requests.Session:
     session = requests.Session()
+    adapter = HTTPAdapter(pool_connections=8, pool_maxsize=8, max_retries=0)
+    session.mount("https://", adapter)
     session.headers.update(HEADERS)
     resp = session.get(SEARCH_PAGE, timeout=30)
     resp.raise_for_status()
@@ -232,10 +252,18 @@ def main():
     output_path = args.output.resolve()
     pause_sec = max(0.0, args.pause)
     limit = args.limit if args.limit > 0 else (MAX_ITEMS if MAX_ITEMS else None)
+    filters = build_filters()
 
     session = get_session()
+    session_lock = threading.Lock()
 
-    first_page = fetch_cruises(session, FILTERS, page=0)
+    def fetch_page(page: int) -> dict:
+        with session_lock:
+            return fetch_cruises(session, filters, page=page)
+
+    print(f"[filters] dates={filters['dates']}")
+
+    first_page = fetch_page(0)
     total = int(first_page.get("total", 0) or 0)
     items_first = first_page.get("items") or []
     page_size = len(items_first) or 10
@@ -253,11 +281,26 @@ def main():
 
     print(f"Пишемо результати одразу → {output_path}\n")
 
+    prefetch_executor = (
+        ThreadPoolExecutor(max_workers=PREFETCH_PAGES) if PREFETCH_PAGES > 0 else None
+    )
+    pending_next = None
+
     with IncrementalJsonArrayWriter(output_path) as writer:
         for page in range(total_pages):
-            data = first_page if page == 0 else fetch_cruises(session, FILTERS, page=page)
-            if page != 0:
-                time.sleep(pause_sec)
+            if page == 0:
+                data = first_page
+            else:
+                if pending_next is not None:
+                    data = pending_next.result()
+                    pending_next = None
+                else:
+                    data = fetch_page(page)
+                if pause_sec > 0:
+                    time.sleep(pause_sec)
+
+            if prefetch_executor and page + 1 < total_pages:
+                pending_next = prefetch_executor.submit(fetch_page, page + 1)
 
             batch = data.get("items") or []
             if limit:
@@ -282,6 +325,9 @@ def main():
                     f"(сторінка {page + 1}/{total_pages})"
                 )
                 break
+
+    if prefetch_executor:
+        prefetch_executor.shutdown(wait=False)
 
     print(f"\nЗбережено {writer.count} круїзів → {output_path}")
 

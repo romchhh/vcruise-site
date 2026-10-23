@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
-import { useMemo, useState } from "react";
+import CruiseLinerImage from "./CruiseLinerImage";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { CURRENCY_SYMBOL } from "@/lib/cruise-search/constants";
 import {
@@ -12,6 +12,8 @@ import {
   getUpcomingDates,
   sailingDateInFilter,
 } from "@/lib/cruise-search/utils";
+import { resolveBookingUrl } from "@/lib/cruise-search/booking-url";
+import { prefetchCruiseOffers } from "@/lib/cruise-search/fetch-cruise-offers-client";
 import type { CruiseRecord, CurrencyCode } from "@/lib/cruise-search/types";
 
 function InfoRow({
@@ -42,15 +44,17 @@ export default function CruiseSearchResultCard({
   currency,
   dateFrom = "",
   dateTo = "",
-  onBook,
+  onOpen,
 }: {
   cruise: CruiseRecord;
   currency: CurrencyCode;
   dateFrom?: string;
   dateTo?: string;
-  onBook: (cruise: CruiseRecord, preferredDate?: string) => void;
+  onOpen: (cruise: CruiseRecord, preferredDate?: string) => void;
 }) {
   const [datesOpen, setDatesOpen] = useState(false);
+  const cardRef = useRef<HTMLElement | null>(null);
+  const prefetchedKeyRef = useRef("");
   const upcomingDates = useMemo(() => getUpcomingDates(cruise), [cruise]);
   const highlightDate = useMemo(
     () => sailingDateInFilter(cruise, dateFrom, dateTo),
@@ -64,6 +68,17 @@ export default function CruiseSearchResultCard({
   const routeExtra = route.length > 3 ? ` +${route.length - 3}` : "";
   const nightsLabel = cruise.nights_str ?? `${cruise.nights} ночей`;
 
+  const prefetchOffers = useCallback(() => {
+    const bookingUrl = resolveBookingUrl(cruise, highlightDate);
+    if (!bookingUrl) return;
+
+    if (prefetchedKeyRef.current === bookingUrl) return;
+    prefetchedKeyRef.current = bookingUrl;
+
+    prefetchCruiseOffers(bookingUrl);
+  }, [cruise, highlightDate]);
+
+
   const datesForList = useMemo(() => {
     if (!dateFrom && !dateTo) return upcomingDates;
     return upcomingDates.filter((item) => {
@@ -74,21 +89,29 @@ export default function CruiseSearchResultCard({
     });
   }, [upcomingDates, dateFrom, dateTo]);
 
+  const openDetail = () => onOpen(cruise, highlightDate ?? undefined);
+
   return (
-    <article className="flex h-full flex-col rounded-card bg-white p-4 sm:p-5">
-      <span className="chip chip-muted-brand w-fit">{cruise.region_name}</span>
+    <article
+      ref={cardRef}
+      className="flex h-full flex-col rounded-card bg-white p-4 sm:p-5"
+    >
+      <button
+        type="button"
+        onClick={openDetail}
+        className="flex flex-1 flex-col text-left"
+      >
+        <span className="chip chip-muted-brand w-fit">{cruise.region_name}</span>
 
-      <h3 className="text-h4 mt-3 font-bold text-[color:var(--color-black)]">
-        {cruise.liner_name}
-      </h3>
+        <h3 className="text-h4 mt-3 font-bold text-[color:var(--color-black)]">
+          {cruise.liner_name}
+        </h3>
 
-      <div className="relative mt-4 aspect-[4/3] overflow-hidden rounded-card-inner bg-[color:var(--color-surface-muted)]">
+        <div className="relative mt-4 aspect-[4/3] overflow-hidden rounded-card-inner bg-[color:var(--color-surface-muted)]">
         {cruise.liner_logo ? (
-          <Image
+          <CruiseLinerImage
             src={cruise.liner_logo}
             alt={cruise.liner_name}
-            fill
-            className="object-cover"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
         ) : (
@@ -128,11 +151,14 @@ export default function CruiseSearchResultCard({
           </div>
         </div>
       </div>
+      </button>
 
       <div className="mt-4 flex flex-col gap-2">
         <button
           type="button"
-          onClick={() => onBook(cruise, highlightDate ?? undefined)}
+          onPointerEnter={prefetchOffers}
+          onFocus={prefetchOffers}
+          onClick={openDetail}
           className="btn-primary btn-primary--block"
         >
           Забронювати

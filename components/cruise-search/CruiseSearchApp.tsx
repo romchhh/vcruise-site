@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { buildCruiseDetailPath } from "@/lib/cruise-search/cruise-detail-url";
+import {
+  clearSearchListState,
+  restoreSearchListState,
+  saveSearchListState,
+} from "@/lib/cruise-search/search-list-session";
 import { SEARCH_RESULTS_PAGE_SIZE } from "@/lib/cruise-search/constants";
 import { FEATURED_CRUISE_COMPANIES } from "@/lib/cruise-search/companies";
 import { filterCruises, sortCruises } from "@/lib/cruise-search/filter";
@@ -16,7 +22,6 @@ import type {
   CruiseRecord,
   CruiseSearchFilters as CruiseSearchFiltersState,
 } from "@/lib/cruise-search/types";
-import CruiseBookingModal from "./CruiseBookingModal";
 import CruiseSearchFilters from "./CruiseSearchFilters";
 import CruiseSearchResultCard from "./CruiseSearchResultCard";
 
@@ -53,8 +58,8 @@ export default function CruiseSearchApp({
     [bookableCruises, filters.currency],
   );
   const [visibleCount, setVisibleCount] = useState(SEARCH_RESULTS_PAGE_SIZE);
-  const [bookingCruise, setBookingCruise] = useState<CruiseRecord | null>(null);
-  const [bookingPreferredDate, setBookingPreferredDate] = useState("");
+  const pendingScrollRef = useRef<number | null>(null);
+  const listQuery = searchParams.toString();
 
   const deepLinkCruiseKey = searchParams.get("cruise");
   const deepLinkDate =
@@ -64,11 +69,44 @@ export default function CruiseSearchApp({
     if (!deepLinkCruiseKey) return;
     const key = Number(deepLinkCruiseKey);
     if (!Number.isFinite(key)) return;
-    const match = bookableCruises.find((cruise) => cruise.key === key);
-    if (!match) return;
-    setBookingCruise(match);
-    setBookingPreferredDate(deepLinkDate);
-  }, [bookableCruises, deepLinkCruiseKey, deepLinkDate]);
+    if (!bookableCruises.some((cruise) => cruise.key === key)) return;
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("cruise");
+    const nextListQuery = params.toString();
+
+    router.replace(
+      buildCruiseDetailPath(key, {
+        listQuery: nextListQuery,
+        sailing: deepLinkDate,
+        currency: initialFilters.currency,
+        adults: initialFilters.adults > 0 ? initialFilters.adults : 2,
+        children: initialFilters.children,
+        infants: initialFilters.infants,
+      }),
+    );
+  }, [
+    bookableCruises,
+    deepLinkCruiseKey,
+    deepLinkDate,
+    initialFilters.adults,
+    initialFilters.children,
+    initialFilters.currency,
+    initialFilters.infants,
+    router,
+    searchParams,
+  ]);
+
+  useEffect(() => {
+    const restored = restoreSearchListState(listQuery);
+    if (!restored) return;
+
+    if (restored.visibleCount > SEARCH_RESULTS_PAGE_SIZE) {
+      setVisibleCount(restored.visibleCount);
+    }
+    pendingScrollRef.current = restored.scrollY;
+    clearSearchListState();
+  }, [listQuery]);
 
   const companies = useMemo(() => {
     const available = new Set(
@@ -140,7 +178,35 @@ export default function CruiseSearchApp({
     [results, visibleCount]
   );
 
+  useEffect(() => {
+    if (pendingScrollRef.current == null) return;
+    const scrollY = pendingScrollRef.current;
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: scrollY, left: 0, behavior: "instant" });
+      pendingScrollRef.current = null;
+    });
+  }, [visibleCount, results.length]);
+
   const hasMoreResults = visibleCount < results.length;
+
+  const openCruise = (cruise: CruiseRecord, preferredDate?: string) => {
+    saveSearchListState({
+      listQuery,
+      scrollY: window.scrollY,
+      visibleCount,
+    });
+
+    router.push(
+      buildCruiseDetailPath(cruise.key, {
+        listQuery,
+        sailing: preferredDate,
+        currency: filters.currency,
+        adults: filters.adults > 0 ? filters.adults : 2,
+        children: filters.children,
+        infants: filters.infants,
+      }),
+    );
+  };
 
   const syncFiltersToUrl = (nextFilters: CruiseSearchFiltersState) => {
     const query = buildSearchParams(nextFilters);
@@ -289,10 +355,7 @@ export default function CruiseSearchApp({
                   currency={filters.currency}
                   dateFrom={filters.dateFrom}
                   dateTo={filters.dateTo}
-                  onBook={(next, preferredDate) => {
-                    setBookingPreferredDate(preferredDate || "");
-                    setBookingCruise(next);
-                  }}
+                  onOpen={openCruise}
                 />
               ))
             ) : (
@@ -332,28 +395,6 @@ export default function CruiseSearchApp({
           ) : null}
         </div>
       </div>
-      <CruiseBookingModal
-        cruise={bookingCruise}
-        currency={filters.currency}
-        preferredDate={bookingPreferredDate}
-        initialGuests={{
-          adults: filters.adults,
-          children: filters.children,
-          infants: filters.infants,
-        }}
-        onClose={() => {
-          setBookingCruise(null);
-          setBookingPreferredDate("");
-          if (deepLinkCruiseKey) {
-            const next = new URLSearchParams(searchParams.toString());
-            next.delete("cruise");
-            const query = next.toString();
-            router.replace(query ? `/search?${query}` : "/search", {
-              scroll: false,
-            });
-          }
-        }}
-      />
     </main>
   );
 }

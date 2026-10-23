@@ -60,12 +60,15 @@ def parse_cabins_block(ul_tag) -> dict:
     return cabins
 
 
+def _soup(html: str) -> BeautifulSoup:
+    return BeautifulSoup(html, "html.parser")
+
+
 def parse_price_cabins(html: str) -> dict:
     """Поле price_cabins — це стартова (найдешевша) ціна по категоріях кают, без прив'язки до дати."""
     if not html:
         return {}
-    soup = BeautifulSoup(html, "html.parser")
-    return parse_cabins_block(soup.find("ul", class_="cruise__cabins"))
+    return parse_cabins_block(_soup(html).find("ul", class_="cruise__cabins"))
 
 
 def parse_price_cabins_next(html: str) -> list[dict]:
@@ -73,13 +76,11 @@ def parse_price_cabins_next(html: str) -> list[dict]:
     Поле price_cabins_next — список усіх доступних дат відправлення,
     кожна зі своїм блоком цін по категоріях кают і посиланням на бронювання.
 
-    Phase 2 (not implemented): follow each booking_url and scrape tariff × cabin
-    matrix into `offers[]` (cabinCode, tariffName, areaM2, decks, price) —
-    see CruiseCabinOffer in lib/cruise-search/types.ts.
+    `offers[]` для дати підставляються з offers_by_slug.json під час serialize на сайті.
     """
     if not html:
         return []
-    soup = BeautifulSoup(html, "html.parser")
+    soup = _soup(html)
     dates = []
     for block in soup.find_all("div", class_="cruise__dates"):
         date_span = block.select_one(".cruise__dates-current span")
