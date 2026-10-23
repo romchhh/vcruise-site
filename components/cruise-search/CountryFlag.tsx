@@ -1,24 +1,21 @@
-"use client";
-
-import { useLayoutEffect, useRef } from "react";
-import "country-flag-icons/3x2/flags.css";
-
 /**
- * SVG flag via country-flag-icons CSS (not Unicode emoji).
- * Class names like `flag:IT` are set on the DOM so Tailwind does not parse them.
+ * SVG flags via CDN (not Unicode emoji — those break as letter pairs on Windows).
+ * No local package import: Turbopack/CI often fails to resolve country-flag-icons subpaths.
  */
 export default function CountryFlag({ code }: { code: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
+  const safe = code.replace(/[^A-Za-z0-9_]/g, "");
+  if (!safe) return null;
 
-  useLayoutEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    node.className = `flag:${code}`;
-    node.style.setProperty("--CountryFlagIcon-height", "0.875rem");
-    node.style.borderRadius = "2px";
-    node.style.boxShadow = "0 0 0 1px rgba(15, 23, 42, 0.14)";
-    node.style.flexShrink = "0";
-  }, [code]);
-
-  return <span ref={ref} aria-hidden />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`https://cdn.jsdelivr.net/npm/country-flag-icons@1.6.20/3x2/${safe}.svg`}
+      alt=""
+      width={20}
+      height={14}
+      loading="lazy"
+      decoding="async"
+      className="h-3.5 w-5 shrink-0 rounded-[2px] object-cover shadow-[0_0_0_1px_rgba(15,23,42,0.14)]"
+    />
+  );
 }
