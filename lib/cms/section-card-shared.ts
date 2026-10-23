@@ -36,7 +36,9 @@ export function emptyCruiseCard(
       company: "",
       liner: "",
       date: "",
+      title: "",
       discountPercent: HOT_DEAL_DISCOUNT_PERCENT,
+      priceBasis: "person",
       image: HOT_DEAL_COVER_IMAGE,
     };
   }
@@ -45,6 +47,8 @@ export function emptyCruiseCard(
     company: "",
     liner: "",
     date: "",
+    title: "",
+    priceBasis: "person",
     coverImage: UNIQUE_ROUTE_COVER_IMAGE,
     linerImage: "",
   };

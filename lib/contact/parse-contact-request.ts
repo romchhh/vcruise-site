@@ -18,6 +18,21 @@ function parseBooking(value: unknown): CruiseBookingDetails | null | undefined {
     : 1;
   const priceLabel = String(booking.priceLabel ?? "").trim();
   const cabinType = String(booking.cabinType ?? "").trim();
+  const adultsRaw = Number(booking.adults);
+  const childrenRaw = Number(booking.children);
+  const infantsRaw = Number(booking.infants);
+  const adults =
+    Number.isFinite(adultsRaw) && adultsRaw > 0
+      ? Math.min(20, Math.round(adultsRaw))
+      : undefined;
+  const children =
+    Number.isFinite(childrenRaw) && childrenRaw > 0
+      ? Math.min(20, Math.round(childrenRaw))
+      : undefined;
+  const infants =
+    Number.isFinite(infantsRaw) && infantsRaw > 0
+      ? Math.min(20, Math.round(infantsRaw))
+      : undefined;
 
   if (!company && !linerName) {
     return null;
@@ -36,6 +51,9 @@ function parseBooking(value: unknown): CruiseBookingDetails | null | undefined {
     nights,
     cabinType: cabinType ? cabinType.slice(0, 80) : undefined,
     priceLabel: priceLabel ? priceLabel.slice(0, 80) : undefined,
+    adults,
+    children,
+    infants,
   };
 }
 

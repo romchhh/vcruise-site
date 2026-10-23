@@ -31,13 +31,13 @@ export default function CruiseCard({ cruise }: { cruise: Cruise }) {
       <span className="chip chip-muted-brand w-fit">{cruise.region}</span>
 
       <h3 className="text-h4 mt-3 font-bold text-[color:var(--color-black)]">
-        {cruise.title}
+        {cruise.linerName || cruise.title}
       </h3>
 
       <div className="relative mt-4 aspect-[4/3] overflow-hidden rounded-card-inner">
         <Image
           src={cruise.image}
-          alt={cruise.title}
+          alt={cruise.linerName || cruise.title}
           fill
           className="object-cover"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

@@ -1,7 +1,10 @@
 export type Cruise = {
   id: string;
   region: string;
+  /** Cruise company */
   line: string;
+  /** Ship / liner name */
+  linerName?: string;
   title: string;
   route: string;
   dateRange: string;
@@ -11,16 +14,24 @@ export type Cruise = {
   href?: string;
 };
 
+/** How the listed price is quoted on homepage cards. */
+export type PriceBasis = "person" | "couple";
+
 export type UniqueRoute = {
   id: string;
   region: string;
+  /** Cruise company */
   line: string;
-  /** «Класичний круїз: …» */
+  /** Ship / liner name */
+  linerName: string;
+  /** Card headline (CMS override or auto from ports). */
   title: string;
   route: string;
   dateRange: string;
   nights: number;
   price: number;
+  /** Default: per person. */
+  priceBasis?: PriceBasis;
   coverImage: string;
   /** Фото лайнера при наведенні; якщо немає — лишається cover */
   linerImage: string | null;
@@ -29,6 +40,10 @@ export type UniqueRoute = {
 
 export type HotDeal = {
   id: string;
+  /** Cruise company */
+  company: string;
+  /** Ship / liner name */
+  linerName: string;
   title: string;
   route: string;
   dateRange: string;
@@ -36,6 +51,8 @@ export type HotDeal = {
   price: number;
   originalPrice: number;
   discountPercent: number;
+  /** Default: per person. */
+  priceBasis?: PriceBasis;
   image: string;
   href: string;
 };

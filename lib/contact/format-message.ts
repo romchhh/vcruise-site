@@ -8,6 +8,9 @@ export type CruiseBookingDetails = {
   /** Selected cabin category, e.g. «З балконом». */
   cabinType?: string;
   priceLabel?: string;
+  adults?: number;
+  children?: number;
+  infants?: number;
 };
 
 function formatIsoDateLabel(iso: string) {
@@ -42,6 +45,17 @@ export function formatContactTelegramMessage(payload: ContactFormPayload) {
 
     if (booking.priceLabel) {
       lines.push(`💰 Ціна: ${booking.priceLabel}`);
+    }
+
+    const adults = booking.adults ?? 0;
+    const children = booking.children ?? 0;
+    const infants = booking.infants ?? 0;
+    if (adults || children || infants) {
+      lines.push(
+        `👥 Туристи: ${adults} дор.` +
+          (children ? `, ${children} дит.` : "") +
+          (infants ? `, ${infants} нем.` : ""),
+      );
     }
 
     lines.push(

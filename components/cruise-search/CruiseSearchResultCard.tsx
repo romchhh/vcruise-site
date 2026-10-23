@@ -5,11 +5,12 @@ import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { CURRENCY_SYMBOL } from "@/lib/cruise-search/constants";
 import {
-  cheapestPrice,
+  cheapestPriceOnDate,
+  embarkationPort,
   formatDate,
   formatMoney,
   getUpcomingDates,
-  nearestDate,
+  sailingDateInFilter,
 } from "@/lib/cruise-search/utils";
 import type { CruiseRecord, CurrencyCode } from "@/lib/cruise-search/types";
 
@@ -39,21 +40,39 @@ function InfoRow({
 export default function CruiseSearchResultCard({
   cruise,
   currency,
+  dateFrom = "",
+  dateTo = "",
   onBook,
 }: {
   cruise: CruiseRecord;
   currency: CurrencyCode;
-  onBook: (cruise: CruiseRecord) => void;
+  dateFrom?: string;
+  dateTo?: string;
+  onBook: (cruise: CruiseRecord, preferredDate?: string) => void;
 }) {
   const [datesOpen, setDatesOpen] = useState(false);
   const upcomingDates = useMemo(() => getUpcomingDates(cruise), [cruise]);
-  const price = cheapestPrice(cruise, currency);
+  const highlightDate = useMemo(
+    () => sailingDateInFilter(cruise, dateFrom, dateTo),
+    [cruise, dateFrom, dateTo],
+  );
+  const price = cheapestPriceOnDate(cruise, highlightDate, currency);
   const symbol = CURRENCY_SYMBOL[currency];
-  const nearDate = nearestDate(cruise);
+  const fromPort = embarkationPort(cruise);
   const route = cruise.route ?? [];
   const routePreview = route.slice(0, 3).join(" · ");
   const routeExtra = route.length > 3 ? ` +${route.length - 3}` : "";
   const nightsLabel = cruise.nights_str ?? `${cruise.nights} ночей`;
+
+  const datesForList = useMemo(() => {
+    if (!dateFrom && !dateTo) return upcomingDates;
+    return upcomingDates.filter((item) => {
+      const date = item.date!;
+      if (dateFrom && !dateTo) return date === dateFrom;
+      if (!dateFrom && dateTo) return date <= dateTo;
+      return date >= dateFrom && date <= dateTo;
+    });
+  }, [upcomingDates, dateFrom, dateTo]);
 
   return (
     <article className="flex h-full flex-col rounded-card bg-white p-4 sm:p-5">
@@ -87,10 +106,13 @@ export default function CruiseSearchResultCard({
 
       <div className="mt-4 space-y-3">
         <InfoRow
-          label={formatDate(nearDate)}
+          label={formatDate(highlightDate)}
           value={nightsLabel}
           withDivider={false}
         />
+        {fromPort ? (
+          <InfoRow label="Відправлення" value={fromPort} />
+        ) : null}
         <InfoRow
           label="Маршрут"
           value={`${routePreview}${routeExtra}`}
@@ -110,12 +132,12 @@ export default function CruiseSearchResultCard({
       <div className="mt-4 flex flex-col gap-2">
         <button
           type="button"
-          onClick={() => onBook(cruise)}
+          onClick={() => onBook(cruise, highlightDate ?? undefined)}
           className="btn-primary btn-primary--block"
         >
           Забронювати
         </button>
-        {upcomingDates.length > 1 ? (
+        {datesForList.length > 1 ? (
           <button
             type="button"
             onClick={() => setDatesOpen((open) => !open)}
@@ -123,7 +145,7 @@ export default function CruiseSearchResultCard({
           >
             {datesOpen
               ? "Сховати дати"
-              : `Усі дати (${upcomingDates.length})`}
+              : `Усі дати (${datesForList.length})`}
             <ChevronDown
               className={`h-4 w-4 transition-transform ${datesOpen ? "rotate-180" : ""}`}
             />
@@ -134,7 +156,7 @@ export default function CruiseSearchResultCard({
       {datesOpen ? (
         <div className="divider mt-4 border-t border-[color:var(--color-divider)] pt-4">
           <div className="space-y-3">
-            {upcomingDates.map((item) => {
+            {datesForList.map((item) => {
               const cabins = Object.entries(item.cabins ?? {})
                 .map(
                   ([name, prices]) =>

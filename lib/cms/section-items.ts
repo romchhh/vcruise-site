@@ -48,6 +48,8 @@ function asStringArray(value: unknown): string[] {
 export function cardsToHotDeals(cards: ContentBlockCard[]): HotDeal[] {
   return cards.map((card, index) => ({
     id: asString(card.id, `deal-${index + 1}`),
+    company: asString(card.company || card.line, ""),
+    linerName: asString(card.linerName || card.liner, ""),
     title: asString(card.title, "Круїз"),
     route: asString(card.route, "—"),
     dateRange: asString(card.dateRange, "—"),
@@ -55,6 +57,7 @@ export function cardsToHotDeals(cards: ContentBlockCard[]): HotDeal[] {
     price: asNumber(card.price, 0),
     originalPrice: asNumber(card.originalPrice, asNumber(card.price, 0)),
     discountPercent: asNumber(card.discountPercent, 25),
+    priceBasis: card.priceBasis === "couple" ? "couple" : "person",
     image: asString(
       card.image || card.coverImage,
       "/images/sections/hot-deals-cover.jpg",
@@ -73,11 +76,13 @@ export function cardsToUniqueRoutes(cards: ContentBlockCard[]): UniqueRoute[] {
       id: asString(card.id, `route-${index + 1}`),
       region: asString(card.region, ""),
       line: asString(card.line, ""),
+      linerName: asString(card.linerName || card.liner, ""),
       title: asString(card.title, "Круїз"),
       route: asString(card.route, "—"),
       dateRange: asString(card.dateRange, "—"),
       nights: asNumber(card.nights, 7),
       price: asNumber(card.price, 0),
+      priceBasis: card.priceBasis === "couple" ? "couple" : "person",
       coverImage: asString(
         card.coverImage || card.image,
         "/images/sections/unique-routes-cover.jpg",

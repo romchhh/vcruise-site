@@ -162,6 +162,7 @@ function mapToCard(
     id: String(cruise.key),
     region: slot.region,
     line: cruise.cruise_title,
+    linerName: cruise.liner_name || cruise.liner_slug,
     title: cruise.liner_name || cruise.cruise_title,
     route: formatRoute(cruise.route ?? []),
     dateRange: formatDateRange(startDate, Math.max(cruise.nights, 1)),

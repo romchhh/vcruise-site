@@ -59,15 +59,13 @@ function formatRoute(route: string[]) {
   return `${ports[0]} → ${ports[ports.length - 1]}`;
 }
 
-function formatClassicTitle(route: string[]) {
+function formatRouteTitle(route: string[]) {
   const ports = routePorts(route);
   if (ports.length >= 2) {
-    return `Класичний круїз: ${ports[0]} — ${ports[ports.length - 1]}`;
+    return `${ports[0]} — ${ports[ports.length - 1]}`;
   }
-  if (ports.length === 1) {
-    return `Класичний круїз: ${ports[0]}`;
-  }
-  return "Класичний круїз";
+  if (ports.length === 1) return ports[0]!;
+  return "Круїз";
 }
 
 function nearestUpcomingDate(cruise: CruiseRecord, today: string) {
@@ -125,15 +123,16 @@ function mapToUniqueRoute(
   const nights = Math.max(cruise.nights, 1);
   const route = cruise.route ?? [];
 
-  const searchUrl = `/search?${buildSearchParams({
+  const query = buildSearchParams({
     regions: [region],
     company: cruise.cruise_title,
     liner: cruise.liner_slug,
     dateFrom: startDate,
+    dateTo: startDate,
     sort: "date_asc",
     currency: "USD",
     newLinersOnly: false,
-  })}`;
+  });
 
   const linerImage = resolveLinerImage(cruise);
 
@@ -141,14 +140,16 @@ function mapToUniqueRoute(
     id: String(cruise.key),
     region,
     line: cruise.cruise_title,
-    title: formatClassicTitle(route),
+    linerName: cruise.liner_name || cruise.liner_slug,
+    title: formatRouteTitle(route),
     route: formatRoute(route),
     dateRange: formatDateRange(startDate, nights),
     nights,
     price,
+    priceBasis: "person",
     coverImage: UNIQUE_ROUTE_COVER_IMAGE,
     linerImage,
-    href: searchUrl,
+    href: `/search?${query}&cruise=${cruise.key}`,
   };
 }
 

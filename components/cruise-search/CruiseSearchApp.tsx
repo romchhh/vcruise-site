@@ -54,6 +54,21 @@ export default function CruiseSearchApp({
   );
   const [visibleCount, setVisibleCount] = useState(SEARCH_RESULTS_PAGE_SIZE);
   const [bookingCruise, setBookingCruise] = useState<CruiseRecord | null>(null);
+  const [bookingPreferredDate, setBookingPreferredDate] = useState("");
+
+  const deepLinkCruiseKey = searchParams.get("cruise");
+  const deepLinkDate =
+    searchParams.get("dateFrom") || searchParams.get("dateTo") || "";
+
+  useEffect(() => {
+    if (!deepLinkCruiseKey) return;
+    const key = Number(deepLinkCruiseKey);
+    if (!Number.isFinite(key)) return;
+    const match = bookableCruises.find((cruise) => cruise.key === key);
+    if (!match) return;
+    setBookingCruise(match);
+    setBookingPreferredDate(deepLinkDate);
+  }, [bookableCruises, deepLinkCruiseKey, deepLinkDate]);
 
   const companies = useMemo(() => {
     const available = new Set(
@@ -103,7 +118,13 @@ export default function CruiseSearchApp({
 
   const results = useMemo(() => {
     const filtered = filterCruises(bookableCruises, filters);
-    return sortCruises(filtered, filters.sort, filters.currency);
+    return sortCruises(
+      filtered,
+      filters.sort,
+      filters.currency,
+      filters.dateFrom,
+      filters.dateTo,
+    );
   }, [bookableCruises, filters]);
 
   useEffect(() => {
@@ -266,7 +287,12 @@ export default function CruiseSearchApp({
                   key={cruise.key}
                   cruise={cruise}
                   currency={filters.currency}
-                  onBook={setBookingCruise}
+                  dateFrom={filters.dateFrom}
+                  dateTo={filters.dateTo}
+                  onBook={(next, preferredDate) => {
+                    setBookingPreferredDate(preferredDate || "");
+                    setBookingCruise(next);
+                  }}
                 />
               ))
             ) : (
@@ -309,7 +335,24 @@ export default function CruiseSearchApp({
       <CruiseBookingModal
         cruise={bookingCruise}
         currency={filters.currency}
-        onClose={() => setBookingCruise(null)}
+        preferredDate={bookingPreferredDate}
+        initialGuests={{
+          adults: filters.adults,
+          children: filters.children,
+          infants: filters.infants,
+        }}
+        onClose={() => {
+          setBookingCruise(null);
+          setBookingPreferredDate("");
+          if (deepLinkCruiseKey) {
+            const next = new URLSearchParams(searchParams.toString());
+            next.delete("cruise");
+            const query = next.toString();
+            router.replace(query ? `/search?${query}` : "/search", {
+              scroll: false,
+            });
+          }
+        }}
       />
     </main>
   );

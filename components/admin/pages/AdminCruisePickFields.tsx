@@ -101,7 +101,7 @@ export default function AdminCruisePickFields({
     <>
       <p className={ui.tableHint}>
         Оберіть компанію, лайнер і дату — ціна та маршрут підтягнуться з бази
-        автоматично.
+        автоматично. «За двох» показує подвійну ціну з каюти (за особу × 2).
         {blockKey === "hot-deals"
           ? " Бейджі «Гаряча пропозиція» і знижка залишаються. Фото лайнера підтягується з бази автоматично."
           : " Друге фото (лайнер) береться з бази; можете додати своє фото обкладинки."}
@@ -160,6 +160,41 @@ export default function AdminCruisePickFields({
                 {value}
               </option>
             ))}
+          </select>
+        </Field>
+
+        <Field
+          label={
+            blockKey === "unique-routes"
+              ? "Заголовок на картці"
+              : "Заголовок на картці (опційно)"
+          }
+        >
+          <input
+            value={asString(card.title)}
+            placeholder={
+              blockKey === "unique-routes"
+                ? "Порожнє = порти маршруту (напр. Гонконг — Корон)"
+                : "Порожнє = «Класичний круїз: …» з портів"
+            }
+            onChange={(event) => onChange({ title: event.target.value })}
+          />
+        </Field>
+
+        <Field label="Ціна показується як">
+          <select
+            value={
+              asString(card.priceBasis) === "couple" ? "couple" : "person"
+            }
+            onChange={(event) =>
+              onChange({
+                priceBasis:
+                  event.target.value === "couple" ? "couple" : "person",
+              })
+            }
+          >
+            <option value="person">За особу</option>
+            <option value="couple">За двох</option>
           </select>
         </Field>
 

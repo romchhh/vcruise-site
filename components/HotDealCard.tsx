@@ -55,6 +55,19 @@ export default function HotDealCard({ deal }: { deal: HotDeal }) {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pb-4 pt-3 sm:px-5 sm:pb-6 sm:pt-5">
         <div className="flex min-w-0 flex-1 flex-col">
+          {(deal.company || deal.linerName) && (
+            <p className="type-card-meta mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-subtitle">
+              {deal.company ? (
+                <span className="font-semibold text-[color:var(--color-brand)]">
+                  {deal.company}
+                </span>
+              ) : null}
+              {deal.company && deal.linerName ? (
+                <span aria-hidden>·</span>
+              ) : null}
+              {deal.linerName ? <span>{deal.linerName}</span> : null}
+            </p>
+          )}
           <h3 className="type-card-title line-clamp-2 min-h-[2.5em] text-[color:var(--color-black)] sm:min-h-[2.65em]">
             {deal.title}
           </h3>
@@ -72,7 +85,9 @@ export default function HotDealCard({ deal }: { deal: HotDeal }) {
           <div className="divider mt-3 pt-3 sm:mt-4">
             <div className="flex items-end justify-between gap-2 sm:gap-3">
               <span className="type-card-price-label max-w-[7rem] text-subtitle sm:max-w-[120px]">
-                Ціна від / за особу
+                {deal.priceBasis === "couple"
+                  ? "Ціна від / за двох"
+                  : "Ціна від / за особу"}
               </span>
               <div className="flex shrink-0 flex-col items-end gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
                 <span className="type-card-meta text-subtitle line-through">

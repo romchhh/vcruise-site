@@ -1,50 +1,17 @@
 import {
-  FINDER_REGION_ALIASES,
-  HERO_DESTINATION_REGION_IDS,
   MONTH_INDEX,
   NEW_LINER_MIN_BUILT_YEAR,
-  REGION_TREE,
 } from "./constants";
 import { sanitizeSelectedMonths } from "./month-helpers";
+import { matchesCruiseRegions } from "./region-match";
 import {
   cheapestPrice,
   getDurationBounds,
   hasBookableDates,
-  nearestDate,
+  sailingDateInFilter,
   todayIso,
 } from "./utils";
 import type { CruiseRecord, CruiseSearchFilters, CruiseSort } from "./types";
-
-function matchesRegions(cruise: CruiseRecord, regions: string[]) {
-  if (!regions.length) return true;
-
-  return regions.some((region) => {
-    if (cruise.region_name === region || cruise.region_id === region) {
-      return true;
-    }
-
-    for (const group of REGION_TREE) {
-      for (const [id, label] of group.items) {
-        if (region === id || region === label) {
-          if (cruise.region_id === id || cruise.region_name === label) {
-            return true;
-          }
-        }
-      }
-    }
-
-    const heroIds = HERO_DESTINATION_REGION_IDS[region];
-    const finderIds = FINDER_REGION_ALIASES[region];
-    const ids = heroIds ?? finderIds;
-
-    if (!ids?.length) return false;
-
-    return (
-      ids.includes(cruise.region_id) ||
-      ids.some((id) => cruise.region_name.includes(id))
-    );
-  });
-}
 
 function matchesHeroDuration(cruise: CruiseRecord, duration: string) {
   const bounds = getDurationBounds(duration);
@@ -98,11 +65,19 @@ function matchesDateRange(
     .map((item) => item.date)
     .filter((date): date is string => Boolean(date && date >= today));
 
-  if (!dates.length) return !dateFrom && !dateTo;
+  if (!dates.length) return false;
+
+  // Only «від» → exact sailing day (not «from this day onward»).
+  if (dateFrom && !dateTo) {
+    return dates.some((date) => date === dateFrom);
+  }
+
+  if (!dateFrom && dateTo) {
+    return dates.some((date) => date <= dateTo);
+  }
 
   return dates.some(
-    (date) =>
-      (!dateFrom || date >= dateFrom) && (!dateTo || date <= dateTo)
+    (date) => date >= dateFrom && date <= dateTo,
   );
 }
 
@@ -121,7 +96,7 @@ export function filterCruises(
       return false;
     }
 
-    if (!matchesRegions(cruise, filters.regions)) return false;
+    if (!matchesCruiseRegions(cruise, filters.regions)) return false;
 
     if (!matchesHeroDuration(cruise, filters.duration)) return false;
 
@@ -156,12 +131,16 @@ export function filterCruises(
 export function sortCruises(
   cruises: CruiseRecord[],
   sort: CruiseSort,
-  currency: CruiseSearchFilters["currency"] = "NAT"
+  currency: CruiseSearchFilters["currency"] = "NAT",
+  dateFrom = "",
+  dateTo = "",
 ) {
   return [...cruises].sort((left, right) => {
     if (sort.startsWith("date")) {
-      const leftDate = nearestDate(left) ?? "";
-      const rightDate = nearestDate(right) ?? "";
+      const leftDate =
+        sailingDateInFilter(left, dateFrom, dateTo) ?? "";
+      const rightDate =
+        sailingDateInFilter(right, dateFrom, dateTo) ?? "";
       return sort === "date_asc"
         ? leftDate.localeCompare(rightDate)
         : rightDate.localeCompare(leftDate);

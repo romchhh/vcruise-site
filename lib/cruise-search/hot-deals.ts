@@ -102,21 +102,24 @@ function mapToHotDeal(
   price: number
 ): HotDeal {
   const region = cruise.region_name || "Середземномор'я";
-  const searchUrl = `/search?${buildSearchParams({
+  const query = buildSearchParams({
     regions: [region],
     company: cruise.cruise_title,
     liner: cruise.liner_slug,
     dateFrom: startDate,
+    dateTo: startDate,
     sort: "price_asc",
     currency: "USD",
     newLinersOnly: false,
-  })}`;
+  });
 
   const route = cruise.route ?? [];
   const nights = Math.max(cruise.nights, 1);
 
   return {
     id: String(cruise.key),
+    company: cruise.cruise_title,
+    linerName: cruise.liner_name || cruise.liner_slug,
     title: formatTitle(route),
     route: formatRoute(route),
     dateRange: formatDateRange(startDate, nights),
@@ -124,8 +127,9 @@ function mapToHotDeal(
     price,
     originalPrice: originalPriceFromDeal(price, HOT_DEAL_DISCOUNT_PERCENT),
     discountPercent: HOT_DEAL_DISCOUNT_PERCENT,
+    priceBasis: "person",
     image: resolveLinerImage(cruise),
-    href: searchUrl,
+    href: `/search?${query}&cruise=${cruise.key}`,
   };
 }
 

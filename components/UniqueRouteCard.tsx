@@ -63,6 +63,11 @@ export default function UniqueRouteCard({ route }: UniqueRouteCardProps) {
         <span className="max-w-full truncate rounded-full bg-white px-3.5 py-1.5 text-body font-medium text-[color:var(--color-brand)] lg:text-caption">
           {route.line}
         </span>
+        {route.linerName ? (
+          <span className="max-w-full truncate rounded-full bg-white/90 px-3.5 py-1.5 text-body font-medium text-[color:var(--color-black)] lg:text-caption">
+            {route.linerName}
+          </span>
+        ) : null}
       </div>
 
       <div className="relative z-10 flex h-full min-h-0 flex-col justify-end p-4 sm:p-5">
@@ -87,7 +92,9 @@ export default function UniqueRouteCard({ route }: UniqueRouteCardProps) {
 
           <div className="flex items-end justify-between gap-3">
             <span className="max-w-[8.5rem] text-body leading-snug text-white/75 lg:max-w-[120px] lg:text-caption">
-              Ціна від / за особу
+              {route.priceBasis === "couple"
+                ? "Ціна від / за двох"
+                : "Ціна від / за особу"}
             </span>
             <span className="text-h3 font-bold leading-none text-white lg:text-h4">
               {formatUsd(route.price)}

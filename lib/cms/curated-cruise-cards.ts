@@ -10,7 +10,36 @@ import {
 } from "@/lib/cms/section-card-shared";
 import { cardsToHotDeals, cardsToUniqueRoutes } from "@/lib/cms/section-items";
 import type { ContentBlock, ContentBlockCard } from "@/lib/cms/store";
-import type { HotDeal, UniqueRoute } from "@/types";
+import type { HotDeal, PriceBasis, UniqueRoute } from "@/types";
+
+function parsePriceBasis(value: unknown): PriceBasis {
+  return value === "couple" ? "couple" : "person";
+}
+
+function applyPriceBasis(price: number, basis: PriceBasis) {
+  return basis === "couple" ? price * 2 : price;
+}
+
+/** Deep-link to one sailing and open booking modal on /search. */
+function cruiseDeepLink(input: {
+  cruise: CruiseRecord;
+  date: string;
+  sort: "price_asc" | "date_asc";
+}) {
+  const { cruise, date, sort } = input;
+  const region = cruise.region_name || "Середземномор'я";
+  const query = buildSearchParams({
+    regions: [region],
+    company: cruise.cruise_title,
+    liner: cruise.liner_slug,
+    dateFrom: date,
+    dateTo: date,
+    sort,
+    currency: "USD",
+    newLinersOnly: false,
+  });
+  return `/search?${query}&cruise=${cruise.key}`;
+}
 
 export {
   SECTION_CARD_LIMIT,
@@ -57,13 +86,31 @@ function formatRoute(route: string[]) {
   return `${ports[0]} → ${ports[ports.length - 1]}`;
 }
 
-function formatTitle(route: string[]) {
+function formatPortSpan(route: string[]) {
   const ports = routePorts(route);
-  if (ports.length >= 2) {
-    return `Класичний круїз: ${ports[0]} — ${ports[ports.length - 1]}`;
-  }
-  if (ports.length === 1) return `Класичний круїз: ${ports[0]}`;
-  return "Класичний круїз";
+  if (ports.length >= 2) return `${ports[0]} — ${ports[ports.length - 1]}`;
+  if (ports.length === 1) return ports[0]!;
+  return "";
+}
+
+/** Hot deals keep «Класичний круїз»; unique routes use ports only (override via CMS title). */
+function formatTitle(
+  route: string[],
+  kind: "hot-deals" | "unique-routes" = "hot-deals",
+) {
+  const span = formatPortSpan(route);
+  if (kind === "unique-routes") return span || "Круїз";
+  return span ? `Класичний круїз: ${span}` : "Класичний круїз";
+}
+
+function resolveCardTitle(
+  card: ContentBlockCard,
+  route: string[],
+  kind: "hot-deals" | "unique-routes",
+) {
+  const custom = asString(card.title).trim();
+  if (custom) return custom;
+  return formatTitle(route, kind);
 }
 
 function asString(value: unknown) {
@@ -136,17 +183,25 @@ export function cardToHotDeal(
     card.discountPercent,
     HOT_DEAL_DISCOUNT_PERCENT,
   );
-  const region = cruise.region_name || "Середземномор'я";
+  const priceBasis = parsePriceBasis(card.priceBasis);
+  const displayPrice = applyPriceBasis(price, priceBasis);
+  const originalPrice = applyPriceBasis(
+    originalPriceFromDeal(price, discountPercent),
+    priceBasis,
+  );
 
   return {
     id: asString(card.id) || String(cruise.key),
-    title: formatTitle(route),
+    company: cruise.cruise_title,
+    linerName: cruise.liner_name || cruise.liner_slug,
+    title: resolveCardTitle(card, route, "hot-deals"),
     route: formatRoute(route),
     dateRange: formatDateRange(date, nights),
     nights,
-    price,
-    originalPrice: originalPriceFromDeal(price, discountPercent),
+    price: displayPrice,
+    originalPrice,
     discountPercent,
+    priceBasis,
     image: (() => {
       const override = asString(card.image);
       if (override && override !== HOT_DEAL_COVER_IMAGE) return override;
@@ -154,15 +209,7 @@ export function cardToHotDeal(
       if (logo && (logo.startsWith("http") || logo.startsWith("/"))) return logo;
       return override || HOT_DEAL_COVER_IMAGE;
     })(),
-    href: `/search?${buildSearchParams({
-      regions: [region],
-      company: cruise.cruise_title,
-      liner: cruise.liner_slug,
-      dateFrom: date,
-      sort: "price_asc",
-      currency: "USD",
-      newLinersOnly: false,
-    })}`,
+    href: cruiseDeepLink({ cruise, date, sort: "price_asc" }),
   };
 }
 
@@ -184,30 +231,25 @@ export function cardToUniqueRoute(
   const linerImage =
     asString(card.linerImage) ||
     (logo && (logo.startsWith("http") || logo.startsWith("/")) ? logo : "");
+  const priceBasis = parsePriceBasis(card.priceBasis);
 
   return {
     id: asString(card.id) || String(cruise.key),
     region,
     line: cruise.cruise_title,
-    title: formatTitle(route),
+    linerName: cruise.liner_name || cruise.liner_slug,
+    title: resolveCardTitle(card, route, "unique-routes"),
     route: formatRoute(route),
     dateRange: formatDateRange(date, nights),
     nights,
-    price,
+    price: applyPriceBasis(price, priceBasis),
+    priceBasis,
     coverImage:
       asString(card.coverImage) ||
       asString(card.image) ||
       UNIQUE_ROUTE_COVER_IMAGE,
     linerImage: linerImage || null,
-    href: `/search?${buildSearchParams({
-      regions: [region],
-      company: cruise.cruise_title,
-      liner: cruise.liner_slug,
-      dateFrom: date,
-      sort: "date_asc",
-      currency: "USD",
-      newLinersOnly: false,
-    })}`,
+    href: cruiseDeepLink({ cruise, date, sort: "date_asc" }),
   };
 }
 

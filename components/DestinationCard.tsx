@@ -10,10 +10,15 @@ export default function DestinationCard({
   onDetail: () => void;
 }) {
   return (
-    <article className="group relative aspect-[16/10] overflow-hidden rounded-card">
+    <button
+      type="button"
+      onClick={onDetail}
+      className="group relative block aspect-[16/10] w-full cursor-pointer overflow-hidden rounded-card text-left"
+      aria-label={`${destination.title} — детальніше`}
+    >
       <Image
         src={destination.image}
-        alt={destination.title}
+        alt=""
         fill
         className="object-cover transition-transform duration-500 group-hover:scale-105"
         sizes="(max-width: 640px) 100vw, 50vw"
@@ -29,8 +34,8 @@ export default function DestinationCard({
           </p>
         </div>
 
-        <CardAction labelTone="black" onClick={onDetail} />
+        <CardAction labelTone="black" decorative />
       </div>
-    </article>
+    </button>
   );
 }

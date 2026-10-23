@@ -22,9 +22,19 @@ import {
   isValidUaPhone,
 } from "@/lib/contact/phone";
 
+type GuestCounts = {
+  adults: number;
+  children: number;
+  infants: number;
+};
+
 type CruiseBookingModalProps = {
   cruise: CruiseRecord | null;
   currency: CurrencyCode;
+  /** Prefer this sailing date when opening (homepage deep-link). */
+  preferredDate?: string;
+  /** Prefill from hero/finder search (does not filter catalog). */
+  initialGuests?: GuestCounts;
   onClose: () => void;
 };
 
@@ -36,6 +46,9 @@ type FormState = {
   details: string;
   cruiseDate: string;
   cabinType: string;
+  adults: number;
+  children: number;
+  infants: number;
 };
 
 const initialForm: FormState = {
@@ -44,7 +57,16 @@ const initialForm: FormState = {
   details: "",
   cruiseDate: "",
   cabinType: "",
+  adults: 2,
+  children: 0,
+  infants: 0,
 };
+
+const GUEST_FIELDS = [
+  { key: "adults" as const, label: "Дорослі", hint: "від 18 р." },
+  { key: "children" as const, label: "Діти", hint: "2–17 р." },
+  { key: "infants" as const, label: "Немовлята", hint: "до 2 р." },
+];
 
 const CABIN_HINTS: Record<(typeof CABIN_ORDER)[number], string> = {
   Внутрішня: "Без вікна — найдоступніший варіант",
@@ -86,9 +108,59 @@ function availableCabinsForDate(
   );
 }
 
+function GuestStepper({
+  label,
+  hint,
+  value,
+  min,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: number;
+  min: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-card border border-[color:var(--color-line)] bg-white px-3 py-2.5">
+      <div className="min-w-0">
+        <p className="text-caption font-semibold text-[color:var(--color-black)]">
+          {label}
+        </p>
+        <p className="text-caption text-subtitle">{hint}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          aria-label={`Менше: ${label}`}
+          disabled={value <= min}
+          onClick={() => onChange(Math.max(min, value - 1))}
+          className="btn-control h-9 w-9 disabled:opacity-40"
+        >
+          −
+        </button>
+        <span className="w-6 text-center text-body font-semibold text-[color:var(--color-black)]">
+          {value}
+        </span>
+        <button
+          type="button"
+          aria-label={`Більше: ${label}`}
+          disabled={value >= 12}
+          onClick={() => onChange(Math.min(12, value + 1))}
+          className="btn-control h-9 w-9 disabled:opacity-40"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function CruiseBookingModal({
   cruise,
   currency,
+  preferredDate = "",
+  initialGuests,
   onClose,
 }: CruiseBookingModalProps) {
   const honeypotId = useId();
@@ -159,20 +231,40 @@ export default function CruiseBookingModal({
     setError("");
     setSuccess(false);
     setStep("cabins");
-    const firstDate = upcomingDates[0]?.date ?? "";
+    const preferredEntry = preferredDate
+      ? upcomingDates.find((item) => item.date === preferredDate)
+      : undefined;
+    const initialEntry = preferredEntry ?? upcomingDates[0];
+    const firstDate = initialEntry?.date ?? "";
     const firstCabins = availableCabinsForDate(
-      upcomingDates[0]?.cabins ?? cruise.from_price,
+      initialEntry?.cabins ?? cruise.from_price,
       currency,
     );
+    const adults =
+      initialGuests?.adults && initialGuests.adults > 0
+        ? initialGuests.adults
+        : 2;
     setForm({
       ...initialForm,
       cruiseDate: firstDate,
       cabinType: firstCabins[0] ?? "",
+      adults,
+      children: initialGuests?.children ?? 0,
+      infants: initialGuests?.infants ?? 0,
     });
     const openedAt = Date.now();
     formOpenedAtRef.current = openedAt;
     setStartedAt(openedAt);
-  }, [open, cruise?.key, upcomingDates[0]?.date, currency]);
+  }, [
+    open,
+    cruise?.key,
+    preferredDate,
+    upcomingDates,
+    currency,
+    initialGuests?.adults,
+    initialGuests?.children,
+    initialGuests?.infants,
+  ]);
 
   useEffect(() => {
     if (!open) return;
@@ -201,7 +293,9 @@ export default function CruiseBookingModal({
 
   const phoneValid = isValidUaPhone(form.phone);
   const canContinueToForm =
-    Boolean(form.cruiseDate) && Boolean(form.cabinType);
+    Boolean(form.cruiseDate) &&
+    Boolean(form.cabinType) &&
+    form.adults >= 1;
   const canSubmit =
     form.name.trim().length >= 2 &&
     phoneValid &&
@@ -251,6 +345,9 @@ export default function CruiseBookingModal({
             cruiseDate: form.cruiseDate,
             cabinType: form.cabinType,
             priceLabel,
+            adults: form.adults,
+            children: form.children,
+            infants: form.infants,
           },
           _hp: honeypot,
           startedAt: formOpenedAtRef.current || startedAt || Date.now(),
@@ -335,6 +432,9 @@ export default function CruiseBookingModal({
                 {form.cabinType}
                 {priceLabel ? ` · ${priceLabel}` : ""} ·{" "}
                 {formatDate(form.cruiseDate)}
+                {` · ${form.adults} дор.`}
+                {form.children ? `, ${form.children} дит.` : ""}
+                {form.infants ? `, ${form.infants} нем.` : ""}
               </p>
             ) : null}
           </div>
@@ -416,6 +516,28 @@ export default function CruiseBookingModal({
                     })}
                   </div>
                 )}
+              </div>
+
+              <div>
+                <p className="text-caption mb-2 text-subtitle">
+                  Кількість туристів *
+                </p>
+                <p className="text-caption mb-2.5 text-subtitle">
+                  Ціни в каталозі — орієнтир за каюту. Точну вартість на вашу
+                  кількість гостей підтвердить менеджер.
+                </p>
+                <div className="space-y-2">
+                  {GUEST_FIELDS.map((field) => (
+                    <GuestStepper
+                      key={field.key}
+                      label={field.label}
+                      hint={field.hint}
+                      value={form[field.key]}
+                      min={field.key === "adults" ? 1 : 0}
+                      onChange={(next) => updateField(field.key, next)}
+                    />
+                  ))}
+                </div>
               </div>
 
               <button
