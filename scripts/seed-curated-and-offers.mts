@@ -116,64 +116,99 @@ const data = JSON.parse(readFileSync(jsonPath, "utf8")) as Array<{
   }>;
 }>;
 
+function scaleCabin(
+  base: { NAT?: number; USD?: number; EUR?: number },
+  factor: number,
+) {
+  return {
+    NAT: Math.round((base.NAT || 0) * factor),
+    USD: Math.round((base.USD || 0) * factor),
+    EUR: Math.round((base.EUR || 0) * factor),
+  };
+}
+
+/** Sample tariff matrix shaped like 4gates (phase-1 demo until scraper). */
 function sampleOffersFor(
   cabins: Record<string, { NAT?: number; USD?: number; EUR?: number }>,
 ) {
   const interior = cabins["Внутрішня"];
   const ocean = cabins["З вікном"];
   const balcony = cabins["З балконом"];
-  const offers = [];
+  const offers: Array<{
+    cabinCode: string;
+    cabinName: string;
+    cabinCategory: "Внутрішня" | "З вікном" | "З балконом";
+    tariffName: string;
+    areaM2: number;
+    decks: string;
+    price: { NAT: number; USD: number; EUR: number };
+  }> = [];
+
   if (interior) {
+    const name = "Внутрішня каюта Fantastica, 14 м2";
+    const tariffs: Array<[string, number]> = [
+      ["FREE UPGRADE", 1.19],
+      ["FREE UPGRADE SOFT DRINKS", 1.39],
+      ["BEST PRICE", 1],
+      ["FREE UPGRADE PREMIUM DRINKS", 1.66],
+      ["BEST PRICE SOFT DRINKS", 1.69],
+      ["BEST PRICE DRINKS", 1.8],
+    ];
+    for (const [tariffName, factor] of tariffs) {
+      offers.push({
+        cabinCode: "IR1",
+        cabinName: name,
+        cabinCategory: "Внутрішня",
+        tariffName,
+        areaM2: 14,
+        decks: "5 - 11",
+        price: scaleCabin(interior, factor),
+      });
+    }
+  }
+  if (ocean) {
     offers.push(
       {
-        cabinCode: "IR1",
-        cabinName: "Внутрішня Deluxe Fantastica (IR1)",
-        cabinCategory: "Внутрішня",
+        cabinCode: "OR1",
+        cabinName: "З вікном Deluxe Fantastica (OR1)",
+        cabinCategory: "З вікном",
         tariffName: "BEST PRICE",
-        areaM2: 14,
+        areaM2: 16,
         decks: "5 - 11",
-        price: { ...interior },
+        price: scaleCabin(ocean, 1),
       },
       {
-        cabinCode: "IR1",
-        cabinName: "Внутрішня Deluxe Fantastica (IR1)",
-        cabinCategory: "Внутрішня",
+        cabinCode: "OR1",
+        cabinName: "З вікном Deluxe Fantastica (OR1)",
+        cabinCategory: "З вікном",
         tariffName: "FREE UPGRADE",
-        areaM2: 14,
+        areaM2: 16,
         decks: "5 - 11",
-        price: {
-          NAT: Math.round((interior.NAT || 0) * 1.19),
-          USD: Math.round((interior.USD || 0) * 1.19),
-          EUR: Math.round((interior.EUR || 0) * 1.19),
-        },
+        price: scaleCabin(ocean, 1.19),
       },
     );
   }
-  if (ocean) {
-    offers.push({
-      cabinCode: "OR1",
-      cabinName: "З вікном Deluxe Fantastica (OR1)",
-      cabinCategory: "З вікном",
-      tariffName: "BEST PRICE",
-      areaM2: 16,
-      decks: "5 - 11",
-      price: { ...ocean },
-    });
-  }
   if (balcony) {
-    offers.push({
-      cabinCode: "BR1",
-      cabinName: "З балконом Fantastica (BR1)",
-      cabinCategory: "З балконом",
-      tariffName: "BEST PRICE DRINKS",
-      areaM2: 16,
-      decks: "8 - 12",
-      price: {
-        NAT: Math.round((balcony.NAT || 0) * 1.35),
-        USD: Math.round((balcony.USD || 0) * 1.35),
-        EUR: Math.round((balcony.EUR || 0) * 1.35),
+    offers.push(
+      {
+        cabinCode: "BR1",
+        cabinName: "З балконом Fantastica (BR1)",
+        cabinCategory: "З балконом",
+        tariffName: "BEST PRICE",
+        areaM2: 16,
+        decks: "8 - 12",
+        price: scaleCabin(balcony, 1),
       },
-    });
+      {
+        cabinCode: "BR1",
+        cabinName: "З балконом Fantastica (BR1)",
+        cabinCategory: "З балконом",
+        tariffName: "BEST PRICE DRINKS",
+        areaM2: 16,
+        decks: "8 - 12",
+        price: scaleCabin(balcony, 1.35),
+      },
+    );
   }
   return offers;
 }

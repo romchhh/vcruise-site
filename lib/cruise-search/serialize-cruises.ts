@@ -1,4 +1,9 @@
-import type { CabinPriceMap, CruiseDate, CruiseRecord } from "./types";
+import type {
+  CabinPriceMap,
+  CruiseCabinOffer,
+  CruiseDate,
+  CruiseRecord,
+} from "./types";
 
 function hasCabinPrices(cabins?: CabinPriceMap) {
   if (!cabins) return false;
@@ -11,11 +16,29 @@ function hasCabinPrices(cabins?: CabinPriceMap) {
   );
 }
 
+function serializeOffers(
+  offers: CruiseCabinOffer[] | undefined
+): CruiseCabinOffer[] | undefined {
+  if (!offers?.length) return undefined;
+  return offers.map((offer) => ({
+    cabinCode: offer.cabinCode,
+    cabinName: offer.cabinName,
+    cabinCategory: offer.cabinCategory,
+    tariffName: offer.tariffName,
+    areaM2: offer.areaM2,
+    decks: offer.decks,
+    price: offer.price,
+  }));
+}
+
 function serializeDate(date: CruiseDate): CruiseDate | null {
   if (!date.date || !hasCabinPrices(date.cabins)) return null;
+  const offers = serializeOffers(date.offers);
   return {
     date: date.date,
+    booking_url: date.booking_url,
     cabins: date.cabins,
+    ...(offers ? { offers } : {}),
   };
 }
 
@@ -40,6 +63,13 @@ export function serializeCruisesForClient(
       nights: cruise.nights,
       nights_str: cruise.nights_str,
       ship_built_year: cruise.ship_built_year,
+      ship_renovated_year: cruise.ship_renovated_year,
+      ship_class: cruise.ship_class,
+      company_class: cruise.company_class,
+      ship_size: cruise.ship_size,
+      star_rating: cruise.star_rating,
+      review_score: cruise.review_score,
+      review_count: cruise.review_count,
       base_date_start: cruise.base_date_start,
       from_price: cruise.from_price,
       available_dates,

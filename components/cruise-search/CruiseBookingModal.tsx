@@ -13,9 +13,11 @@ import {
   formatMoney,
   formatSailingDateRange,
   getUpcomingDates,
+  scaleCabinPriceForGuests,
 } from "@/lib/cruise-search/utils";
 import type {
   CabinPriceMap,
+  CruiseCabinOffer,
   CruiseRecord,
   CurrencyCode,
 } from "@/lib/cruise-search/types";
@@ -33,9 +35,7 @@ type GuestCounts = {
 type CruiseBookingModalProps = {
   cruise: CruiseRecord | null;
   currency: CurrencyCode;
-  /** Prefer this sailing date when opening (homepage deep-link). */
   preferredDate?: string;
-  /** Prefill from hero/finder search (does not filter catalog). */
   initialGuests?: GuestCounts;
   onClose: () => void;
 };
@@ -48,6 +48,7 @@ type FormState = {
   details: string;
   cruiseDate: string;
   cabinType: string;
+  offerKey: string;
   adults: number;
   children: number;
   infants: number;
@@ -59,6 +60,7 @@ const initialForm: FormState = {
   details: "",
   cruiseDate: "",
   cabinType: "",
+  offerKey: "",
   adults: 2,
   children: 0,
   infants: 0,
@@ -76,6 +78,10 @@ const CABIN_HINTS: Record<(typeof CABIN_ORDER)[number], string> = {
   "З балконом": "Приватний балкон і свіже повітря",
   Сьют: "Більша площа та підвищений комфорт",
 };
+
+function offerKeyOf(offer: CruiseCabinOffer) {
+  return `${offer.cabinCode}::${offer.tariffName}`;
+}
 
 function Field({
   label,
@@ -183,6 +189,7 @@ export default function CruiseBookingModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
 
   const upcomingDates = useMemo(
     () => (cruise ? getUpcomingDates(cruise) : []),
@@ -211,32 +218,89 @@ export default function CruiseBookingModal({
 
   const bookingUrl = selectedDateEntry?.booking_url?.trim() || "";
 
+  const offers = useMemo(
+    () => selectedDateEntry?.offers ?? [],
+    [selectedDateEntry?.offers],
+  );
+  const hasOffers = offers.length > 0;
+
   const cabinOptions = useMemo(() => {
+    if (hasOffers) {
+      const fromOffers = CABIN_ORDER.filter((cat) =>
+        offers.some(
+          (offer) =>
+            offer.cabinCategory === cat &&
+            offer.price?.[currency] != null,
+        ),
+      );
+      if (fromOffers.length) return fromOffers;
+    }
     const fromDate = availableCabinsForDate(
       selectedDateEntry?.cabins,
       currency,
     );
     if (fromDate.length) return fromDate;
     return availableCabinsForDate(cruise?.from_price, currency);
-  }, [cruise?.from_price, currency, selectedDateEntry?.cabins]);
-
-  const selectedCabinPrice = useMemo(() => {
-    if (!form.cabinType) return null;
-    return (
-      cabinPrice(selectedDateEntry?.cabins, form.cabinType, currency) ??
-      cabinPrice(cruise?.from_price, form.cabinType, currency)
-    );
   }, [
     cruise?.from_price,
     currency,
-    form.cabinType,
+    hasOffers,
+    offers,
     selectedDateEntry?.cabins,
+  ]);
+
+  const filteredOffers = useMemo(() => {
+    const cat = categoryFilter || form.cabinType;
+    if (!cat) return offers;
+    return offers.filter((offer) => offer.cabinCategory === cat);
+  }, [offers, categoryFilter, form.cabinType]);
+
+  const selectedOffer = useMemo(
+    () => offers.find((offer) => offerKeyOf(offer) === form.offerKey) ?? null,
+    [offers, form.offerKey],
+  );
+
+  const scalePrice = (base: number | null) => {
+    if (base == null) return null;
+    return scaleCabinPriceForGuests(
+      base,
+      form.adults,
+      form.children,
+      form.infants,
+    );
+  };
+
+  const selectedCabinPrice = useMemo(() => {
+    if (selectedOffer?.price?.[currency] != null) {
+      return scalePrice(selectedOffer.price[currency]!);
+    }
+    if (!form.cabinType) return null;
+    const base =
+      cabinPrice(selectedDateEntry?.cabins, form.cabinType, currency) ??
+      cabinPrice(cruise?.from_price, form.cabinType, currency);
+    return scalePrice(base);
+  }, [
+    cruise?.from_price,
+    currency,
+    form.adults,
+    form.children,
+    form.cabinType,
+    form.infants,
+    selectedDateEntry?.cabins,
+    selectedOffer,
   ]);
 
   const priceLabel = useMemo(() => {
     if (selectedCabinPrice == null) return "";
     return `${formatMoney(selectedCabinPrice)} ${CURRENCY_SYMBOL[currency]}`;
   }, [currency, selectedCabinPrice]);
+
+  const guestSummary = useMemo(() => {
+    const parts = [`${form.adults} дор.`];
+    if (form.children) parts.push(`${form.children} дит.`);
+    if (form.infants) parts.push(`${form.infants} нем.`);
+    return parts.join(", ");
+  }, [form.adults, form.children, form.infants]);
 
   const symbol = CURRENCY_SYMBOL[currency];
 
@@ -258,18 +322,29 @@ export default function CruiseBookingModal({
       : undefined;
     const initialEntry = preferredEntry ?? upcomingDates[0];
     const firstDate = initialEntry?.date ?? "";
-    const firstCabins = availableCabinsForDate(
-      initialEntry?.cabins ?? cruise.from_price,
-      currency,
-    );
+    const firstOffers = initialEntry?.offers ?? [];
+    const firstCabins = firstOffers.length
+      ? CABIN_ORDER.filter((cat) =>
+          firstOffers.some((offer) => offer.cabinCategory === cat),
+        )
+      : availableCabinsForDate(
+          initialEntry?.cabins ?? cruise.from_price,
+          currency,
+        );
+    const firstCategory = firstCabins[0] ?? "";
+    const firstOffer =
+      firstOffers.find((offer) => offer.cabinCategory === firstCategory) ??
+      firstOffers[0];
     const adults =
       initialGuests?.adults && initialGuests.adults > 0
         ? initialGuests.adults
         : 2;
+    setCategoryFilter(firstCategory);
     setForm({
       ...initialForm,
       cruiseDate: firstDate,
-      cabinType: firstCabins[0] ?? "",
+      cabinType: firstOffer?.cabinCategory || firstCategory,
+      offerKey: firstOffer ? offerKeyOf(firstOffer) : "",
       adults,
       children: initialGuests?.children ?? 0,
       infants: initialGuests?.infants ?? 0,
@@ -313,11 +388,30 @@ export default function CruiseBookingModal({
     setForm((current) => ({ ...current, [key]: value }));
   };
 
+  const selectCategory = (category: string) => {
+    setCategoryFilter(category);
+    const firstInCat = offers.find((offer) => offer.cabinCategory === category);
+    setForm((current) => ({
+      ...current,
+      cabinType: category,
+      offerKey: firstInCat ? offerKeyOf(firstInCat) : "",
+    }));
+  };
+
+  const selectOffer = (offer: CruiseCabinOffer) => {
+    setForm((current) => ({
+      ...current,
+      cabinType: offer.cabinCategory || current.cabinType,
+      offerKey: offerKeyOf(offer),
+    }));
+  };
+
   const phoneValid = isValidUaPhone(form.phone);
+  const cabinSelected = hasOffers
+    ? Boolean(form.offerKey && selectedOffer)
+    : Boolean(form.cabinType);
   const canContinueToForm =
-    Boolean(form.cruiseDate) &&
-    Boolean(form.cabinType) &&
-    form.adults >= 1;
+    Boolean(form.cruiseDate) && cabinSelected && form.adults >= 1;
   const canSubmit =
     form.name.trim().length >= 2 &&
     phoneValid &&
@@ -326,18 +420,26 @@ export default function CruiseBookingModal({
 
   const handleDateChange = (date: string) => {
     const entry = upcomingDates.find((item) => item.date === date);
-    const cabins = availableCabinsForDate(
-      entry?.cabins ?? cruise?.from_price,
-      currency,
-    );
+    const nextOffers = entry?.offers ?? [];
+    const cabins = nextOffers.length
+      ? CABIN_ORDER.filter((cat) =>
+          nextOffers.some((offer) => offer.cabinCategory === cat),
+        )
+      : availableCabinsForDate(entry?.cabins ?? cruise?.from_price, currency);
+    const nextCategory = cabins.includes(
+      form.cabinType as (typeof CABIN_ORDER)[number],
+    )
+      ? form.cabinType
+      : (cabins[0] ?? "");
+    const nextOffer =
+      nextOffers.find((offer) => offer.cabinCategory === nextCategory) ??
+      nextOffers[0];
+    setCategoryFilter(nextCategory);
     setForm((current) => ({
       ...current,
       cruiseDate: date,
-      cabinType: cabins.includes(
-        current.cabinType as (typeof CABIN_ORDER)[number],
-      )
-        ? current.cabinType
-        : (cabins[0] ?? ""),
+      cabinType: nextOffer?.cabinCategory || nextCategory,
+      offerKey: nextOffer ? offerKeyOf(nextOffer) : "",
     }));
   };
 
@@ -369,6 +471,9 @@ export default function CruiseBookingModal({
             cruiseDate: form.cruiseDate,
             cruiseDateEnd,
             cabinType: form.cabinType,
+            cabinCode: selectedOffer?.cabinCode,
+            cabinName: selectedOffer?.cabinName,
+            tariffName: selectedOffer?.tariffName,
             priceLabel,
             adults: form.adults,
             children: form.children,
@@ -481,12 +586,6 @@ export default function CruiseBookingModal({
               {cruise.star_rating != null ? (
                 <MetaChip>{cruise.star_rating}★</MetaChip>
               ) : null}
-              {cruise.review_score != null ? (
-                <MetaChip>
-                  Оцінка {cruise.review_score}
-                  {cruise.review_count ? ` (${cruise.review_count})` : ""}
-                </MetaChip>
-              ) : null}
             </div>
 
             {sailingLabel ? (
@@ -502,13 +601,12 @@ export default function CruiseBookingModal({
               {routeFull}
             </p>
 
-            {step === "form" && form.cabinType ? (
+            {step === "form" && cabinSelected ? (
               <p className="text-caption mt-3 font-semibold text-[color:var(--color-brand)]">
-                {form.cabinType}
-                {priceLabel ? ` · від ${priceLabel}` : ""}
-                {` · ${form.adults} дор.`}
-                {form.children ? `, ${form.children} дит.` : ""}
-                {form.infants ? `, ${form.infants} нем.` : ""}
+                {selectedOffer
+                  ? `${selectedOffer.cabinCode} · ${selectedOffer.tariffName}`
+                  : form.cabinType}
+                {priceLabel ? ` · ${priceLabel}` : ""} · {guestSummary}
               </p>
             ) : null}
           </div>
@@ -548,61 +646,12 @@ export default function CruiseBookingModal({
               </Field>
 
               <div>
-                <p className="text-caption mb-1 text-subtitle">
-                  Вартість від / за каюту *
-                </p>
-                <p className="text-caption mb-2.5 text-subtitle">
-                  Орієнтир на 2 дорослих, з портами та чайовими (як у каталозі).
-                  Точну ціну на вашу кількість гостей і тариф (FREE UPGRADE,
-                  BEST PRICE тощо) підтвердить менеджер.
-                </p>
-                {cabinOptions.length === 0 ? (
-                  <p className="rounded-card bg-amber-50 px-3 py-2 text-caption text-amber-800">
-                    Для цієї дати немає цін по каютах. Оберіть іншу дату або
-                    залиште заявку — менеджер уточнить варіанти.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                    {cabinOptions.map((cabin) => {
-                      const price =
-                        cabinPrice(
-                          selectedDateEntry?.cabins,
-                          cabin,
-                          currency,
-                        ) ?? cabinPrice(cruise.from_price, cabin, currency);
-                      const selected = form.cabinType === cabin;
-                      return (
-                        <button
-                          key={cabin}
-                          type="button"
-                          onClick={() => updateField("cabinType", cabin)}
-                          className={`rounded-card border px-4 py-3 text-left transition-colors ${
-                            selected
-                              ? "border-[color:var(--color-brand)] bg-[color:var(--color-brand-light)]"
-                              : "border-[color:var(--color-line)] bg-white hover:border-[color:var(--color-brand)]/40"
-                          }`}
-                        >
-                          <span className="text-body font-semibold text-[color:var(--color-black)]">
-                            {cabin}
-                          </span>
-                          <span className="text-caption mt-1 block text-subtitle">
-                            {CABIN_HINTS[cabin]}
-                          </span>
-                          <span className="text-body mt-2 block font-bold text-[color:var(--color-brand)]">
-                            {price != null
-                              ? `від ${formatMoney(price)} ${symbol}`
-                              : "Ціну уточнимо"}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div>
                 <p className="text-caption mb-2 text-subtitle">
                   Кількість туристів *
+                </p>
+                <p className="text-caption mb-2.5 text-subtitle">
+                  Ціни нижче перераховуються під обрану кількість гостей (база в
+                  каталозі — за каюту на 2 дорослих).
                 </p>
                 <div className="space-y-2">
                   {GUEST_FIELDS.map((field) => (
@@ -617,6 +666,185 @@ export default function CruiseBookingModal({
                   ))}
                 </div>
               </div>
+
+              <div>
+                <p className="text-caption mb-1 text-subtitle">
+                  Тип каюти *
+                </p>
+                <p className="text-caption mb-2.5 text-subtitle">
+                  Вартість за каюту на {guestSummary}, з портами та чайовими.
+                </p>
+
+                {cabinOptions.length === 0 ? (
+                  <p className="rounded-card bg-amber-50 px-3 py-2 text-caption text-amber-800">
+                    Для цієї дати немає цін по каютах. Оберіть іншу дату або
+                    залиште заявку — менеджер уточнить варіанти.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {cabinOptions.map((cabin) => {
+                      const base =
+                        cabinPrice(
+                          selectedDateEntry?.cabins,
+                          cabin,
+                          currency,
+                        ) ?? cabinPrice(cruise.from_price, cabin, currency);
+                      const fromOffers = offers
+                        .filter((offer) => offer.cabinCategory === cabin)
+                        .map((offer) => offer.price?.[currency])
+                        .filter((v): v is number => v != null);
+                      const minBase =
+                        fromOffers.length > 0
+                          ? Math.min(...fromOffers)
+                          : base;
+                      const scaled = scalePrice(minBase ?? null);
+                      const selected =
+                        (categoryFilter || form.cabinType) === cabin;
+                      return (
+                        <button
+                          key={cabin}
+                          type="button"
+                          onClick={() => selectCategory(cabin)}
+                          className={`min-w-[7.5rem] flex-1 rounded-card border px-3 py-2.5 text-left transition-colors sm:flex-none ${
+                            selected
+                              ? "border-[color:var(--color-brand)] bg-[color:var(--color-brand-light)]"
+                              : "border-[color:var(--color-line)] bg-white hover:border-[color:var(--color-brand)]/40"
+                          }`}
+                        >
+                          <span className="text-caption font-semibold text-[color:var(--color-black)]">
+                            {cabin}
+                          </span>
+                          <span className="text-caption mt-1 block text-[color:var(--color-brand)]">
+                            {scaled != null
+                              ? `від ${formatMoney(scaled)} ${symbol}`
+                              : "—"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {hasOffers ? (
+                <div>
+                  <p className="text-caption mb-1 text-subtitle">
+                    Обрати тариф / каюту *
+                  </p>
+                  <p className="text-caption mb-2.5 text-subtitle">
+                    Конкретний код каюти та тариф (як на 4gates).
+                  </p>
+                  <div className="space-y-2">
+                    {filteredOffers.map((offer) => {
+                      const base = offer.price?.[currency] ?? null;
+                      const scaled = scalePrice(base);
+                      const key = offerKeyOf(offer);
+                      const selected = form.offerKey === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => selectOffer(offer)}
+                          className={`flex w-full items-start justify-between gap-3 rounded-card border px-4 py-3 text-left transition-colors ${
+                            selected
+                              ? "border-[color:var(--color-brand)] bg-[color:var(--color-brand-light)]"
+                              : "border-[color:var(--color-line)] bg-white hover:border-[color:var(--color-brand)]/40"
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-caption font-bold text-[color:var(--color-black)]">
+                              {offer.cabinCode}
+                              <span className="ml-2 font-semibold text-[color:var(--color-brand)]">
+                                {offer.tariffName}
+                              </span>
+                            </p>
+                            <p className="text-caption mt-1 text-subtitle">
+                              {offer.cabinName}
+                            </p>
+                            <p className="text-caption mt-0.5 text-subtitle">
+                              {[
+                                offer.areaM2 != null
+                                  ? `${offer.areaM2} м²`
+                                  : null,
+                                offer.decks ? `пал: ${offer.decks}` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-body font-bold text-[color:var(--color-brand)]">
+                              {scaled != null
+                                ? `${formatMoney(scaled)} ${symbol}`
+                                : "—"}
+                            </p>
+                            <p className="text-caption text-subtitle">
+                              {selected ? "Обрано" : "Вибрати"}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-caption mb-2 text-subtitle">
+                    Деталі каюти
+                  </p>
+                  {(categoryFilter || form.cabinType) && (
+                    <p className="rounded-card border border-[color:var(--color-line)] bg-white px-4 py-3 text-caption text-subtitle">
+                      {
+                        CABIN_HINTS[
+                          (categoryFilter ||
+                            form.cabinType) as (typeof CABIN_ORDER)[number]
+                        ]
+                      }
+                      . Повна матриця тарифів (IR1, FREE UPGRADE…) для цього
+                      рейсу ще не в базі — відкрийте 4gates або менеджер
+                      підбере.
+                    </p>
+                  )}
+                  {cabinOptions.length > 0 ? (
+                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {cabinOptions.map((cabin) => {
+                        const base =
+                          cabinPrice(
+                            selectedDateEntry?.cabins,
+                            cabin,
+                            currency,
+                          ) ?? cabinPrice(cruise.from_price, cabin, currency);
+                        const scaled = scalePrice(base);
+                        const selected = form.cabinType === cabin;
+                        return (
+                          <button
+                            key={cabin}
+                            type="button"
+                            onClick={() => {
+                              setCategoryFilter(cabin);
+                              updateField("cabinType", cabin);
+                            }}
+                            className={`rounded-card border px-4 py-3 text-left transition-colors ${
+                              selected
+                                ? "border-[color:var(--color-brand)] bg-[color:var(--color-brand-light)]"
+                                : "border-[color:var(--color-line)] bg-white"
+                            }`}
+                          >
+                            <span className="text-body font-semibold text-[color:var(--color-black)]">
+                              {cabin}
+                            </span>
+                            <span className="text-body mt-2 block font-bold text-[color:var(--color-brand)]">
+                              {scaled != null
+                                ? `${formatMoney(scaled)} ${symbol}`
+                                : "Ціну уточнимо"}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              )}
 
               {bookingUrl ? (
                 <a
@@ -647,7 +875,7 @@ export default function CruiseBookingModal({
                 className="inline-flex items-center gap-1.5 text-caption font-semibold text-[color:var(--color-brand)]"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                Змінити каюту або дату
+                Змінити каюту або гостей
               </button>
 
               <Field label="Ім'я *">
@@ -692,7 +920,7 @@ export default function CruiseBookingModal({
                   rows={3}
                   maxLength={1000}
                   className="field-control w-full resize-none bg-white px-4 py-3 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
-                  placeholder="Тариф (FREE UPGRADE / BEST PRICE), палуба, особливі побажання..."
+                  placeholder="Побажання щодо каюти, палуби, харчування..."
                 />
               </Field>
 
@@ -736,8 +964,8 @@ export default function CruiseBookingModal({
               </button>
 
               <p className="text-caption text-center text-subtitle">
-                Це заявка, не онлайн-оплата. Менеджер підтвердить наявність,
-                тариф і умови.
+                Орієнтовна ціна за каюту на {guestSummary}. Менеджер підтвердить
+                точний тариф і наявність.
               </p>
             </form>
           )}

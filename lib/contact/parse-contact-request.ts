@@ -36,6 +36,9 @@ function parseBooking(value: unknown): CruiseBookingDetails | null | undefined {
     Number.isFinite(nightsRaw) && nightsRaw > 0 ? Math.round(nightsRaw) : 1;
   const priceLabel = String(booking.priceLabel ?? "").trim();
   const cabinType = String(booking.cabinType ?? "").trim();
+  const cabinCode = String(booking.cabinCode ?? "").trim();
+  const cabinName = String(booking.cabinName ?? "").trim();
+  const tariffName = String(booking.tariffName ?? "").trim();
   const shipClass = String(booking.shipClass ?? "").trim();
   const companyClass = String(booking.companyClass ?? "").trim();
   const shipSize = String(booking.shipSize ?? "").trim();
@@ -76,6 +79,9 @@ function parseBooking(value: unknown): CruiseBookingDetails | null | undefined {
     cruiseDateEnd: cruiseDateEnd || undefined,
     nights,
     cabinType: cabinType ? cabinType.slice(0, 80) : undefined,
+    cabinCode: cabinCode ? cabinCode.slice(0, 40) : undefined,
+    cabinName: cabinName ? cabinName.slice(0, 160) : undefined,
+    tariffName: tariffName ? tariffName.slice(0, 80) : undefined,
     priceLabel: priceLabel ? priceLabel.slice(0, 80) : undefined,
     adults,
     children,

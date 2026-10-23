@@ -9,6 +9,9 @@ export type CruiseBookingDetails = {
   cruiseDateEnd?: string;
   /** Selected cabin category, e.g. «З балконом». */
   cabinType?: string;
+  cabinCode?: string;
+  cabinName?: string;
+  tariffName?: string;
   priceLabel?: string;
   adults?: number;
   children?: number;
@@ -88,12 +91,17 @@ export function formatContactTelegramMessage(payload: ContactFormPayload) {
       `🗺 Маршрут: ${booking.route}`,
     );
 
-    if (booking.cabinType) {
-      lines.push(`🚪 Каюта: ${booking.cabinType}`);
+    if (booking.cabinType || booking.cabinCode || booking.tariffName) {
+      const cabinParts = [
+        booking.cabinCode,
+        booking.cabinName || booking.cabinType,
+        booking.tariffName,
+      ].filter(Boolean);
+      lines.push(`🚪 Каюта: ${cabinParts.join(" · ")}`);
     }
 
     if (booking.priceLabel) {
-      lines.push(`💰 Ціна від (за каюту): ${booking.priceLabel}`);
+      lines.push(`💰 Ціна за каюту (на обраних гостей): ${booking.priceLabel}`);
     }
 
     const adults = booking.adults ?? 0;
