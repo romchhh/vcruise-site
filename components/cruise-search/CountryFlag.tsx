@@ -1,20 +1,24 @@
-import * as Flags from "country-flag-icons/react/3x2";
+"use client";
 
-type FlagComponent = (typeof Flags)["IT"];
+import { useLayoutEffect, useRef } from "react";
+import "country-flag-icons/3x2/flags.css";
 
-const FLAG_BY_CODE = Flags as Record<string, FlagComponent>;
-
-/** SVG flag. Unicode emoji flags break on Windows, so this is the same image everywhere. */
+/**
+ * SVG flag via country-flag-icons CSS (not Unicode emoji).
+ * Class names like `flag:IT` are set on the DOM so Tailwind does not parse them.
+ */
 export default function CountryFlag({ code }: { code: string }) {
-  const Flag = FLAG_BY_CODE[code];
-  if (!Flag) return null;
+  const ref = useRef<HTMLSpanElement>(null);
 
-  return (
-    <span
-      aria-hidden
-      className="inline-flex h-3.5 w-5 shrink-0 overflow-hidden rounded-[2px] shadow-[0_0_0_1px_rgba(15,23,42,0.14)]"
-    >
-      <Flag className="h-full w-full" />
-    </span>
-  );
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    node.className = `flag:${code}`;
+    node.style.setProperty("--CountryFlagIcon-height", "0.875rem");
+    node.style.borderRadius = "2px";
+    node.style.boxShadow = "0 0 0 1px rgba(15, 23, 42, 0.14)";
+    node.style.flexShrink = "0";
+  }, [code]);
+
+  return <span ref={ref} aria-hidden />;
 }

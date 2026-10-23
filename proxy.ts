@@ -12,7 +12,7 @@ function resolveHostname(request: NextRequest): string | null {
   return host?.split(":")[0]?.toLowerCase() ?? null;
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const hostname = resolveHostname(request);
   if (!hostname || isLocalHostname(hostname)) {
     return NextResponse.next();
@@ -29,7 +29,10 @@ export function middleware(request: NextRequest) {
   }
 
   const primaryOrigin = getSiteOrigin();
-  const destination = new URL(request.nextUrl.pathname + request.nextUrl.search, primaryOrigin);
+  const destination = new URL(
+    request.nextUrl.pathname + request.nextUrl.search,
+    primaryOrigin,
+  );
 
   return NextResponse.redirect(destination, 301);
 }

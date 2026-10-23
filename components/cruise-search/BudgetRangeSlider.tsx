@@ -39,17 +39,20 @@ export default function BudgetRangeSlider({
   const step = stepForRange(span);
 
   const draggingRef = useRef(false);
-  const [draft, setDraft] = useState(() => ({
+  const draftRef = useRef({
     min: clamp(valueMin, safeMinBound, safeMaxBound),
     max: clamp(valueMax, safeMinBound, safeMaxBound),
-  }));
+  });
+  const [draft, setDraft] = useState(() => draftRef.current);
 
   useEffect(() => {
     if (draggingRef.current) return;
-    setDraft({
+    const next = {
       min: clamp(valueMin, safeMinBound, safeMaxBound),
       max: clamp(valueMax, safeMinBound, safeMaxBound),
-    });
+    };
+    draftRef.current = next;
+    setDraft(next);
   }, [valueMin, valueMax, safeMinBound, safeMaxBound]);
 
   const low = Math.min(draft.min, draft.max);
@@ -57,10 +60,12 @@ export default function BudgetRangeSlider({
   const leftPct = ((low - safeMinBound) / span) * 100;
   const rightPct = ((high - safeMinBound) / span) * 100;
 
-  const commit = (nextMin: number, nextMax: number) => {
+  const commit = () => {
     draggingRef.current = false;
-    const priceMin = Math.min(nextMin, nextMax);
-    const priceMax = Math.max(nextMin, nextMax);
+    const { min, max } = draftRef.current;
+    const priceMin = Math.min(min, max);
+    const priceMax = Math.max(min, max);
+    if (priceMin === valueMin && priceMax === valueMax) return;
     startTransition(() => {
       onChange({ priceMin, priceMax });
     });
@@ -99,11 +104,13 @@ export default function BudgetRangeSlider({
           onTouchStart={beginDrag}
           onChange={(event) => {
             const next = Number(event.target.value);
-            setDraft({ min: Math.min(next, high), max: high });
+            const updated = { min: Math.min(next, high), max: high };
+            draftRef.current = updated;
+            setDraft(updated);
           }}
-          onPointerUp={() => commit(low, high)}
-          onTouchEnd={() => commit(low, high)}
-          onBlur={() => commit(low, high)}
+          onPointerUp={commit}
+          onTouchEnd={commit}
+          onBlur={commit}
           className="budget-range-input budget-range-input--min"
         />
         <input
@@ -117,11 +124,13 @@ export default function BudgetRangeSlider({
           onTouchStart={beginDrag}
           onChange={(event) => {
             const next = Number(event.target.value);
-            setDraft({ min: low, max: Math.max(next, low) });
+            const updated = { min: low, max: Math.max(next, low) };
+            draftRef.current = updated;
+            setDraft(updated);
           }}
-          onPointerUp={() => commit(low, high)}
-          onTouchEnd={() => commit(low, high)}
-          onBlur={() => commit(low, high)}
+          onPointerUp={commit}
+          onTouchEnd={commit}
+          onBlur={commit}
           className="budget-range-input budget-range-input--max"
         />
       </div>
