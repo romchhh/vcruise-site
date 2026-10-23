@@ -22,6 +22,13 @@ type Props = {
   emptyMessage?: string | null;
 };
 
+function offerArea(offer: CruiseCabinOffer) {
+  if (offer.areaM2 != null && Number.isFinite(offer.areaM2)) {
+    return `${offer.areaM2} м²`;
+  }
+  return offerMetaLine(offer).match(/[\d.+-\s]+м²/)?.[0] ?? "—";
+}
+
 export default function CabinOffersTable({
   offers,
   currency,
@@ -62,14 +69,14 @@ export default function CabinOffersTable({
   if (!offers.length) return null;
 
   return (
-    <div className="overflow-hidden rounded-card border border-[color:var(--color-line)] bg-white">
+    <div className="min-w-0 overflow-hidden rounded-card border border-[color:var(--color-line)] bg-white">
       <div className="flex flex-wrap items-end justify-between gap-2 border-b border-[color:var(--color-line)] px-4 py-3 sm:px-5">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-h4 font-bold text-[color:var(--color-black)]">
             Каюти та тарифи
           </h2>
           <p className="text-caption mt-1 text-subtitle">
-            Оберіть рядок — ціна за всю каюту на вибрану кількість гостей
+            Оберіть варіант — ціна за каюту на вибрану кількість гостей
           </p>
         </div>
         <p className="text-caption text-[color:var(--color-silver)]">
@@ -82,18 +89,73 @@ export default function CabinOffersTable({
         </p>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-left">
+      {/* Mobile: stacked cards — no wide table, no page-level horizontal scroll */}
+      <ul className="divide-y divide-[color:var(--color-line)] md:hidden">
+        {offers.map((offer) => {
+          const key = offerKeyOf(offer);
+          const selected = selectedKey === key;
+          const scaled = scalePrice(offer.price?.[currency]);
+          return (
+            <li key={key}>
+              <button
+                type="button"
+                onClick={() => onSelect(offer)}
+                aria-pressed={selected}
+                className={`flex w-full items-start justify-between gap-3 px-4 py-3.5 text-left transition-colors ${
+                  selected
+                    ? "bg-[color:var(--color-brand-light)]"
+                    : "bg-white active:bg-[color:var(--color-surface-subtle)]"
+                }`}
+              >
+                <div className="min-w-0">
+                  <p className="text-caption font-bold text-[color:var(--color-black)]">
+                    {offer.cabinCode}
+                    <span className="font-semibold text-[color:var(--color-brand)]">
+                      {" · "}
+                      {normalizeTariffName(offer.tariffName)}
+                    </span>
+                  </p>
+                  <p className="text-caption mt-1 text-subtitle">
+                    {offer.cabinCategory ? `${offer.cabinCategory} · ` : ""}
+                    {offerCabinSubtitle(offer)}
+                  </p>
+                  <p className="text-caption mt-0.5 text-[color:var(--color-silver)]">
+                    {offerArea(offer)}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-body font-bold text-[color:var(--color-brand)]">
+                    {scaled != null ? `${formatMoney(scaled)} ${symbol}` : "—"}
+                  </p>
+                  <p
+                    className={`text-caption mt-1 font-semibold ${
+                      selected
+                        ? "text-[color:var(--color-brand)]"
+                        : "text-subtitle"
+                    }`}
+                  >
+                    {selected ? "Обрано" : "Вибрати"}
+                  </p>
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* Desktop table */}
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-[color:var(--color-line)] bg-[color:var(--color-surface-muted)] text-caption text-[color:var(--color-silver)]">
-              <th className="px-4 py-2.5 font-semibold sm:px-5">Код</th>
+              <th className="px-5 py-2.5 font-semibold">Код</th>
               <th className="px-3 py-2.5 font-semibold">Каюта</th>
               <th className="px-3 py-2.5 font-semibold">Тариф</th>
               <th className="px-3 py-2.5 font-semibold whitespace-nowrap">
                 Площа
               </th>
               <th className="px-3 py-2.5 font-semibold text-right">Ціна</th>
-              <th className="px-4 py-2.5 font-semibold text-right sm:px-5">
+              <th className="px-5 py-2.5 font-semibold text-right">
                 <span className="sr-only">Вибір</span>
               </th>
             </tr>
@@ -102,12 +164,7 @@ export default function CabinOffersTable({
             {offers.map((offer) => {
               const key = offerKeyOf(offer);
               const selected = selectedKey === key;
-              const base = offer.price?.[currency] ?? null;
-              const scaled = scalePrice(base);
-              const area =
-                offer.areaM2 != null && Number.isFinite(offer.areaM2)
-                  ? `${offer.areaM2} м²`
-                  : offerMetaLine(offer).match(/[\d.+-\s]+м²/)?.[0] ?? "—";
+              const scaled = scalePrice(offer.price?.[currency]);
 
               return (
                 <tr
@@ -128,7 +185,7 @@ export default function CabinOffersTable({
                       : "bg-white hover:bg-[color:var(--color-surface-subtle)]"
                   }`}
                 >
-                  <td className="px-4 py-3 align-middle sm:px-5">
+                  <td className="px-5 py-3 align-middle">
                     <span className="text-caption font-bold text-[color:var(--color-black)]">
                       {offer.cabinCode}
                     </span>
@@ -147,7 +204,7 @@ export default function CabinOffersTable({
                     </span>
                   </td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-caption text-subtitle">
-                    {area}
+                    {offerArea(offer)}
                   </td>
                   <td className="px-3 py-3 align-middle text-right">
                     <span className="text-body font-bold text-[color:var(--color-brand)]">
@@ -156,7 +213,7 @@ export default function CabinOffersTable({
                         : "—"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 align-middle text-right sm:px-5">
+                  <td className="px-5 py-3 align-middle text-right">
                     <span
                       className={`inline-flex min-w-[5.5rem] items-center justify-center rounded-full px-3 py-1.5 text-caption font-semibold ${
                         selected

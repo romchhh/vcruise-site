@@ -110,9 +110,9 @@ export default function CruiseDetailApp({
   }, [cruise, preferredDate, upcomingDates]);
 
   return (
-    <main className="bg-background pb-16 pt-28 sm:pt-32">
+    <main className="overflow-x-hidden bg-background pb-28 pt-28 sm:pt-32 lg:pb-16">
       <div className="section-frame">
-        <div className="container-px mx-auto max-w-[1180px]">
+        <div className="container-px mx-auto max-w-[1180px] min-w-0">
           <Link
             href={returnHref}
             className="text-caption inline-flex items-center gap-2 font-semibold text-[color:var(--color-brand)] hover:underline"
@@ -120,7 +120,7 @@ export default function CruiseDetailApp({
             ← Назад до результатів пошуку
           </Link>
 
-          <div className="mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:items-start lg:gap-8">
+          <div className="mt-6 min-w-0 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:items-start lg:gap-8">
             <div className="min-w-0 overflow-hidden rounded-card bg-white">
               <div className="relative aspect-[16/9] bg-[color:var(--color-surface-muted)] lg:aspect-[2/1]">
                 {cruise.liner_logo ? (
@@ -242,7 +242,7 @@ export default function CruiseDetailApp({
               </div>
             </div>
 
-            <div className="mt-6 lg:mt-0 lg:sticky lg:top-28">
+            <div className="mt-6 min-w-0 lg:mt-0 lg:sticky lg:top-28">
               <CruiseBookingModal
                 variant="page"
                 cruise={cruise}
@@ -262,7 +262,10 @@ export default function CruiseDetailApp({
           </div>
 
           {offersPanel ? (
-            <section id="cabin-offers" className="mt-8 scroll-mt-28">
+            <section
+              id="cabin-offers"
+              className="mt-8 min-w-0 scroll-mt-28"
+            >
               {offersPanel}
             </section>
           ) : null}
