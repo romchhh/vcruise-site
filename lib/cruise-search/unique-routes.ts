@@ -91,6 +91,7 @@ function resolveLinerImage(cruise: CruiseRecord): string | null {
 }
 
 function scoreRoute(cruise: CruiseRecord, today: string): number | null {
+  if (!cruise.liner_slug || !cruise.liner_name) return null;
   if (!hasBookableDates(cruise, today)) return null;
 
   const startDate = nearestUpcomingDate(cruise, today);
@@ -140,7 +141,7 @@ function mapToUniqueRoute(
     id: String(cruise.key),
     region,
     line: cruise.cruise_title,
-    linerName: cruise.liner_name || cruise.liner_slug,
+    linerName: cruise.liner_name || cruise.liner_slug || cruise.cruise_title,
     title: formatRouteTitle(route),
     route: formatRoute(route),
     dateRange: formatDateRange(startDate, nights),
