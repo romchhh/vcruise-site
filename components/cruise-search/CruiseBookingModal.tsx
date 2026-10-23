@@ -2,14 +2,16 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, ExternalLink, X } from "lucide-react";
 import {
   CABIN_ORDER,
   CURRENCY_SYMBOL,
 } from "@/lib/cruise-search/constants";
 import {
+  addDaysIso,
   formatDate,
   formatMoney,
+  formatSailingDateRange,
   getUpcomingDates,
 } from "@/lib/cruise-search/utils";
 import type {
@@ -108,6 +110,14 @@ function availableCabinsForDate(
   );
 }
 
+function MetaChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded-full bg-white px-2.5 py-1 text-caption text-[color:var(--color-black)]">
+      {children}
+    </span>
+  );
+}
+
 function GuestStepper({
   label,
   hint,
@@ -179,17 +189,27 @@ export default function CruiseBookingModal({
     [cruise],
   );
 
-  const routeLabel = useMemo(() => {
+  const routeFull = useMemo(() => {
     if (!cruise?.route?.length) return "—";
-    const preview = cruise.route.slice(0, 3).join(" · ");
-    const extra = cruise.route.length > 3 ? ` +${cruise.route.length - 3}` : "";
-    return `${preview}${extra}`;
+    return cruise.route.join(" · ");
   }, [cruise]);
 
   const selectedDateEntry = useMemo(
     () => upcomingDates.find((item) => item.date === form.cruiseDate),
     [form.cruiseDate, upcomingDates],
   );
+
+  const sailingLabel = useMemo(() => {
+    if (!form.cruiseDate || !cruise) return "";
+    return formatSailingDateRange(form.cruiseDate, cruise.nights || 1);
+  }, [cruise, form.cruiseDate]);
+
+  const cruiseDateEnd = useMemo(() => {
+    if (!form.cruiseDate || !cruise) return "";
+    return addDaysIso(form.cruiseDate, Math.max(cruise.nights || 1, 1));
+  }, [cruise, form.cruiseDate]);
+
+  const bookingUrl = selectedDateEntry?.booking_url?.trim() || "";
 
   const cabinOptions = useMemo(() => {
     const fromDate = availableCabinsForDate(
@@ -217,6 +237,8 @@ export default function CruiseBookingModal({
     if (selectedCabinPrice == null) return "";
     return `${formatMoney(selectedCabinPrice)} ${CURRENCY_SYMBOL[currency]}`;
   }, [currency, selectedCabinPrice]);
+
+  const symbol = CURRENCY_SYMBOL[currency];
 
   useEffect(() => {
     setMounted(true);
@@ -311,7 +333,9 @@ export default function CruiseBookingModal({
     setForm((current) => ({
       ...current,
       cruiseDate: date,
-      cabinType: cabins.includes(current.cabinType as (typeof CABIN_ORDER)[number])
+      cabinType: cabins.includes(
+        current.cabinType as (typeof CABIN_ORDER)[number],
+      )
         ? current.cabinType
         : (cabins[0] ?? ""),
     }));
@@ -340,14 +364,24 @@ export default function CruiseBookingModal({
             linerName: cruise.liner_name || cruise.cruise_title,
             company: cruise.cruise_title,
             region: cruise.region_name || cruise.region_id,
-            route: routeLabel,
+            route: routeFull,
             nights: cruise.nights || 1,
             cruiseDate: form.cruiseDate,
+            cruiseDateEnd,
             cabinType: form.cabinType,
             priceLabel,
             adults: form.adults,
             children: form.children,
             infants: form.infants,
+            shipBuiltYear: cruise.ship_built_year,
+            shipRenovatedYear: cruise.ship_renovated_year,
+            shipClass: cruise.ship_class,
+            companyClass: cruise.company_class,
+            shipSize: cruise.ship_size,
+            starRating: cruise.star_rating,
+            reviewScore: cruise.review_score ?? undefined,
+            reviewCount: cruise.review_count,
+            bookingUrl: bookingUrl || undefined,
           },
           _hp: honeypot,
           startedAt: formOpenedAtRef.current || startedAt || Date.now(),
@@ -388,12 +422,14 @@ export default function CruiseBookingModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="cruise-booking-modal-title"
-        className="relative z-[101] w-full max-w-[560px] overflow-hidden rounded-t-card bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)] sm:rounded-card"
+        className="relative z-[101] w-full max-w-[600px] overflow-hidden rounded-t-card bg-white shadow-[0_24px_80px_rgba(0,0,0,0.18)] sm:rounded-card"
       >
         <div className="flex items-center justify-between gap-4 px-5 pt-5 sm:px-6">
           <div className="min-w-0">
             <p className="text-caption font-semibold text-[color:var(--color-brand)]">
-              {step === "cabins" ? "Крок 1 з 2 · Каюта" : "Крок 2 з 2 · Заявка"}
+              {step === "cabins"
+                ? "Крок 1 з 2 · Вибір каюти"
+                : "Крок 2 з 2 · Заявка"}
             </p>
             <h2
               id="cruise-booking-modal-title"
@@ -418,20 +454,58 @@ export default function CruiseBookingModal({
 
         <div className="max-h-[calc(100vh-2rem)] overflow-y-auto px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
           <div className="rounded-card bg-[color:var(--color-surface-muted)] px-4 py-3">
-            <p className="text-body font-semibold text-[color:var(--color-black)]">
+            <p className="text-caption font-semibold text-[color:var(--color-brand)]">
+              {cruise.region_name || "Круїз"}
+            </p>
+            <p className="text-body mt-1 font-semibold text-[color:var(--color-black)]">
               {cruise.liner_name}
             </p>
             <p className="text-caption mt-1 text-subtitle">
-              {cruise.cruise_title} · {cruise.region_name}
+              {cruise.cruise_title}
+              {cruise.company_class ? ` · ${cruise.company_class}` : ""}
             </p>
-            <p className="text-caption mt-2 text-subtitle">
-              {routeLabel} · {cruise.nights_str ?? `${cruise.nights} ночей`}
+
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {cruise.ship_built_year ? (
+                <MetaChip>{cruise.ship_built_year} р.</MetaChip>
+              ) : null}
+              {cruise.ship_renovated_year ? (
+                <MetaChip>Реновація {cruise.ship_renovated_year}</MetaChip>
+              ) : null}
+              {cruise.ship_class ? (
+                <MetaChip>Клас: {cruise.ship_class}</MetaChip>
+              ) : null}
+              {cruise.ship_size ? (
+                <MetaChip>Розмір: {cruise.ship_size}</MetaChip>
+              ) : null}
+              {cruise.star_rating != null ? (
+                <MetaChip>{cruise.star_rating}★</MetaChip>
+              ) : null}
+              {cruise.review_score != null ? (
+                <MetaChip>
+                  Оцінка {cruise.review_score}
+                  {cruise.review_count ? ` (${cruise.review_count})` : ""}
+                </MetaChip>
+              ) : null}
+            </div>
+
+            {sailingLabel ? (
+              <p className="text-caption mt-3 font-semibold text-[color:var(--color-black)]">
+                {sailingLabel}
+              </p>
+            ) : null}
+
+            <p className="text-caption mt-2 leading-relaxed text-subtitle">
+              <span className="font-semibold text-[color:var(--color-black)]">
+                Маршрут:{" "}
+              </span>
+              {routeFull}
             </p>
+
             {step === "form" && form.cabinType ? (
-              <p className="text-caption mt-2 font-semibold text-[color:var(--color-brand)]">
+              <p className="text-caption mt-3 font-semibold text-[color:var(--color-brand)]">
                 {form.cabinType}
-                {priceLabel ? ` · ${priceLabel}` : ""} ·{" "}
-                {formatDate(form.cruiseDate)}
+                {priceLabel ? ` · від ${priceLabel}` : ""}
                 {` · ${form.adults} дор.`}
                 {form.children ? `, ${form.children} дит.` : ""}
                 {form.infants ? `, ${form.infants} нем.` : ""}
@@ -465,14 +539,22 @@ export default function CruiseBookingModal({
                   {upcomingDates.map((item) => (
                     <option key={item.date} value={item.date}>
                       {formatDate(item.date)}
+                      {cruise.nights
+                        ? ` → ${formatDate(addDaysIso(item.date!, cruise.nights))}`
+                        : ""}
                     </option>
                   ))}
                 </select>
               </Field>
 
               <div>
-                <p className="text-caption mb-2 text-subtitle">
-                  Тип каюти *
+                <p className="text-caption mb-1 text-subtitle">
+                  Вартість від / за каюту *
+                </p>
+                <p className="text-caption mb-2.5 text-subtitle">
+                  Орієнтир на 2 дорослих, з портами та чайовими (як у каталозі).
+                  Точну ціну на вашу кількість гостей і тариф (FREE UPGRADE,
+                  BEST PRICE тощо) підтвердить менеджер.
                 </p>
                 {cabinOptions.length === 0 ? (
                   <p className="rounded-card bg-amber-50 px-3 py-2 text-caption text-amber-800">
@@ -508,7 +590,7 @@ export default function CruiseBookingModal({
                           </span>
                           <span className="text-body mt-2 block font-bold text-[color:var(--color-brand)]">
                             {price != null
-                              ? `від ${formatMoney(price)} ${CURRENCY_SYMBOL[currency]}`
+                              ? `від ${formatMoney(price)} ${symbol}`
                               : "Ціну уточнимо"}
                           </span>
                         </button>
@@ -521,10 +603,6 @@ export default function CruiseBookingModal({
               <div>
                 <p className="text-caption mb-2 text-subtitle">
                   Кількість туристів *
-                </p>
-                <p className="text-caption mb-2.5 text-subtitle">
-                  Ціни в каталозі — орієнтир за каюту. Точну вартість на вашу
-                  кількість гостей підтвердить менеджер.
                 </p>
                 <div className="space-y-2">
                   {GUEST_FIELDS.map((field) => (
@@ -539,6 +617,18 @@ export default function CruiseBookingModal({
                   ))}
                 </div>
               </div>
+
+              {bookingUrl ? (
+                <a
+                  href={bookingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-secondary btn-secondary--block inline-flex items-center justify-center gap-2"
+                >
+                  Повний вибір тарифів на 4gates
+                  <ExternalLink className="h-4 w-4" strokeWidth={2} />
+                </a>
+              ) : null}
 
               <button
                 type="button"
@@ -602,9 +692,21 @@ export default function CruiseBookingModal({
                   rows={3}
                   maxLength={1000}
                   className="field-control w-full resize-none bg-white px-4 py-3 text-body text-[color:var(--color-black)] outline-none transition-shadow focus:ring-2 focus:ring-[color:var(--color-brand)]/20"
-                  placeholder="Кількість гостей, паспортні питання, особливі побажання..."
+                  placeholder="Тариф (FREE UPGRADE / BEST PRICE), палуба, особливі побажання..."
                 />
               </Field>
+
+              {bookingUrl ? (
+                <a
+                  href={bookingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-caption font-semibold text-[color:var(--color-brand)]"
+                >
+                  Відкрити тарифи цієї дати на 4gates
+                  <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} />
+                </a>
+              ) : null}
 
               <input
                 id={honeypotId}
@@ -628,12 +730,14 @@ export default function CruiseBookingModal({
                 disabled={!canSubmit}
                 className="btn-primary btn-primary--block disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submitting ? "Надсилання..." : "Надіслати заявку на бронювання"}
+                {submitting
+                  ? "Надсилання..."
+                  : "Надіслати заявку на бронювання"}
               </button>
 
               <p className="text-caption text-center text-subtitle">
-                Це заявка, не онлайн-оплата. Менеджер підтвердить наявність і
-                умови.
+                Це заявка, не онлайн-оплата. Менеджер підтвердить наявність,
+                тариф і умови.
               </p>
             </form>
           )}

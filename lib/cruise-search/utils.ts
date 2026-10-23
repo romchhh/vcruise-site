@@ -14,6 +14,23 @@ export function formatDate(iso?: string | null) {
   return `${day}.${month}.${year}`;
 }
 
+/** Add calendar days to an ISO date (YYYY-MM-DD), UTC-safe. */
+export function addDaysIso(iso: string, days: number) {
+  const [year, month, day] = iso.split("-").map((part) => Number(part));
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** e.g. «02.01.2027 – 09.01.2027 · 7 ночей» */
+export function formatSailingDateRange(startIso: string, nights: number) {
+  const safeNights = Math.max(nights, 1);
+  const endIso = addDaysIso(startIso, safeNights);
+  return `${formatDate(startIso)} – ${formatDate(endIso)} · ${safeNights} ночей`;
+}
+
 function cheapestFromCabins(
   cabins: CruiseRecord["from_price"] | undefined,
   currency: CurrencyCode,

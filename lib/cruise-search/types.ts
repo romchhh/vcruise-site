@@ -6,11 +6,27 @@ export type CabinPriceMap = Partial<
   Record<"Внутрішня" | "З вікном" | "З балконом" | "Сьют", CabinPrices>
 >;
 
+/**
+ * Future import from 4gates cabin page (phase 2 — not populated yet).
+ * When scraped: tariff tabs × cabin codes (IR1, m², decks, price).
+ */
+export type CruiseCabinOffer = {
+  cabinCode: string;
+  cabinName: string;
+  cabinCategory?: "Внутрішня" | "З вікном" | "З балконом" | "Сьют";
+  tariffName: string;
+  areaM2?: number;
+  decks?: string;
+  price: CabinPrices;
+};
+
 export type CruiseDate = {
   date: string;
   date_raw?: string;
   booking_url?: string;
   cabins?: CabinPriceMap;
+  /** Populated after tariff scraper (phase 2). */
+  offers?: CruiseCabinOffer[];
 };
 
 export type CruiseRecord = {

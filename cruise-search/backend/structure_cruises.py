@@ -72,6 +72,10 @@ def parse_price_cabins_next(html: str) -> list[dict]:
     """
     Поле price_cabins_next — список усіх доступних дат відправлення,
     кожна зі своїм блоком цін по категоріях кают і посиланням на бронювання.
+
+    Phase 2 (not implemented): follow each booking_url and scrape tariff × cabin
+    matrix into `offers[]` (cabinCode, tariffName, areaM2, decks, price) —
+    see CruiseCabinOffer in lib/cruise-search/types.ts.
     """
     if not html:
         return []
@@ -88,6 +92,7 @@ def parse_price_cabins_next(html: str) -> list[dict]:
                             if link_tag and link_tag.get("href", "").startswith("/")
                             else (link_tag["href"] if link_tag else None),
             "cabins": parse_cabins_block(block.find("ul", class_="cruise__cabins")),
+            # "offers": []  # phase 2 — populate from cabin page scrape
         })
     return dates
 
