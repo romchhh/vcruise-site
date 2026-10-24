@@ -15,6 +15,7 @@ const OUTPUT_FILE = path.join(
   "cruises_output.json"
 );
 const STATE_FILE = path.join(ROOT, "data", "cruise-search", ".last-update");
+const ACTIVE_LOG_POINTER = path.join(LOG_DIR, ".active-log");
 
 function readPid(): number | null {
   try {
@@ -66,8 +67,43 @@ function readLastUpdateIso(): string | null {
   }
 }
 
+function readLogTail(filePath: string, maxChars: number) {
+  const content = fs.readFileSync(filePath, "utf-8");
+  return content.slice(-maxChars);
+}
+
+function activeLogPath(): string | null {
+  try {
+    if (!fs.existsSync(ACTIVE_LOG_POINTER)) return null;
+    const target = fs.readFileSync(ACTIVE_LOG_POINTER, "utf-8").trim();
+    if (!target || !fs.existsSync(target)) return null;
+    return target;
+  } catch {
+    return null;
+  }
+}
+
+function setActiveLogPath(filePath: string) {
+  fs.mkdirSync(LOG_DIR, { recursive: true });
+  fs.writeFileSync(ACTIVE_LOG_POINTER, filePath);
+}
+
+function clearActiveLogPath() {
+  try {
+    if (fs.existsSync(ACTIVE_LOG_POINTER)) fs.unlinkSync(ACTIVE_LOG_POINTER);
+  } catch {
+    // ignore
+  }
+}
+
 function latestLogTail(maxChars = 6000): string | undefined {
   try {
+    const running = readPid() !== null;
+    const limit = running ? Math.max(maxChars, 20_000) : maxChars;
+    const active = activeLogPath();
+    if (active) {
+      return readLogTail(active, limit);
+    }
     if (!fs.existsSync(LOG_DIR)) return undefined;
     const files = fs
       .readdirSync(LOG_DIR)
@@ -78,14 +114,50 @@ function latestLogTail(maxChars = 6000): string | undefined {
       })
       .sort((a, b) => b.mtime - a.mtime);
     if (!files[0]) return undefined;
-    const content = fs.readFileSync(files[0].full, "utf-8");
-    return content.slice(-maxChars);
+    return readLogTail(files[0].full, limit);
   } catch {
     return undefined;
   }
 }
 
+function liveProgressMessage(logTail?: string): string | undefined {
+  if (!logTail?.trim()) return undefined;
+  const lines = logTail.split("\n").map((line) => line.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i];
+    if (
+      line.includes("[progress]") ||
+      line.includes("[offers]") ||
+      line.includes("[fetch]") ||
+      line.includes("[ajax]")
+    ) {
+      return line;
+    }
+  }
+  return lines[lines.length - 1];
+}
+
+function refreshRunningSyncFromLog() {
+  const pid = readPid();
+  if (!pid) return;
+  const logTail = latestLogTail();
+  const progress = liveProgressMessage(logTail);
+  const cruiseCount = countCruises();
+  updateDb((db) => {
+    const index = db.syncRuns.findIndex((item) => item.status === "running");
+    if (index < 0) return;
+    const current = db.syncRuns[index];
+    db.syncRuns[index] = {
+      ...current,
+      logTail,
+      cruiseCount: cruiseCount ?? current.cruiseCount,
+      message: progress ?? current.message,
+    };
+  });
+}
+
 function finishRun(runId: string) {
+  clearActiveLogPath();
   invalidateCruiseCache();
   const cruiseCount = countCruises();
   const logTail = latestLogTail();
@@ -110,12 +182,17 @@ function finishRun(runId: string) {
 
 export function getSyncStatus() {
   const pid = readPid();
+  if (pid !== null) {
+    refreshRunningSyncFromLog();
+  }
+  const logTail = latestLogTail();
   return {
     running: pid !== null,
     pid,
     cruiseCount: countCruises(),
     lastDataUpdateAt: readLastUpdateIso(),
-    logTail: latestLogTail(),
+    logTail,
+    liveProgress: liveProgressMessage(logTail),
     parserExists: fs.existsSync(PARSER),
   };
 }
@@ -140,8 +217,8 @@ export function startCruiseSync(
   fs.mkdirSync(LOG_DIR, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const logFile = path.join(LOG_DIR, `update-${stamp}.log`);
-  const out = fs.openSync(logFile, "a");
-  const err = fs.openSync(logFile, "a");
+  fs.writeFileSync(logFile, "", { flag: "a" });
+  setActiveLogPath(logFile);
 
   const args = ["--force"];
   const limit =
@@ -157,8 +234,12 @@ export function startCruiseSync(
   const child = spawn(PARSER, args, {
     cwd: ROOT,
     detached: true,
-    stdio: ["ignore", out, err],
-    env: process.env,
+    stdio: "ignore",
+    env: {
+      ...process.env,
+      PYTHONUNBUFFERED: "1",
+      VCruise_SYNC_LOG_FILE: logFile,
+    },
   });
 
   child.unref();
@@ -182,10 +263,14 @@ export function startCruiseSync(
 
   const watch = setInterval(() => {
     const still = readPid();
-    if (still) return;
+    if (still) {
+      refreshRunningSyncFromLog();
+      return;
+    }
     clearInterval(watch);
+    clearActiveLogPath();
     finishRun(run.id);
-  }, 4000);
+  }, 1500);
 
   setTimeout(() => clearInterval(watch), 1000 * 60 * 60 * 2);
 
@@ -213,6 +298,7 @@ export function stopCruiseSync() {
   } catch {
     // ignore
   }
+  clearActiveLogPath();
 
   updateDb((db) => {
     const index = db.syncRuns.findIndex((item) => item.status === "running");

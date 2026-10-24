@@ -10,6 +10,8 @@
 #
 set -euo pipefail
 
+export PYTHONUNBUFFERED=1
+
 INTERVAL_DAYS=3
 FORCE=0
 BACKGROUND=0
@@ -26,7 +28,7 @@ OUTPUT_FILE="${PROJECT_ROOT}/data/cruise-search/cruises_output.json"
 STATE_FILE="${PROJECT_ROOT}/data/cruise-search/.last-update"
 LOG_DIR="${PROJECT_ROOT}/data/cruise-search/logs"
 PID_FILE="${LOG_DIR}/update.pid"
-LOG_FILE="${LOG_DIR}/update-$(date +%Y-%m-%d_%H-%M-%S).log"
+LOG_FILE="${VCruise_SYNC_LOG_FILE:-${LOG_DIR}/update-$(date +%Y-%m-%d_%H-%M-%S).log}"
 
 usage() {
   cat <<EOF
@@ -109,9 +111,11 @@ fi
 
 log() {
   local message="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
-  echo "$message"
   mkdir -p "$LOG_DIR"
   echo "$message" >>"$LOG_FILE"
+  if [[ -z "${VCruise_SYNC_LOG_FILE:-}" ]]; then
+    echo "$message"
+  fi
 }
 
 days_since_last_run() {
@@ -194,9 +198,9 @@ run_parser() {
     cd "$PARSER_DIR"
     # macOS bash + set -u: empty "${arr[@]}" is "unbound variable"
     if [[ -n "$LIMIT" ]]; then
-      "$PYTHON" cruise_parser.py --limit "$LIMIT" --workers "$WORKERS"
+      "$PYTHON" -u cruise_parser.py --limit "$LIMIT" --workers "$WORKERS"
     else
-      "$PYTHON" cruise_parser.py --workers "$WORKERS"
+      "$PYTHON" -u cruise_parser.py --workers "$WORKERS"
     fi
   ) 2>&1 | tee -a "$LOG_FILE"
 }
@@ -206,9 +210,9 @@ run_offers_sync() {
   (
     cd "$PARSER_DIR"
     if [[ -n "$LIMIT" ]]; then
-      "$PYTHON" sync_offers.py --days 90 --workers "$OFFERS_WORKERS" --limit "$LIMIT"
+      "$PYTHON" -u sync_offers.py --days 90 --workers "$OFFERS_WORKERS" --limit "$LIMIT"
     else
-      "$PYTHON" sync_offers.py --days 90 --workers "$OFFERS_WORKERS"
+      "$PYTHON" -u sync_offers.py --days 90 --workers "$OFFERS_WORKERS"
     fi
   ) 2>&1 | tee -a "$LOG_FILE"
 }

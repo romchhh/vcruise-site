@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { adminFetch } from "@/components/admin/adminApi";
 import {
   AdminCard,
@@ -21,6 +21,7 @@ type SyncStatus = {
   cruiseCount: number | null;
   lastDataUpdateAt: string | null;
   logTail: string;
+  liveProgress?: string | null;
   parserExists?: boolean;
 };
 
@@ -30,7 +31,7 @@ type SyncResponse = {
   runs: SyncRun[];
 };
 
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 1000;
 
 const TRIGGER_LABELS: Record<SyncRun["triggeredBy"], string> = {
   admin: "Адмін",
@@ -45,6 +46,7 @@ export default function SyncView() {
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const logRef = useRef<HTMLPreElement | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -70,6 +72,11 @@ export default function SyncView() {
     const timer = window.setInterval(() => void load(), POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [running, load]);
+
+  useEffect(() => {
+    if (!running || !logRef.current) return;
+    logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [running, status?.logTail]);
 
   async function start(mode: "full" | "quick" = "full") {
     setStarting(true);
@@ -199,7 +206,7 @@ export default function SyncView() {
               hint={
                 status.running
                   ? status.pid
-                    ? `PID ${status.pid} · оновлення кожні 3 с`
+                    ? `PID ${status.pid} · лог кожну 1 с`
                     : "Процес активний"
                   : status.parserExists === false
                     ? "Скрипт парсера відсутній"
@@ -224,9 +231,15 @@ export default function SyncView() {
 
           <AdminCard
             title="Лог останнього запуску"
-            subtitle={status.running ? "Оновлюється автоматично" : undefined}
+            subtitle={
+              status.running
+                ? status.liveProgress
+                  ? `Оновлюється автоматично · ${status.liveProgress}`
+                  : "Оновлюється автоматично"
+                : undefined
+            }
           >
-            <pre className={ui.logBox}>
+            <pre ref={logRef} className={ui.logBox}>
               {status.logTail?.trim() || "Лог порожній. Запустіть синхронізацію."}
             </pre>
           </AdminCard>
