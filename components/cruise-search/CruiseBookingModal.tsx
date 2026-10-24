@@ -22,7 +22,6 @@ import {
   formatMoney,
   formatSailingDateRange,
   getUpcomingDates,
-  scaleCabinPriceForGuests,
 } from "@/lib/cruise-search/utils";
 import type {
   CabinPriceMap,
@@ -68,6 +67,8 @@ type CruiseBookingModalProps = {
   variant?: "modal" | "page";
   /** Page layout: full-width cabin table rendered outside the sticky sidebar. */
   onOffersPanel?: (node: ReactNode) => void;
+  /** Cheapest official cabin price for the current party, or null while it loads. */
+  onFromPrice?: (price: number | null) => void;
 };
 
 type Step = "cabins" | "form";
@@ -258,6 +259,7 @@ export default function CruiseBookingModal({
   onClose,
   variant = "modal",
   onOffersPanel,
+  onFromPrice,
 }: CruiseBookingModalProps) {
   const honeypotId = useId();
   const formOpenedAtRef = useRef(0);
@@ -272,10 +274,12 @@ export default function CruiseBookingModal({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("");
-  const [liveOffers, setLiveOffers] = useState<CruiseCabinOffer[]>([]);
+  const [quoted, setQuoted] = useState<{
+    key: string;
+    offers: CruiseCabinOffer[];
+  } | null>(null);
   const [offersLoading, setOffersLoading] = useState(false);
   const [offersResolved, setOffersResolved] = useState(false);
-  const [guestSpecificPrices, setGuestSpecificPrices] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
 
   const upcomingDates = useMemo(
@@ -306,12 +310,39 @@ export default function CruiseBookingModal({
   const bookingUrl = selectedDateEntry?.booking_url?.trim() || "";
 
   const offers = useMemo(() => {
-    const reference = form.adults === 2 && form.children === 0;
-    if (liveOffers.length) return liveOffers;
-    if (reference) return selectedDateEntry?.offers ?? [];
+    const key = bookingUrl
+      ? offersRequestKey(bookingUrl, {
+          adults: form.adults,
+          children: form.children,
+          infants: form.infants,
+        })
+      : "";
+    if (quoted?.key === key) return quoted.offers;
+    if (form.adults === 2 && form.children === 0) {
+      return selectedDateEntry?.offers ?? [];
+    }
     return [];
-  }, [form.adults, form.children, liveOffers, selectedDateEntry?.offers]);
+  }, [
+    bookingUrl,
+    form.adults,
+    form.children,
+    form.infants,
+    quoted,
+    selectedDateEntry?.offers,
+  ]);
   const hasOffers = offers.length > 0;
+
+  useEffect(() => {
+    if (variant !== "page" || !onFromPrice) return;
+    if (!offers.length) {
+      onFromPrice(null);
+      return;
+    }
+    const values = offers
+      .map((offer) => offer.price?.[currency])
+      .filter((value): value is number => value != null);
+    onFromPrice(values.length ? Math.min(...values) : null);
+  }, [variant, onFromPrice, offers, currency]);
 
   const cabinOptions = useMemo(() => {
     if (hasOffers) {
@@ -349,42 +380,20 @@ export default function CruiseBookingModal({
     [offers, form.offerKey],
   );
 
-  const scalePrice = useCallback(
-    (base: number | null | undefined) => {
-      if (base == null) return null;
-      if (guestSpecificPrices) return base;
-      return scaleCabinPriceForGuests(
-        base,
-        form.adults,
-        form.children,
-        form.infants,
-      );
-    },
-    [
-      guestSpecificPrices,
-      form.adults,
-      form.children,
-      form.infants,
-    ],
-  );
-
   const selectedCabinPrice = useMemo(() => {
-    if (selectedOffer?.price?.[currency] != null) {
-      return scalePrice(selectedOffer.price[currency]!);
-    }
-    if (!form.cabinType) return null;
-    const base =
-      cabinPrice(selectedDateEntry?.cabins, form.cabinType, currency) ??
-      cabinPrice(cruise?.from_price, form.cabinType, currency);
-    return scalePrice(base);
+    const quotedPrice = selectedOffer?.price?.[currency];
+    if (quotedPrice != null) return quotedPrice;
+    if (hasOffers || !form.cabinType) return null;
+    if (form.adults !== 2 || form.children !== 0) return null;
+    return (
+      cabinPrice(selectedDateEntry?.cabins, form.cabinType, currency) ?? null
+    );
   }, [
-    cruise?.from_price,
     currency,
     form.adults,
     form.children,
     form.cabinType,
-    form.infants,
-    guestSpecificPrices,
+    hasOffers,
     selectedDateEntry?.cabins,
     selectedOffer,
   ]);
@@ -416,12 +425,11 @@ export default function CruiseBookingModal({
     offers.length === 0 &&
     offersLoadKeyRef.current === offersRequestKey(bookingUrl, guestQuery);
 
-  const applyOffers = (
-    nextOffers: CruiseCabinOffer[],
-    guestSpecific = false,
-  ) => {
-    setLiveOffers(nextOffers.map(normalizeCruiseCabinOffer));
-    setGuestSpecificPrices(guestSpecific && nextOffers.length > 0);
+  const applyOffers = (nextOffers: CruiseCabinOffer[], key: string) => {
+    setQuoted({
+      key,
+      offers: nextOffers.map(normalizeCruiseCabinOffer),
+    });
     setOffersResolved(true);
     setForm((current) => {
       const picked = pickFormAfterOffers(nextOffers, current);
@@ -471,9 +479,8 @@ export default function CruiseBookingModal({
       children,
       infants,
     });
-    setLiveOffers([]);
+    setQuoted(null);
     setOffersResolved(false);
-    setGuestSpecificPrices(false);
     offersLoadKeyRef.current = "";
     const openedAt = Date.now();
     formOpenedAtRef.current = openedAt;
@@ -525,10 +532,10 @@ export default function CruiseBookingModal({
     }
 
     if (!bookingUrl) {
-      setLiveOffers([]);
+      offersRequestIdRef.current += 1;
+      setQuoted(null);
       setOffersLoading(false);
       setOffersResolved(true);
-      setGuestSpecificPrices(false);
       offersLoadKeyRef.current = "";
       return;
     }
@@ -537,8 +544,8 @@ export default function CruiseBookingModal({
     const seedOffers = referenceParty ? (selectedDateEntry?.offers ?? []) : [];
 
     if (seedOffers.length > 0) {
-      setLiveOffers([]);
-      setGuestSpecificPrices(false);
+      offersRequestIdRef.current += 1;
+      setQuoted(null);
       setOffersResolved(true);
       setOffersLoading(false);
       offersLoadKeyRef.current = loadKey;
@@ -548,7 +555,7 @@ export default function CruiseBookingModal({
     const cached = getCachedCruiseOffers(bookingUrl, guestQuery);
 
     if (cached) {
-      applyOffers(cached.offers, cached.guestSpecific);
+      applyOffers(cached.offers, loadKey);
       setOffersLoading(false);
       offersLoadKeyRef.current = loadKey;
       return;
@@ -565,7 +572,7 @@ export default function CruiseBookingModal({
 
     const requestId = offersRequestIdRef.current + 1;
     offersRequestIdRef.current = requestId;
-    const showBlockingLoader = !liveOffers.length;
+    const showBlockingLoader = quoted?.key !== loadKey;
     if (showBlockingLoader) {
       setOffersLoading(true);
       setOffersResolved(false);
@@ -581,16 +588,14 @@ export default function CruiseBookingModal({
 
           if (requestId !== offersRequestIdRef.current) return;
 
-          applyOffers(payload.offers, payload.guestSpecific);
+          applyOffers(payload.offers, loadKey);
           offersLoadKeyRef.current = loadKey;
         } catch {
           if (requestId !== offersRequestIdRef.current) return;
 
-          if (showBlockingLoader) {
-            setLiveOffers([]);
-          }
+          setQuoted({ key: loadKey, offers: [] });
           setOffersResolved(true);
-          setGuestSpecificPrices(false);
+          offersLoadKeyRef.current = loadKey;
         } finally {
           if (requestId === offersRequestIdRef.current) {
             setOffersLoading(false);
@@ -779,7 +784,6 @@ export default function CruiseBookingModal({
           offers={filteredOffers}
           currency={currency}
           selectedKey={form.offerKey}
-          scalePrice={scalePrice}
           onSelect={selectOfferAndScroll}
           loading={offersLoading && !hasOffers}
           emptyMessage={emptyMessage}
@@ -831,7 +835,6 @@ export default function CruiseBookingModal({
     offersLoading,
     hasOffers,
     noCabins,
-    scalePrice,
     selectOfferAndScroll,
     canContinueToForm,
   ]);
@@ -987,15 +990,7 @@ export default function CruiseBookingModal({
               ) : (
               <>
               <div>
-                <p className="text-caption mb-2 text-subtitle">
-                  Тип каюти *
-                  {!guestSpecificPrices ? (
-                    <span className="text-[color:var(--color-silver)]">
-                      {" "}
-                      · орієнтовно на {guestSummary}
-                    </span>
-                  ) : null}
-                </p>
+                <p className="text-caption mb-2 text-subtitle">Тип каюти *</p>
 
                 {cabinOptions.length === 0 ? (
                   <p className="rounded-card bg-amber-50 px-3 py-2 text-caption text-amber-800">
@@ -1005,21 +1000,17 @@ export default function CruiseBookingModal({
                 ) : (
                   <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                     {cabinOptions.map((cabin) => {
-                      const base =
-                        cabinPrice(
-                          selectedDateEntry?.cabins,
-                          cabin,
-                          currency,
-                        ) ?? cabinPrice(cruise.from_price, cabin, currency);
                       const fromOffers = offers
                         .filter((offer) => offer.cabinCategory === cabin)
                         .map((offer) => offer.price?.[currency])
                         .filter((v): v is number => v != null);
-                      const minBase =
+                      const datePrice = referenceParty
+                        ? cabinPrice(selectedDateEntry?.cabins, cabin, currency)
+                        : null;
+                      const amount =
                         fromOffers.length > 0
                           ? Math.min(...fromOffers)
-                          : base;
-                      const scaled = scalePrice(minBase ?? null);
+                          : datePrice;
                       const selected =
                         (categoryFilter || form.cabinType) === cabin;
                       return (
@@ -1037,9 +1028,11 @@ export default function CruiseBookingModal({
                             {cabin}
                           </span>
                           <span className="text-caption mt-1 block text-[color:var(--color-brand)]">
-                            {scaled != null
-                              ? `від ${formatMoney(scaled)} ${symbol}`
-                              : "—"}
+                            {amount != null
+                              ? `від ${formatMoney(amount)} ${symbol}`
+                              : offersLoading
+                                ? "…"
+                                : "—"}
                           </span>
                         </button>
                       );
@@ -1059,8 +1052,7 @@ export default function CruiseBookingModal({
                   </p>
                   <div className="max-h-52 space-y-1.5 overflow-y-auto pr-0.5 sm:max-h-60">
                     {filteredOffers.map((offer) => {
-                      const base = offer.price?.[currency] ?? null;
-                      const scaled = scalePrice(base);
+                      const price = offer.price?.[currency] ?? null;
                       const key = offerKeyOf(offer);
                       const selected = form.offerKey === key;
                       return (
@@ -1093,8 +1085,8 @@ export default function CruiseBookingModal({
                           </div>
                           <div className="shrink-0 text-right">
                             <p className="text-body font-bold text-[color:var(--color-brand)]">
-                              {scaled != null
-                                ? `${formatMoney(scaled)} ${symbol}`
+                              {price != null
+                                ? `${formatMoney(price)} ${symbol}`
                                 : "—"}
                             </p>
                             <p className="text-caption text-subtitle">

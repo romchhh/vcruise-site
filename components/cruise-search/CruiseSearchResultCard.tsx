@@ -143,7 +143,7 @@ export default function CruiseSearchResultCard({
         <div className="divider pt-3">
           <div className="flex items-end justify-between gap-3">
             <span className="text-caption max-w-[120px] leading-snug text-[color:var(--color-silver)]">
-              Ціна від / за особу
+              Ціна від / за каюту
             </span>
             <span className="text-h4 font-bold leading-none text-[color:var(--color-black)]">
               {formatMoney(price)} {symbol}

@@ -85,9 +85,7 @@ export default function HotDealCard({ deal }: { deal: HotDeal }) {
           <div className="divider mt-3 pt-3 sm:mt-4">
             <div className="flex items-end justify-between gap-2 sm:gap-3">
               <span className="type-card-price-label max-w-[7rem] text-subtitle sm:max-w-[120px]">
-                {deal.priceBasis === "couple"
-                  ? "Ціна від / за двох"
-                  : "Ціна від / за особу"}
+                Ціна від / за каюту
               </span>
               <div className="flex shrink-0 flex-col items-end gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
                 <span className="type-card-meta text-subtitle line-through">

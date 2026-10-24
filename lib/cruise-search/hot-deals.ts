@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { buildSearchParams } from "./params";
 import { loadClientCruises } from "./load-cruises";
-import { cheapestPrice, hasBookableDates } from "./utils";
+import { cheapestPriceOnDate, hasBookableDates } from "./utils";
 import type { CruiseRecord } from "./types";
 import type { HotDeal } from "@/types";
 
@@ -140,12 +140,12 @@ export function pickHotDeals(
   const ranked = cruises
     .filter((cruise) => hasBookableDates(cruise, referenceDate))
     .map((cruise) => {
-      const price =
-        cheapestPrice(cruise, "USD") ??
-        cheapestPrice(cruise, "EUR") ??
-        cheapestPrice(cruise, "NAT");
-
       const startDate = nearestUpcomingDate(cruise, referenceDate);
+      const price = startDate
+        ? (cheapestPriceOnDate(cruise, startDate, "USD") ??
+          cheapestPriceOnDate(cruise, startDate, "EUR") ??
+          cheapestPriceOnDate(cruise, startDate, "NAT"))
+        : null;
 
       if (price == null || !startDate) return null;
 

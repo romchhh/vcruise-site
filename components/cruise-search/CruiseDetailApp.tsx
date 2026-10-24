@@ -94,7 +94,11 @@ export default function CruiseDetailApp({
     return upcomingDates[0]?.date ?? "";
   }, [detailQuery.sailing, upcomingDates]);
 
-  const highlightPrice = cheapestPriceOnDate(cruise, preferredDate, currency);
+  const catalogPrice = cheapestPriceOnDate(cruise, preferredDate, currency);
+  const [quotedFrom, setQuotedFrom] = useState<number | null | undefined>(
+    undefined,
+  );
+  const highlightPrice = quotedFrom === undefined ? catalogPrice : quotedFrom;
   const fromPort = embarkationPort(cruise);
   const stops = useMemo(() => routeStops(cruise.route ?? []), [cruise.route]);
   const nightsLabel =
@@ -165,7 +169,9 @@ export default function CruiseDetailApp({
                       Ціна від
                     </p>
                     <p className="text-h4 mt-1 font-bold leading-none text-[color:var(--color-brand)]">
-                      {formatMoney(highlightPrice)} {symbol}
+                      {highlightPrice == null
+                        ? "…"
+                        : `${formatMoney(highlightPrice)} ${symbol}`}
                     </p>
                     <p className="text-caption mt-1.5 text-subtitle">за каюту</p>
                   </div>
@@ -254,6 +260,7 @@ export default function CruiseDetailApp({
                   infants: detailQuery.infants,
                 }}
                 onOffersPanel={setOffersPanel}
+                onFromPrice={setQuotedFrom}
                 onClose={() => {
                   // Page variant uses contact modal; no-op for back arrow removal.
                 }}

@@ -4,7 +4,7 @@ export type CruiseOffersGuestQuery = {
   infants: number;
 };
 
-/** 4gates quotes cabin rows for two adults; party totals are estimated in the UI. */
+/** Disk cache stores the 4gates quote for two adults. Other parties are fetched live. */
 export const CRUISE_OFFERS_REFERENCE_GUESTS: CruiseOffersGuestQuery = {
   adults: 2,
   children: 0,

@@ -49,12 +49,20 @@ function readMtimeMs() {
   }
 }
 
+function isUsableOffer(offer: CruiseCabinOffer) {
+  const tariff = normalizeCruiseCabinOffer(offer).tariffName.trim();
+  if (tariff === "Array" || /₴|€|\$/.test(tariff)) return false;
+  return Object.values(offer.price ?? {}).some(
+    (value) => typeof value === "number" && Number.isFinite(value) && value > 0,
+  );
+}
+
 function normalizeEntry(
   entry: SlugEntry | CruiseCabinOffer[] | undefined,
 ): CruiseCabinOffer[] {
   if (!entry) return [];
   const rows = Array.isArray(entry) ? entry : (entry.offers ?? []);
-  return rows.map((offer) => normalizeCruiseCabinOffer(offer));
+  return rows.map((offer) => normalizeCruiseCabinOffer(offer)).filter(isUsableOffer);
 }
 
 export function loadOffersCacheMeta(): OffersCacheMeta | null {
@@ -105,7 +113,8 @@ export function rememberDiskOffers(
   if (!slug || offers.length === 0) return;
 
   const map = loadOffersBySlugMap();
-  if (map.get(slug)?.length) return;
+  const existing = map.get(slug);
+  if (existing?.length && existing.every(isUsableOffer)) return;
 
   const rows = offers.map((offer) => normalizeCruiseCabinOffer(offer));
   map.set(slug, rows);

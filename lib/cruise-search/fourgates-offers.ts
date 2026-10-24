@@ -126,6 +126,10 @@ function parsePricesFromRow(rowHtml: string): Partial<Record<CurrencyCode, numbe
   return price;
 }
 
+function looksLikePriceText(text: string) {
+  return /₴|€|\$/.test(text);
+}
+
 function stripTags(html: string) {
   return html
     .replace(/<br\s*\/?>/gi, " ")
@@ -187,15 +191,16 @@ function parseRowHtml(
       continue;
     }
     const text = stripTags(inner);
-    if (text && text !== "Вибрати") cells.push(text);
+    if (!text || text === "Вибрати" || looksLikePriceText(text)) continue;
+    cells.push(text);
     if (cells.length >= 4) break;
   }
 
-  if (cells.length < 3) return null;
+  if (cells.length < 2) return null;
 
   const cabinCode = cells[0];
   const cabinName = cells[1];
-  const tariffName = normalizeTariffName(cells[2]);
+  const tariffName = normalizeTariffName(cells[2] ?? "");
   const price = parsePricesFromRow(rowHtml);
   if (!Object.keys(price).length) return null;
 

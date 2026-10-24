@@ -16,8 +16,8 @@ function parsePriceBasis(value: unknown): PriceBasis {
   return value === "couple" ? "couple" : "person";
 }
 
-function applyPriceBasis(price: number, basis: PriceBasis) {
-  return basis === "couple" ? price * 2 : price;
+function applyPriceBasis(price: number, _basis: PriceBasis) {
+  return price;
 }
 
 /** Deep-link to one sailing and open booking modal on /search. */

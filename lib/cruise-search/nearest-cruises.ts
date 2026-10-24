@@ -2,7 +2,7 @@ import { unstable_cache } from "next/cache";
 import { buildSearchParams } from "./params";
 import { matchesCruiseRegion } from "./region-match";
 import { loadClientCruises } from "./load-cruises";
-import { cheapestPrice, hasBookableDates } from "./utils";
+import { cheapestPriceOnDate, hasBookableDates } from "./utils";
 import type { CruiseRecord } from "./types";
 import type { Cruise } from "@/types";
 
@@ -138,9 +138,9 @@ function mapToCard(
   startDate: string
 ): Cruise {
   const price =
-    cheapestPrice(cruise, "USD") ??
-    cheapestPrice(cruise, "NAT") ??
-    cheapestPrice(cruise, "EUR") ??
+    cheapestPriceOnDate(cruise, startDate, "USD") ??
+    cheapestPriceOnDate(cruise, startDate, "NAT") ??
+    cheapestPriceOnDate(cruise, startDate, "EUR") ??
     0;
 
   const searchUrl = `/search?${buildSearchParams({

@@ -16,7 +16,6 @@ type Props = {
   offers: CruiseCabinOffer[];
   currency: CurrencyCode;
   selectedKey: string;
-  scalePrice: (amount: number | null | undefined) => number | null;
   onSelect: (offer: CruiseCabinOffer) => void;
   loading?: boolean;
   emptyMessage?: string | null;
@@ -33,7 +32,6 @@ export default function CabinOffersTable({
   offers,
   currency,
   selectedKey,
-  scalePrice,
   onSelect,
   loading = false,
   emptyMessage = null,
@@ -94,7 +92,7 @@ export default function CabinOffersTable({
         {offers.map((offer) => {
           const key = offerKeyOf(offer);
           const selected = selectedKey === key;
-          const scaled = scalePrice(offer.price?.[currency]);
+          const price = offer.price?.[currency];
           return (
             <li key={key}>
               <button
@@ -125,7 +123,7 @@ export default function CabinOffersTable({
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-body font-bold text-[color:var(--color-brand)]">
-                    {scaled != null ? `${formatMoney(scaled)} ${symbol}` : "—"}
+                    {price != null ? `${formatMoney(price)} ${symbol}` : "—"}
                   </p>
                   <p
                     className={`text-caption mt-1 font-semibold ${
@@ -164,7 +162,7 @@ export default function CabinOffersTable({
             {offers.map((offer) => {
               const key = offerKeyOf(offer);
               const selected = selectedKey === key;
-              const scaled = scalePrice(offer.price?.[currency]);
+              const price = offer.price?.[currency];
 
               return (
                 <tr
@@ -208,8 +206,8 @@ export default function CabinOffersTable({
                   </td>
                   <td className="px-3 py-3 align-middle text-right">
                     <span className="text-body font-bold text-[color:var(--color-brand)]">
-                      {scaled != null
-                        ? `${formatMoney(scaled)} ${symbol}`
+                      {price != null
+                        ? `${formatMoney(price)} ${symbol}`
                         : "—"}
                     </span>
                   </td>

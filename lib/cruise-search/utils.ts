@@ -31,22 +31,6 @@ export function formatSailingDateRange(startIso: string, nights: number) {
   return `${formatDate(startIso)} – ${formatDate(endIso)} · ${safeNights} ночей`;
 }
 
-/**
- * Catalog and live 4gates rows are quoted for two adults in the cabin.
- * Scale to the selected party (children pay full berth in this estimate;
- * infants are free). Exact 4gates totals may differ — manager confirms.
- */
-export function scaleCabinPriceForGuests(
-  baseForTwo: number,
-  adults: number,
-  children = 0,
-  infants = 0,
-) {
-  void infants;
-  const paying = Math.max(1, Math.round(adults) + Math.round(children));
-  return Math.round((baseForTwo / 2) * paying);
-}
-
 function cheapestFromCabins(
   cabins: CruiseRecord["from_price"] | undefined,
   currency: CurrencyCode,

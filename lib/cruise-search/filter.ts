@@ -5,7 +5,7 @@ import {
 import { sanitizeSelectedMonths } from "./month-helpers";
 import { matchesCruiseRegions } from "./region-match";
 import {
-  cheapestPrice,
+  cheapestPriceOnDate,
   getDurationBounds,
   hasBookableDates,
   sailingDateInFilter,
@@ -117,7 +117,11 @@ export function filterCruises(
       return false;
     }
 
-    const price = cheapestPrice(cruise, filters.currency);
+    const price = cheapestPriceOnDate(
+      cruise,
+      sailingDateInFilter(cruise, filters.dateFrom, filters.dateTo),
+      filters.currency,
+    );
     if (price != null) {
       if (price < filters.priceMin || price > filters.priceMax) {
         return false;
@@ -147,9 +151,18 @@ export function sortCruises(
     }
 
     if (sort.startsWith("price")) {
-      const leftPrice = cheapestPrice(left, currency) ?? Number.POSITIVE_INFINITY;
+      const leftPrice =
+        cheapestPriceOnDate(
+          left,
+          sailingDateInFilter(left, dateFrom, dateTo),
+          currency,
+        ) ?? Number.POSITIVE_INFINITY;
       const rightPrice =
-        cheapestPrice(right, currency) ?? Number.POSITIVE_INFINITY;
+        cheapestPriceOnDate(
+          right,
+          sailingDateInFilter(right, dateFrom, dateTo),
+          currency,
+        ) ?? Number.POSITIVE_INFINITY;
       return sort === "price_asc"
         ? leftPrice - rightPrice
         : rightPrice - leftPrice;

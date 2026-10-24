@@ -3,7 +3,7 @@ import { UNIQUE_ROUTE_COVER_IMAGE as SHARED_UNIQUE_COVER } from "@/lib/cms/secti
 import { buildSearchParams } from "./params";
 import { loadClientCruises } from "./load-cruises";
 import { matchesCruiseRegion } from "./region-match";
-import { cheapestPrice, hasBookableDates } from "./utils";
+import { cheapestPriceOnDate, hasBookableDates } from "./utils";
 import type { CruiseRecord } from "./types";
 import type { UniqueRoute } from "@/types";
 
@@ -95,10 +95,11 @@ function scoreRoute(cruise: CruiseRecord, today: string): number | null {
   if (!hasBookableDates(cruise, today)) return null;
 
   const startDate = nearestUpcomingDate(cruise, today);
-  const price =
-    cheapestPrice(cruise, "USD") ??
-    cheapestPrice(cruise, "EUR") ??
-    cheapestPrice(cruise, "NAT");
+  const price = startDate
+    ? (cheapestPriceOnDate(cruise, startDate, "USD") ??
+      cheapestPriceOnDate(cruise, startDate, "EUR") ??
+      cheapestPriceOnDate(cruise, startDate, "NAT"))
+    : null;
 
   if (!startDate || price == null) return null;
 
@@ -165,9 +166,9 @@ export function pickUniqueRoutes(
 
       const startDate = nearestUpcomingDate(cruise, referenceDate)!;
       const price =
-        cheapestPrice(cruise, "USD") ??
-        cheapestPrice(cruise, "EUR") ??
-        cheapestPrice(cruise, "NAT")!;
+        cheapestPriceOnDate(cruise, startDate, "USD") ??
+        cheapestPriceOnDate(cruise, startDate, "EUR") ??
+        cheapestPriceOnDate(cruise, startDate, "NAT")!;
 
       return { cruise, score, startDate, price };
     })

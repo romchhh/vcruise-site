@@ -58,7 +58,7 @@ export default function CruiseCard({ cruise }: { cruise: Cruise }) {
         <div className="divider pt-3">
           <div className="flex items-end justify-between gap-3">
             <span className="text-caption max-w-[120px] leading-snug text-subtitle">
-              Ціна від / за особу
+              Ціна від / за каюту
             </span>
             <span className="text-h4 font-bold leading-none text-[color:var(--color-black)]">
               ${cruise.price.toLocaleString("en-US")}

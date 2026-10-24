@@ -90,9 +90,7 @@ export default function UniqueRouteCard({ route }: UniqueRouteCardProps) {
 
           <div className="flex items-end justify-between gap-3">
             <span className="max-w-[8.5rem] text-body leading-snug text-white/75 lg:max-w-[120px] lg:text-caption">
-              {route.priceBasis === "couple"
-                ? "Ціна від / за двох"
-                : "Ціна від / за особу"}
+              Ціна від / за каюту
             </span>
             <span className="text-h3 font-bold leading-none text-white lg:text-h4">
               {formatUsd(route.price)}
