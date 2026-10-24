@@ -19,6 +19,12 @@ import json
 import re
 from bs4 import BeautifulSoup
 
+try:
+    SOUP_PARSER = "lxml"
+    BeautifulSoup("", SOUP_PARSER)
+except Exception:
+    SOUP_PARSER = "html.parser"
+
 
 # ---------- допоміжні парсери окремих "брудних" полів ----------
 
@@ -61,7 +67,7 @@ def parse_cabins_block(ul_tag) -> dict:
 
 
 def _soup(html: str) -> BeautifulSoup:
-    return BeautifulSoup(html, "html.parser")
+    return BeautifulSoup(html or "", SOUP_PARSER)
 
 
 def parse_price_cabins(html: str) -> dict:
@@ -102,8 +108,8 @@ def parse_route(html: str) -> list[str]:
     """iteraty: '<span>Порт А - Порт Б - Порт В</span>' -> ['Порт А', 'Порт Б', 'Порт В']"""
     if not html:
         return []
-    soup = BeautifulSoup(html, "html.parser")
-    text = soup.get_text(strip=True)
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = re.sub(r"\s+", " ", text).strip()
     return [p.strip() for p in text.split(" - ") if p.strip()]
 
 
@@ -124,9 +130,12 @@ def parse_class_field(html: str) -> str | None:
     """classes / classes__company: витягує назву класу лайнера/компанії з <b>...</b>"""
     if not html:
         return None
-    soup = BeautifulSoup(html, "html.parser")
-    b = soup.find("b")
-    return b.get_text(strip=True) if b else soup.get_text(strip=True) or None
+    match = re.search(r"<b[^>]*>([^<]+)</b>", html, re.I)
+    if match:
+        return match.group(1).strip() or None
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text or None
 
 
 def parse_renov_year(html: str) -> int | None:

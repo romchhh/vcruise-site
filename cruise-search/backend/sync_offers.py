@@ -36,8 +36,8 @@ HEADERS = {
 }
 
 DEFAULT_DAYS = 90
-DEFAULT_WORKERS = 8
-DEFAULT_PAUSE = 0.05
+DEFAULT_WORKERS = 12
+DEFAULT_PAUSE = 0.0
 SAVE_EVERY = 40
 
 
@@ -105,14 +105,6 @@ def save_output(path: Path, payload: dict[str, Any]) -> None:
     tmp.replace(path)
 
 
-def make_session() -> requests.Session:
-    session = requests.Session()
-    session.headers.update(HEADERS)
-    resp = session.get(SEARCH_PAGE, timeout=45)
-    resp.raise_for_status()
-    return session
-
-
 def cabins_empty(html: str) -> bool:
     if not html or not html.strip():
         return True
@@ -126,7 +118,9 @@ class CabinsFetcher:
 
     def _session(self) -> requests.Session:
         if not getattr(self._local, "session", None):
-            self._local.session = make_session()
+            session = requests.Session()
+            session.headers.update(HEADERS)
+            self._local.session = session
         return self._local.session
 
     def fetch(self, slug: str, referer: str) -> list[dict[str, Any]]:
@@ -159,8 +153,6 @@ class CabinsFetcher:
             if not cabins_empty(last_html):
                 break
 
-            self._local.session = make_session()
-            session = self._local.session
             time.sleep(min(2 ** attempt, 4))
 
         if self.pause_sec:

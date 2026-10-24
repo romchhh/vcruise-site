@@ -16,9 +16,8 @@
 
 import argparse
 import json
-import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -47,9 +46,9 @@ HEADERS = {
     "Referer": SEARCH_PAGE + "?",
 }
 
-REQUEST_PAUSE_SEC = 0.15
+REQUEST_PAUSE_SEC = 0.05
 MAX_RETRIES = 5
-PREFETCH_PAGES = 1  # overlap fetch of the next page while structuring the current one
+DEFAULT_WORKERS = 4
 
 
 def build_date_filter(
@@ -150,19 +149,22 @@ class IncrementalJsonArrayWriter:
         return False
 
 
-def get_session() -> requests.Session:
-    session = requests.Session()
-    adapter = HTTPAdapter(pool_connections=8, pool_maxsize=8, max_retries=0)
-    session.mount("https://", adapter)
-    session.headers.update(HEADERS)
-    resp = session.get(SEARCH_PAGE, timeout=30)
-    resp.raise_for_status()
-    print(f"[session] статус завантаження сторінки: {resp.status_code}")
-    print(f"[session] отримані cookie: {dict(session.cookies)}")
-    return session
+_http_session: requests.Session | None = None
 
 
-def fetch_cruises(session: requests.Session, filters: dict, page: int = 0) -> dict:
+def http_session() -> requests.Session:
+    """Shared pool; getitems працює без PHPSESSID — не блокуємо паралельні сторінки."""
+    global _http_session
+    if _http_session is None:
+        session = requests.Session()
+        adapter = HTTPAdapter(pool_connections=16, pool_maxsize=16, max_retries=0)
+        session.mount("https://", adapter)
+        session.headers.update(HEADERS)
+        _http_session = session
+    return _http_session
+
+
+def fetch_cruises(filters: dict, page: int = 0) -> dict:
     params = dict(filters)
     params["pg_num"] = str(page)
     params["_"] = str(int(time.time() * 1000))
@@ -170,7 +172,7 @@ def fetch_cruises(session: requests.Session, filters: dict, page: int = 0) -> di
     last_err = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            resp = session.get(AJAX_ENDPOINT, params=params, timeout=60)
+            resp = http_session().get(AJAX_ENDPOINT, params=params, timeout=60)
             resp.raise_for_status()
             try:
                 data = resp.json()
@@ -242,7 +244,13 @@ def parse_cli() -> argparse.Namespace:
         "--pause",
         type=float,
         default=REQUEST_PAUSE_SEC,
-        help="пауза між сторінками, сек",
+        help="пауза між пакетами сторінок, сек (0 = без паузи)",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=DEFAULT_WORKERS,
+        help=f"паралельних запитів getitems (за замовч.: {DEFAULT_WORKERS})",
     )
     return parser.parse_args()
 
@@ -254,16 +262,11 @@ def main():
     limit = args.limit if args.limit > 0 else (MAX_ITEMS if MAX_ITEMS else None)
     filters = build_filters()
 
-    session = get_session()
-    session_lock = threading.Lock()
-
-    def fetch_page(page: int) -> dict:
-        with session_lock:
-            return fetch_cruises(session, filters, page=page)
-
+    workers = max(1, min(args.workers, 12))
     print(f"[filters] dates={filters['dates']}")
+    print(f"[fetch] workers={workers}, pause між пакетами={pause_sec}s")
 
-    first_page = fetch_page(0)
+    first_page = fetch_cruises(filters, page=0)
     total = int(first_page.get("total", 0) or 0)
     items_first = first_page.get("items") or []
     page_size = len(items_first) or 10
@@ -281,53 +284,69 @@ def main():
 
     print(f"Пишемо результати одразу → {output_path}\n")
 
-    prefetch_executor = (
-        ThreadPoolExecutor(max_workers=PREFETCH_PAGES) if PREFETCH_PAGES > 0 else None
-    )
-    pending_next = None
+    def fetch_pages(page_nums: list[int]) -> dict[int, dict]:
+        if not page_nums:
+            return {}
+        if len(page_nums) == 1:
+            return {page_nums[0]: fetch_cruises(filters, page_nums[0])}
+        out: dict[int, dict] = {}
+        with ThreadPoolExecutor(max_workers=min(workers, len(page_nums))) as pool:
+            futures = {
+                pool.submit(fetch_cruises, filters, page): page for page in page_nums
+            }
+            for future in as_completed(futures):
+                page = futures[future]
+                out[page] = future.result()
+        return out
 
     with IncrementalJsonArrayWriter(output_path) as writer:
-        for page in range(total_pages):
+        page = 0
+        while page < total_pages:
+            batch_end = min(page + workers, total_pages)
+            page_nums = list(range(page, batch_end))
             if page == 0:
-                data = first_page
+                pages_data = {0: first_page}
+                extra = [p for p in page_nums if p != 0]
+                if extra:
+                    pages_data.update(fetch_pages(extra))
             else:
-                if pending_next is not None:
-                    data = pending_next.result()
-                    pending_next = None
-                else:
-                    data = fetch_page(page)
-                if pause_sec > 0:
-                    time.sleep(pause_sec)
+                pages_data = fetch_pages(page_nums)
 
-            if prefetch_executor and page + 1 < total_pages:
-                pending_next = prefetch_executor.submit(fetch_page, page + 1)
+            if pause_sec > 0 and batch_end < total_pages:
+                time.sleep(pause_sec)
 
-            batch = data.get("items") or []
-            if limit:
-                remaining = limit - writer.count
-                if remaining <= 0:
+            limit_hit = False
+            for current in page_nums:
+                data = pages_data[current]
+                batch = data.get("items") or []
+                if limit:
+                    remaining = limit - writer.count
+                    if remaining <= 0:
+                        limit_hit = True
+                        break
+                    batch = batch[:remaining]
+
+                structured = structure_items(batch)
+                writer.append_items(structured)
+
+                if current == 0 or (current + 1) % 25 == 0 or current + 1 == total_pages:
+                    target = limit or total
+                    print(
+                        f"[progress] сторінка {current + 1}/{total_pages} "
+                        f"({writer.count}/{target} items) → {output_path.name}"
+                    )
+
+                if limit and writer.count >= limit:
+                    print(
+                        f"[progress] досягнуто ліміт {limit} "
+                        f"(сторінка {current + 1}/{total_pages})"
+                    )
+                    limit_hit = True
                     break
-                batch = batch[:remaining]
 
-            structured = structure_items(batch)
-            writer.append_items(structured)
-
-            if page == 0 or (page + 1) % 25 == 0 or page + 1 == total_pages:
-                target = limit or total
-                print(
-                    f"[progress] сторінка {page + 1}/{total_pages} "
-                    f"({writer.count}/{target} items) → {output_path.name}"
-                )
-
-            if limit and writer.count >= limit:
-                print(
-                    f"[progress] досягнуто ліміт {limit} "
-                    f"(сторінка {page + 1}/{total_pages})"
-                )
+            if limit_hit:
                 break
-
-    if prefetch_executor:
-        prefetch_executor.shutdown(wait=False)
+            page = batch_end
 
     print(f"\nЗбережено {writer.count} круїзів → {output_path}")
 
