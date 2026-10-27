@@ -188,13 +188,11 @@ export default function SettingsView() {
                   />
                   Показати віджет онлайн-чату на сайті
                 </label>
-                {text("chatAgentName", "Ім'я агента в чаті")}
-                {text(
-                  "chatAgentImage",
-                  "Фото асистента (URL)",
-                  "text",
-                  "/images/chat-assistant.jpg"
-                )}
+                <p className={ui.tableHint}>
+                  Імʼя, фото та «хто на лінії» налаштовуються в{" "}
+                  <a href="/admin/chat?tab=operators">Онлайн-чат → Оператори</a>
+                  .
+                </p>
                 <Field label="Привітальне повідомлення">
                   <textarea
                     value={settings.chatWelcomeMessage || ""}

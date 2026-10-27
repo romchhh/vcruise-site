@@ -22,9 +22,10 @@ import type {
   ChatPreset,
   ChatPresetKind,
 } from "@/lib/cms/chat";
+import ChatOperatorsPanel from "./ChatOperatorsPanel";
 import styles from "./ChatView.module.css";
 
-type Tab = "inbox" | "presets";
+type Tab = "inbox" | "presets" | "operators";
 
 type PendingAdminFile = {
   id: string;
@@ -63,7 +64,12 @@ function isNearBottom(el: HTMLDivElement | null, threshold = 80) {
 export default function ChatView() {
   const searchParams = useSearchParams();
   const deepLinkId = searchParams.get("c");
-  const [tab, setTab] = useState<Tab>("inbox");
+  const tabFromUrl = searchParams.get("tab");
+  const initialTab: Tab =
+    tabFromUrl === "operators" || tabFromUrl === "presets"
+      ? tabFromUrl
+      : "inbox";
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(deepLinkId);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -616,6 +622,13 @@ export default function ChatView() {
             >
               Заготовки
             </button>
+            <button
+              type="button"
+              className={`${ui.filterChip} ${tab === "operators" ? ui.filterChipActive : ""}`}
+              onClick={() => setTab("operators")}
+            >
+              Оператори
+            </button>
           </div>
         }
       />
@@ -627,7 +640,9 @@ export default function ChatView() {
         </p>
       ) : null}
 
-      {tab === "inbox" ? (
+      {tab === "operators" ? (
+        <ChatOperatorsPanel />
+      ) : tab === "inbox" ? (
         <div className={styles.layout} data-tour="tour-chat-inbox">
           <aside className={styles.list}>
             <div className={styles.listHead}>

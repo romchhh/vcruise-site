@@ -67,6 +67,8 @@ export type SiteSettings = {
   chatAgentName: string;
   chatAgentImage: string;
   chatOfflineMessage: string;
+  /** Хто зараз відображається в віджеті та підписує відповіді. */
+  chatActiveOperatorId?: string;
 };
 
 export type ContentBlockKey =
@@ -487,6 +489,13 @@ function getDb(): SqliteDatabase {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS chat_operators (
+      id TEXT PRIMARY KEY,
+      sort_order INTEGER NOT NULL,
+      data TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_leads_created ON leads(created_at);
     CREATE INDEX IF NOT EXISTS idx_sync_runs_started ON sync_runs(started_at);
     CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON admin_sessions(expires_at);
@@ -524,6 +533,13 @@ function ensureChatSchema(db: SqliteDatabase) {
     CREATE TABLE IF NOT EXISTS chat_presets (
       id TEXT PRIMARY KEY,
       kind TEXT NOT NULL,
+      sort_order INTEGER NOT NULL,
+      data TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_operators (
+      id TEXT PRIMARY KEY,
       sort_order INTEGER NOT NULL,
       data TEXT NOT NULL,
       updated_at TEXT NOT NULL

@@ -1,11 +1,12 @@
 import {
   getCmsSqlite,
   isCmsBuildPhase,
+  readDb,
   uid,
+  updateDb,
   type SiteSettings,
 } from "./store";
 import { publishChatEvent } from "./chat-events";
-import { readDb } from "./store";
 
 export type ChatAttachment = {
   url: string;
@@ -254,6 +255,158 @@ export function maybeSendVisitorAutoAck(conversationId: string) {
 
 const DEFAULT_AGENT_IMAGE = "/images/chat-assistant.jpg";
 
+export type ChatOperator = {
+  id: string;
+  name: string;
+  image: string;
+  sortOrder: number;
+};
+
+function parseOperator(data: string): ChatOperator {
+  return JSON.parse(data) as ChatOperator;
+}
+
+function ensureOperatorsSeeded() {
+  if (isCmsBuildPhase()) return;
+  const db = getCmsSqlite();
+  const row = db
+    .prepare(`SELECT COUNT(*) as c FROM chat_operators`)
+    .get() as { c: number };
+  if (row.c > 0) return;
+
+  const settings = readDb().settings;
+  const operator: ChatOperator = {
+    id: uid("op"),
+    name: settings.chatAgentName || "Консультант VCRUISE",
+    image: settings.chatAgentImage || DEFAULT_AGENT_IMAGE,
+    sortOrder: 1,
+  };
+  const now = new Date().toISOString();
+  db.prepare(
+    `INSERT INTO chat_operators (id, sort_order, data, updated_at)
+     VALUES (@id, @sort_order, @data, @updated_at)`
+  ).run({
+    id: operator.id,
+    sort_order: operator.sortOrder,
+    data: JSON.stringify(operator),
+    updated_at: now,
+  });
+
+  updateDb((state) => {
+    if (!state.settings.chatActiveOperatorId) {
+      state.settings.chatActiveOperatorId = operator.id;
+    }
+  });
+}
+
+export function listChatOperators(): ChatOperator[] {
+  if (isCmsBuildPhase()) return [];
+  ensureOperatorsSeeded();
+  const db = getCmsSqlite();
+  const rows = db
+    .prepare(`SELECT data FROM chat_operators ORDER BY sort_order ASC`)
+    .all() as Array<{ data: string }>;
+  return rows.map((row) => parseOperator(row.data));
+}
+
+export function getActiveChatOperatorId(): string | null {
+  if (isCmsBuildPhase()) return null;
+  ensureOperatorsSeeded();
+  const settings = readDb().settings;
+  if (settings.chatActiveOperatorId) return settings.chatActiveOperatorId;
+  return listChatOperators()[0]?.id ?? null;
+}
+
+function getActiveChatOperator(): ChatOperator {
+  const settings = readDb().settings;
+  if (isCmsBuildPhase()) {
+    return {
+      id: "build",
+      name: settings.chatAgentName || "Консультант VCRUISE",
+      image: settings.chatAgentImage || DEFAULT_AGENT_IMAGE,
+      sortOrder: 1,
+    };
+  }
+  ensureOperatorsSeeded();
+  const operators = listChatOperators();
+  const activeId = settings.chatActiveOperatorId;
+  const active = activeId
+    ? operators.find((item) => item.id === activeId)
+    : undefined;
+  if (active) return active;
+  if (operators[0]) return operators[0];
+  return {
+    id: "legacy",
+    name: settings.chatAgentName || "Консультант VCRUISE",
+    image: settings.chatAgentImage || DEFAULT_AGENT_IMAGE,
+    sortOrder: 1,
+  };
+}
+
+export function saveChatOperators(payload: {
+  operators: ChatOperator[];
+  activeOperatorId: string;
+}): { operators: ChatOperator[]; activeOperatorId: string } {
+  if (isCmsBuildPhase()) {
+    return { operators: [], activeOperatorId: "" };
+  }
+  ensureOperatorsSeeded();
+
+  const idMap = new Map<string, string>();
+  const cleaned = payload.operators
+    .map((item, index) => {
+      const needsNewId =
+        !item.id || item.id.startsWith("tmp-");
+      const id = needsNewId ? uid("op") : item.id;
+      if (item.id) idMap.set(item.id, id);
+      return {
+        id,
+        name: item.name.trim(),
+        image: (item.image || "").trim() || DEFAULT_AGENT_IMAGE,
+        sortOrder: item.sortOrder ?? index + 1,
+      };
+    })
+    .filter((item) => item.name.length > 0);
+
+  if (cleaned.length === 0) {
+    throw new Error("need_one_operator");
+  }
+
+  let activeId =
+    idMap.get(payload.activeOperatorId) || payload.activeOperatorId;
+  if (!cleaned.some((item) => item.id === activeId)) {
+    activeId = cleaned[0].id;
+  }
+  const active = cleaned.find((item) => item.id === activeId)!;
+
+  const db = getCmsSqlite();
+  const now = new Date().toISOString();
+  const tx = db.transaction(() => {
+    db.prepare(`DELETE FROM chat_operators`).run();
+    const insert = db.prepare(
+      `INSERT INTO chat_operators (id, sort_order, data, updated_at)
+       VALUES (@id, @sort_order, @data, @updated_at)`
+    );
+    for (const operator of cleaned) {
+      insert.run({
+        id: operator.id,
+        sort_order: operator.sortOrder,
+        data: JSON.stringify(operator),
+        updated_at: now,
+      });
+    }
+  });
+  tx();
+
+  updateDb((state) => {
+    state.settings.chatActiveOperatorId = activeId;
+    state.settings.chatAgentName = active.name;
+    state.settings.chatAgentImage = active.image;
+  });
+
+  return { operators: cleaned, activeOperatorId: activeId };
+}
+
 export function getChatSettings(): Pick<
   SiteSettings,
   | "chatEnabled"
@@ -264,11 +417,12 @@ export function getChatSettings(): Pick<
   | "brandName"
 > {
   const settings = readDb().settings;
+  const operator = getActiveChatOperator();
   return {
     chatEnabled: settings.chatEnabled !== false,
     chatWelcomeMessage: settings.chatWelcomeMessage,
-    chatAgentName: settings.chatAgentName,
-    chatAgentImage: settings.chatAgentImage || DEFAULT_AGENT_IMAGE,
+    chatAgentName: operator.name,
+    chatAgentImage: operator.image || DEFAULT_AGENT_IMAGE,
     chatOfflineMessage: settings.chatOfflineMessage,
     brandName: settings.brandName,
   };
