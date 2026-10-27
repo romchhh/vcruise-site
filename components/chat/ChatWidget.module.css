@@ -432,12 +432,18 @@
 
 .quick {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 0.4rem;
   padding: 0.55rem 0.9rem 0.2rem;
   background: #fff;
-  overflow-x: auto;
-  scrollbar-width: none;
+}
+
+@media (max-width: 420px) {
+  .quick {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
 }
 
 .quick::-webkit-scrollbar {
@@ -459,6 +465,75 @@
 
 .quickChip:hover {
   background: rgba(6, 110, 121, 0.12);
+}
+
+.contactCapture {
+  margin: 0 0.85rem 0.5rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f0f9fa 0%, #fff 100%);
+  border: 1px solid rgba(6, 110, 121, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.contactTitle {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #0e4f57;
+  line-height: 1.35;
+}
+
+.contactFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+@media (max-width: 380px) {
+  .contactFields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.contactInput {
+  width: 100%;
+  border: 1px solid rgba(14, 14, 14, 0.12);
+  border-radius: 10px;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.82rem;
+  font-family: inherit;
+}
+
+.contactInput:focus {
+  outline: 2px solid rgba(6, 110, 121, 0.35);
+  border-color: rgba(6, 110, 121, 0.45);
+}
+
+.contactError {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #b91c1c;
+}
+
+.contactSubmit {
+  align-self: flex-start;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: #066e79;
+  color: #fff;
+}
+
+.contactSubmit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .composer {

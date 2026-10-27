@@ -72,7 +72,7 @@ const VISITOR_COOKIE = "vcruise_chat_visitor";
 export { VISITOR_COOKIE };
 
 export const CHAT_VISITOR_AUTO_ACK =
-  "Дякуємо за звернення! Менеджер звʼяжеться з вами найближчим часом. За потреби залиште імʼя та номер телефону в чаті.";
+  "Дякуємо за звернення! Менеджер відповість найближчим часом. Будь ласка, залиште нижче своє імʼя та номер телефону — ми зателефонуємо або напишемо в зручний месенджер.";
 
 function defaultPresets(): ChatPreset[] {
   return [
@@ -93,19 +93,11 @@ function defaultPresets(): ChatPreset[] {
       active: true,
     },
     {
-      id: "q-visa-pick",
-      kind: "visitor_question",
-      label: "Підбір візи",
-      text: "Потрібна допомога з підбором візи для круїзної подорожі.",
-      sortOrder: 3,
-      active: true,
-    },
-    {
       id: "q-consult",
       kind: "visitor_question",
       label: "Консультація",
       text: "Потрібна консультація щодо круїзної подорожі.",
-      sortOrder: 4,
+      sortOrder: 3,
       active: true,
     },
     {
@@ -128,7 +120,7 @@ function defaultPresets(): ChatPreset[] {
       id: "a-contacts",
       kind: "agent_reply",
       label: "Контакти",
-      text: "Можете залишити ім'я та номер телефону — надішлю добірку варіантів у зручний месенджер.",
+      text: "Будь ласка, залиште своє імʼя та номер телефону в чаті (або у формі під повідомленнями) — надішлю добірку в зручний месенджер.",
       sortOrder: 3,
       active: true,
     },
@@ -176,6 +168,7 @@ const LEGACY_VISITOR_PRESET_IDS = [
   "q-dates",
   "q-visa",
   "q-cabin",
+  "q-visa-pick",
 ];
 
 /** Оновлює швидкі кнопки чату (нові підписи) без зміни агентських шаблонів. */

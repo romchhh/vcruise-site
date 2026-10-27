@@ -80,3 +80,21 @@ export function formatChatTelegramMessage(input: {
 
   return lines.join("\n");
 }
+
+export function formatChatContactTelegramMessage(input: {
+  visitorName?: string;
+  visitorPhone: string;
+  page?: string;
+  conversationId: string;
+}) {
+  const lines = [
+    "📞 Контакт залишили в чаті VCRUISE",
+    "",
+    `👤 ${input.visitorName?.trim() || "Гість сайту"}`,
+    `📞 ${input.visitorPhone.trim()}`,
+    `🌐 Сторінка: ${input.page || "/"}`,
+    "",
+    `🔗 Відкрити в адмінці: ${adminChatUrl(input.conversationId)}`,
+  ];
+  return lines.join("\n");
+}

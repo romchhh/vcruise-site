@@ -10,6 +10,13 @@ import {
   syncRatingPrompt,
   updateConversation,
 } from "@/lib/cms/chat";
+import { upsertLeadFromChatConversation } from "@/lib/cms/chat-lead";
+import { isValidChatPhone, normalizeChatPhone } from "@/lib/chat/phone";
+import { cmsSettings } from "@/lib/cms/content";
+import {
+  formatChatContactTelegramMessage,
+  sendTelegramMessage,
+} from "@/lib/telegram";
 import { uid } from "@/lib/cms/store";
 
 export const runtime = "nodejs";
@@ -69,6 +76,8 @@ export async function POST(request: Request) {
     conversation = null;
   }
 
+  const previousPhone = conversation?.visitorPhone?.trim() || "";
+
   if (!conversation) {
     conversation = createConversation({
       visitorId,
@@ -77,11 +86,47 @@ export async function POST(request: Request) {
       visitorPhone: body?.visitorPhone,
     });
   } else if (body?.visitorName || body?.visitorPhone) {
+    const nextPhone = body.visitorPhone?.trim()
+      ? normalizeChatPhone(body.visitorPhone)
+      : conversation.visitorPhone;
     conversation =
       updateConversation(conversation.id, {
         visitorName: body.visitorName?.trim() || conversation.visitorName,
-        visitorPhone: body.visitorPhone?.trim() || conversation.visitorPhone,
+        visitorPhone: nextPhone || conversation.visitorPhone,
       }) || conversation;
+  }
+
+  if (
+    conversation &&
+    isValidChatPhone(conversation.visitorPhone) &&
+    (body?.visitorName || body?.visitorPhone)
+  ) {
+    const normalized = normalizeChatPhone(conversation.visitorPhone);
+    if (normalized !== conversation.visitorPhone) {
+      conversation =
+        updateConversation(conversation.id, { visitorPhone: normalized }) ||
+        conversation;
+    }
+    upsertLeadFromChatConversation(conversation);
+
+    const phoneJustAdded = !previousPhone && conversation.visitorPhone.trim();
+    if (phoneJustAdded) {
+      let shouldNotifyTelegram = true;
+      try {
+        shouldNotifyTelegram = cmsSettings().telegramNotify !== false;
+      } catch {
+        shouldNotifyTelegram = true;
+      }
+      if (shouldNotifyTelegram) {
+        const text = formatChatContactTelegramMessage({
+          visitorName: conversation.visitorName,
+          visitorPhone: conversation.visitorPhone,
+          page: conversation.page,
+          conversationId: conversation.id,
+        });
+        void sendTelegramMessage(text).catch(() => undefined);
+      }
+    }
   }
 
   const synced = syncRatingPrompt(conversation);

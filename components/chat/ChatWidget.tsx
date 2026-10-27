@@ -12,6 +12,7 @@ import {
   unlockChatSound,
 } from "@/lib/chat/sound";
 import { isChatImage } from "@/lib/chat/media";
+import { isValidChatPhone, normalizeChatPhone } from "@/lib/chat/phone";
 import type {
   ChatAttachment,
   ChatConversation,
@@ -103,6 +104,10 @@ export default function ChatWidget() {
   const [ratingComment, setRatingComment] = useState("");
   const [ratingBusy, setRatingBusy] = useState(false);
   const [ratingThanks, setRatingThanks] = useState(false);
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactBusy, setContactBusy] = useState(false);
+  const [contactError, setContactError] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -116,6 +121,15 @@ export default function ChatWidget() {
   const agentName = config?.agentName || "Консультант VCRUISE";
   const askRating = conversation ? needsRating(conversation) : false;
   const chatClosed = conversation?.status === "closed";
+  const hasVisitorMessage = messages.some((item) => item.role === "visitor");
+  const hasAgentReply = messages.some((item) => item.role === "agent");
+  const needsContact = Boolean(
+    conversation &&
+      !chatClosed &&
+      !askRating &&
+      !isValidChatPhone(conversation.visitorPhone || "") &&
+      (hasVisitorMessage || hasAgentReply),
+  );
 
   const applyConversation = useCallback((next: ChatConversation | null) => {
     if (!next) return;
@@ -285,6 +299,12 @@ export default function ChatWidget() {
   ]);
 
   useEffect(() => {
+    if (!conversation) return;
+    setContactName(conversation.visitorName || "");
+    setContactPhone(conversation.visitorPhone || "");
+  }, [conversation?.id, conversation?.visitorName, conversation?.visitorPhone]);
+
+  useEffect(() => {
     if (!open || !conversation) return;
     scrollToBottom();
   }, [messages, open, conversation, scrollToBottom]);
@@ -389,6 +409,39 @@ export default function ChatWidget() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "upload_failed");
     return data.items as ChatAttachment[];
+  }
+
+  async function saveContact() {
+    if (!conversation || contactBusy) return;
+    setContactError("");
+    if (!contactName.trim()) {
+      setContactError("Вкажіть імʼя.");
+      return;
+    }
+    if (!isValidChatPhone(contactPhone)) {
+      setContactError("Вкажіть коректний номер телефону.");
+      return;
+    }
+    setContactBusy(true);
+    try {
+      const response = await fetch("/api/chat/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: conversation.id,
+          page: window.location.pathname,
+          visitorName: contactName.trim(),
+          visitorPhone: normalizeChatPhone(contactPhone),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error("contact_failed");
+      if (data.conversation) applyConversation(data.conversation);
+    } catch {
+      setContactError("Не вдалося зберегти. Спробуйте ще раз.");
+    } finally {
+      setContactBusy(false);
+    }
   }
 
   async function sendMessage(rawText: string) {
@@ -717,6 +770,44 @@ export default function ChatWidget() {
 
           {!chatClosed && !askRating ? (
             <>
+              {needsContact ? (
+                <div className={styles.contactCapture}>
+                  <p className={styles.contactTitle}>
+                    Щоб менеджер міг відповісти, коли вас не буде біля екрана,
+                    залиште контакти:
+                  </p>
+                  <div className={styles.contactFields}>
+                    <input
+                      className={styles.contactInput}
+                      type="text"
+                      autoComplete="name"
+                      placeholder="Ваше імʼя *"
+                      value={contactName}
+                      onChange={(event) => setContactName(event.target.value)}
+                    />
+                    <input
+                      className={styles.contactInput}
+                      type="tel"
+                      autoComplete="tel"
+                      placeholder="Телефон *"
+                      value={contactPhone}
+                      onChange={(event) => setContactPhone(event.target.value)}
+                    />
+                  </div>
+                  {contactError ? (
+                    <p className={styles.contactError}>{contactError}</p>
+                  ) : null}
+                  <button
+                    type="button"
+                    className={styles.contactSubmit}
+                    disabled={contactBusy}
+                    onClick={() => void saveContact()}
+                  >
+                    {contactBusy ? "…" : "Надіслати контакти"}
+                  </button>
+                </div>
+              ) : null}
+
               {config.questions.length > 0 ? (
                 <div className={styles.quick}>
                   {config.questions.map((question) => (
