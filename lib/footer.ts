@@ -1,7 +1,7 @@
 import { cmsBlock } from "@/lib/cms/content";
+import { resolveSiteSettings } from "@/lib/cms/resolve-site";
 import { resolveDestinations } from "@/lib/cms/section-items";
 import { buildSearchParams } from "@/lib/cruise-search/params";
-import { siteConfig } from "@/lib/site";
 
 export {
   footerLegal,
@@ -40,6 +40,7 @@ function footerDestinationSearchHref(id: (typeof footerDestinationIds)[number]) 
 
 /** Server-only: reads CMS destinations for footer links. */
 export function getFooterLinkColumns() {
+  const site = resolveSiteSettings();
   return [
     {
       title: "Направлення",
@@ -63,8 +64,8 @@ export function getFooterLinkColumns() {
       title: "Контакти",
       links: [
         {
-          label: siteConfig.phoneDisplay,
-          href: `tel:${siteConfig.phone}`,
+          label: site.phoneDisplay,
+          href: `tel:${site.phone}`,
         },
       ],
     },

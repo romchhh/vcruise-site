@@ -315,8 +315,10 @@ function defaultSettings(): SiteSettings {
     socialFacebook: siteConfig.social.facebook,
     socialTelegram:
       siteConfig.messengers.telegram ||
-      `https://t.me/${siteConfig.messengers.telegramUsername || "vcruise"}`,
-    telegramUsername: siteConfig.messengers.telegramUsername || "vcruise",
+      (siteConfig.messengers.telegramUsername
+        ? `https://t.me/${siteConfig.messengers.telegramUsername.replace(/^@/, "")}`
+        : ""),
+    telegramUsername: siteConfig.messengers.telegramUsername || "",
     socialViber: siteConfig.messengers.viber,
     metaTitle: siteConfig.title,
     metaDescription: siteConfig.description,

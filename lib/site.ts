@@ -15,10 +15,10 @@ export const siteConfig = {
   email: process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "hello@vcruise.com.ua",
   phone:
     process.env.NEXT_PUBLIC_CONTACT_PHONE?.replace(/\s/g, "") ||
-    "+380000000000",
+    "+380967409929",
   phoneDisplay:
     process.env.NEXT_PUBLIC_CONTACT_PHONE_DISPLAY?.trim() ||
-    "+380 XX XXX XX XX",
+    "+380 96 740 99 29",
   address: {
     streetAddress: "Київ",
     addressLocality: "Київ",
@@ -30,9 +30,10 @@ export const siteConfig = {
   },
   messengers: {
     /** Повне посилання; якщо порожнє — збирається з telegramUsername */
-    telegram: process.env.NEXT_PUBLIC_TELEGRAM_URL?.trim() ?? "",
-    telegramUsername:
-      process.env.NEXT_PUBLIC_TELEGRAM_USERNAME?.trim() ?? "vcruise",
+    telegram:
+      process.env.NEXT_PUBLIC_TELEGRAM_URL?.trim() ||
+      "https://t.me/+380967409929",
+    telegramUsername: process.env.NEXT_PUBLIC_TELEGRAM_USERNAME?.trim() ?? "",
     /** Повне посилання або viber://; якщо порожнє — з номера phone */
     viber: process.env.NEXT_PUBLIC_VIBER_URL?.trim() ?? "",
   },
