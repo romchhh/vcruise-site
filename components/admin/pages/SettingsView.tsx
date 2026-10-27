@@ -21,9 +21,17 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "integrations", label: "Інтеграції" },
 ];
 
-type TextKey = {
-  [K in keyof SiteSettings]: SiteSettings[K] extends string ? K : never;
-}[keyof SiteSettings];
+/** Ключі налаштувань з обовʼязковим рядковим значенням (без optional string). */
+type TextKey = Exclude<
+  {
+    [K in keyof SiteSettings]: NonNullable<SiteSettings[K]> extends string
+      ? SiteSettings[K] extends boolean
+        ? never
+        : K
+      : never;
+  }[keyof SiteSettings],
+  undefined
+>;
 
 export default function SettingsView() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
