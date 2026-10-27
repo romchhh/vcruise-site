@@ -1,4 +1,8 @@
 import {
+  fetchJsonWithRetry,
+  normalizeClientFetchError,
+} from "./fetch-with-retry";
+import {
   CRUISE_OFFERS_REFERENCE_GUESTS,
   offersRequestKey,
   type CruiseOffersGuestQuery,
@@ -69,26 +73,27 @@ async function requestOffers(
   });
   if (forceRefresh) params.set("refresh", "1");
 
-  const response = await fetch(`/api/cruise-offers?${params}`, {
-    cache: "no-store",
-  });
-  const data = (await response.json()) as {
-    offers?: CruiseCabinOffer[];
-    error?: string;
-    guestSpecific?: boolean;
-    source?: "disk" | "live";
-  };
+  try {
+    const data = await fetchJsonWithRetry<{
+      offers?: CruiseCabinOffer[];
+      error?: string;
+      guestSpecific?: boolean;
+      source?: "disk" | "live";
+    }>(`/api/cruise-offers?${params}`, {
+      retries: 2,
+      timeoutMs: 90_000,
+      init: { cache: "no-store" },
+    });
 
-  if (!response.ok) {
-    throw new Error(data.error ?? "Не вдалося завантажити каюти.");
+    return {
+      offers: data.offers ?? [],
+      guestSpecific: Boolean(data.guestSpecific && (data.offers?.length ?? 0)),
+      fetchedAt: Date.now(),
+      source: data.source === "disk" ? "disk" : "live",
+    } satisfies CruiseOffersPayload;
+  } catch (error) {
+    throw new Error(normalizeClientFetchError(error));
   }
-
-  return {
-    offers: data.offers ?? [],
-    guestSpecific: Boolean(data.guestSpecific && (data.offers?.length ?? 0)),
-    fetchedAt: Date.now(),
-    source: data.source === "disk" ? "disk" : "live",
-  } satisfies CruiseOffersPayload;
 }
 
 export async function fetchCruiseOffers({

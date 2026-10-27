@@ -12,6 +12,7 @@ import AboutUs from "@/components/AboutUs";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
 import HashScrollHandler from "@/components/HashScrollHandler";
+import { HomeDisplayCurrencyProvider } from "@/components/HomeDisplayCurrencyProvider";
 import ScrollReveal from "@/components/ScrollReveal";
 import JsonLd from "@/components/JsonLd";
 
@@ -64,16 +65,18 @@ export default function Home() {
       <HashScrollHandler />
       <main>
         <Hero />
-        <ScrollReveal>
-          <Suspense fallback={<HotDealsSkeleton />}>
-            <HotDeals />
-          </Suspense>
-        </ScrollReveal>
-        <ScrollReveal>
-          <Suspense fallback={<UniqueRoutesSkeleton />}>
-            <UniqueRoutes />
-          </Suspense>
-        </ScrollReveal>
+        <HomeDisplayCurrencyProvider>
+          <ScrollReveal>
+            <Suspense fallback={<HotDealsSkeleton />}>
+              <HotDeals />
+            </Suspense>
+          </ScrollReveal>
+          <ScrollReveal>
+            <Suspense fallback={<UniqueRoutesSkeleton />}>
+              <UniqueRoutes />
+            </Suspense>
+          </ScrollReveal>
+        </HomeDisplayCurrencyProvider>
         <ScrollReveal>
           <LinerClasses section={linerClassesSection} />
         </ScrollReveal>

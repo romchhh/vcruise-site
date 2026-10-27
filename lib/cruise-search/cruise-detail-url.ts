@@ -1,3 +1,5 @@
+import { DEFAULT_CURRENCY } from "./constants";
+import { parseCurrencyCode } from "./currency";
 import type { CurrencyCode } from "./types";
 
 export type CruiseDetailQuery = {
@@ -29,7 +31,7 @@ export function buildCruiseDetailPath(
   const from = options.listQuery?.trim();
   if (from) params.set("from", from);
   if (options.sailing) params.set("sailing", options.sailing);
-  if (options.currency && options.currency !== "NAT") {
+  if (options.currency && options.currency !== DEFAULT_CURRENCY) {
     params.set("currency", options.currency);
   }
   if (options.adults && options.adults > 0) {
@@ -57,9 +59,7 @@ export function parseCruiseDetailQuery(
     return value ?? "";
   };
 
-  const currencyRaw = pick("currency");
-  const currency: CurrencyCode =
-    currencyRaw === "USD" || currencyRaw === "EUR" ? currencyRaw : "NAT";
+  const currency = parseCurrencyCode(pick("currency"));
 
   const adults = Number.parseInt(pick("adults"), 10);
   const children = Number.parseInt(pick("children"), 10);

@@ -418,6 +418,7 @@ export default function ChatWidget() {
       if (!response.ok) throw new Error(data.error || "send_failed");
 
       mergeMessages([data.message]);
+      if (data.autoReply) mergeMessages([data.autoReply]);
       if (data.conversation) applyConversation(data.conversation);
       setText("");
       pendingFiles.forEach((item) => {

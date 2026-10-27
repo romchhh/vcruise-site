@@ -11,6 +11,7 @@ import {
 import { formatMoney } from "@/lib/cruise-search/utils";
 import type { CruiseCabinOffer, CurrencyCode } from "@/lib/cruise-search/types";
 import { CURRENCY_SYMBOL } from "@/lib/cruise-search/constants";
+import CruisePagePreloader from "./CruisePagePreloader";
 
 type Props = {
   offers: CruiseCabinOffer[];
@@ -40,18 +41,12 @@ export default function CabinOffersTable({
 
   if (loading && offers.length === 0) {
     return (
-      <div
-        className="flex items-center justify-center gap-3 rounded-card border border-[color:var(--color-line)] bg-white py-10"
-        role="status"
-        aria-live="polite"
-      >
-        <div
-          className="h-9 w-9 shrink-0 animate-spin rounded-full border-[3px] border-[color:var(--color-line)] border-t-[color:var(--color-brand)]"
-          aria-hidden
+      <div className="rounded-card border border-[color:var(--color-line)] bg-white">
+        <CruisePagePreloader
+          label="Підбираємо каюти та тарифи з 4gates…"
+          showTips={false}
+          className="border-0 bg-transparent py-8"
         />
-        <span className="text-caption text-subtitle">
-          Підбираємо каюти та тарифи…
-        </span>
       </div>
     );
   }

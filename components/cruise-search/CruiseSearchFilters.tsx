@@ -7,14 +7,11 @@ import {
   MONTH_LABELS,
   REGION_TREE,
 } from "@/lib/cruise-search/constants";
-import type {
-  CruiseSearchFilters,
-  CruiseSort,
-  CurrencyCode,
-} from "@/lib/cruise-search/types";
+import type { CruiseSearchFilters } from "@/lib/cruise-search/types";
 import { isMonthSelectable } from "@/lib/cruise-search/month-helpers";
 import { todayIso } from "@/lib/cruise-search/utils";
 import BudgetRangeSlider from "./BudgetRangeSlider";
+import CruiseCurrencyToggle from "./CruiseCurrencyToggle";
 import NewLinersToggle from "./NewLinersToggle";
 
 type Props = {
@@ -28,17 +25,7 @@ type Props = {
   onReset: () => void;
 };
 
-const sortOptions: Array<{ value: CruiseSort; label: string }> = [
-  { value: "date_asc", label: "Дата: найближча" },
-  { value: "date_desc", label: "Дата: найпізніша" },
-  { value: "price_asc", label: "Ціна: зростання" },
-  { value: "price_desc", label: "Ціна: спадання" },
-  { value: "duration_asc", label: "Тривалість: коротші" },
-  { value: "duration_desc", label: "Тривалість: довші" },
-];
-
 const years = ["Будь-коли", "2026", "2027", "2028"];
-const currencies: CurrencyCode[] = ["NAT", "USD", "EUR"];
 
 export default function CruiseSearchFilters({
   filters,
@@ -196,25 +183,6 @@ export default function CruiseSearchFilters({
 
         <label className="flex flex-col gap-2">
           <span className="text-caption font-semibold text-[color:var(--color-black)]">
-            Сортування
-          </span>
-          <select
-            value={filters.sort}
-            onChange={(event) =>
-              onChange({ sort: event.target.value as CruiseSort })
-            }
-            className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
-          >
-            {sortOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-2">
-          <span className="text-caption font-semibold text-[color:var(--color-black)]">
             Дата від
           </span>
           <input
@@ -281,22 +249,10 @@ export default function CruiseSearchFilters({
       </div>
 
       <div className="divider mt-6 flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
-          {currencies.map((currency) => (
-            <button
-              key={currency}
-              type="button"
-              onClick={() => onChange({ currency })}
-              className={`chip cursor-pointer transition-colors ${
-                filters.currency === currency
-                  ? "chip-brand"
-                  : "chip-muted-brand hover:bg-[color:var(--color-surface-hover)]"
-              }`}
-            >
-              {currency === "NAT" ? "₴ UAH" : currency}
-            </button>
-          ))}
-        </div>
+        <CruiseCurrencyToggle
+          value={filters.currency}
+          onChange={(currency) => onChange({ currency })}
+        />
 
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={onReset} className="btn-secondary">

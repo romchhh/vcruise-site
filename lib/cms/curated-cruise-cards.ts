@@ -1,5 +1,10 @@
+import { DEFAULT_CURRENCY } from "@/lib/cruise-search/constants";
+import {
+  catalogPricesForDate,
+  pickPrimaryCatalogPrice,
+} from "@/lib/cruise-search/currency";
 import { buildSearchParams } from "@/lib/cruise-search/params";
-import { cheapestPrice } from "@/lib/cruise-search/utils";
+import type { CurrencyCode } from "@/lib/cruise-search/types";
 import type { CruiseRecord } from "@/lib/cruise-search/types";
 import {
   HOT_DEAL_COVER_IMAGE,
@@ -35,7 +40,7 @@ function cruiseDeepLink(input: {
     dateFrom: date,
     dateTo: date,
     sort,
-    currency: "USD",
+    currency: DEFAULT_CURRENCY,
     newLinersOnly: false,
   });
   return `/search?${query}&cruise=${cruise.key}`;
@@ -127,21 +132,21 @@ function originalPriceFromDeal(price: number, discountPercent: number) {
   return Math.round(price / factor);
 }
 
-function priceOnDate(cruise: CruiseRecord, date: string) {
-  const entry = (cruise.available_dates ?? []).find((item) => item.date === date);
-  if (entry?.cabins) {
-    const fromCabins =
-      cheapestPrice({ ...cruise, from_price: entry.cabins }, "USD") ??
-      cheapestPrice({ ...cruise, from_price: entry.cabins }, "EUR") ??
-      cheapestPrice({ ...cruise, from_price: entry.cabins }, "NAT");
-    if (fromCabins != null) return fromCabins;
-  }
+function pricesOnDate(cruise: CruiseRecord, date: string) {
+  return catalogPricesForDate(cruise, date);
+}
 
-  return (
-    cheapestPrice(cruise, "USD") ??
-    cheapestPrice(cruise, "EUR") ??
-    cheapestPrice(cruise, "NAT")
-  );
+function applyBasisToPrices(
+  prices: Partial<Record<CurrencyCode, number>>,
+  basis: PriceBasis,
+) {
+  const out: Partial<Record<CurrencyCode, number>> = {};
+  for (const [code, amount] of Object.entries(prices) as Array<
+    [CurrencyCode, number]
+  >) {
+    out[code] = applyPriceBasis(amount, basis);
+  }
+  return out;
 }
 
 /** Find cruise matching company + liner + sailing date. */
@@ -150,7 +155,11 @@ export function findCruisePick(
   company: string,
   liner: string,
   date: string,
-): { cruise: CruiseRecord; date: string; price: number } | null {
+): {
+  cruise: CruiseRecord;
+  date: string;
+  prices: Partial<Record<CurrencyCode, number>>;
+} | null {
   if (!company || !liner || !date) return null;
 
   const cruise = cruises.find(
@@ -161,9 +170,9 @@ export function findCruisePick(
   );
 
   if (!cruise) return null;
-  const price = priceOnDate(cruise, date);
-  if (price == null) return null;
-  return { cruise, date, price };
+  const prices = pricesOnDate(cruise, date);
+  if (pickPrimaryCatalogPrice(prices) == null) return null;
+  return { cruise, date, prices };
 }
 
 export function cardToHotDeal(
@@ -176,7 +185,7 @@ export function cardToHotDeal(
   const found = findCruisePick(cruises, company, liner, date);
   if (!found) return null;
 
-  const { cruise, price } = found;
+  const { cruise, prices: rawPrices } = found;
   const nights = Math.max(cruise.nights, 1);
   const route = cruise.route ?? [];
   const discountPercent = asNumber(
@@ -184,11 +193,20 @@ export function cardToHotDeal(
     HOT_DEAL_DISCOUNT_PERCENT,
   );
   const priceBasis = parsePriceBasis(card.priceBasis);
-  const displayPrice = applyPriceBasis(price, priceBasis);
-  const originalPrice = applyPriceBasis(
-    originalPriceFromDeal(price, discountPercent),
+  const prices = applyBasisToPrices(rawPrices, priceBasis);
+  const displayPrice = pickPrimaryCatalogPrice(prices) ?? 0;
+  const originalPrices = applyBasisToPrices(
+    Object.fromEntries(
+      Object.entries(rawPrices).map(([code, amount]) => [
+        code,
+        originalPriceFromDeal(amount, discountPercent),
+      ]),
+    ) as Partial<Record<CurrencyCode, number>>,
     priceBasis,
   );
+  const originalPrice =
+    pickPrimaryCatalogPrice(originalPrices) ??
+    originalPriceFromDeal(displayPrice, discountPercent);
 
   return {
     id: asString(card.id) || String(cruise.key),
@@ -199,7 +217,9 @@ export function cardToHotDeal(
     dateRange: formatDateRange(date, nights),
     nights,
     price: displayPrice,
+    prices,
     originalPrice,
+    originalPrices,
     discountPercent,
     priceBasis,
     image: (() => {
@@ -223,7 +243,7 @@ export function cardToUniqueRoute(
   const found = findCruisePick(cruises, company, liner, date);
   if (!found) return null;
 
-  const { cruise, price } = found;
+  const { cruise, prices: rawPrices } = found;
   const nights = Math.max(cruise.nights, 1);
   const route = cruise.route ?? [];
   const region = cruise.region_name || "Середземномор'я";
@@ -232,6 +252,8 @@ export function cardToUniqueRoute(
     asString(card.linerImage) ||
     (logo && (logo.startsWith("http") || logo.startsWith("/")) ? logo : "");
   const priceBasis = parsePriceBasis(card.priceBasis);
+  const prices = applyBasisToPrices(rawPrices, priceBasis);
+  const displayPrice = pickPrimaryCatalogPrice(prices) ?? 0;
 
   return {
     id: asString(card.id) || String(cruise.key),
@@ -242,7 +264,8 @@ export function cardToUniqueRoute(
     route: formatRoute(route),
     dateRange: formatDateRange(date, nights),
     nights,
-    price: applyPriceBasis(price, priceBasis),
+    price: displayPrice,
+    prices,
     priceBasis,
     coverImage:
       asString(card.coverImage) ||

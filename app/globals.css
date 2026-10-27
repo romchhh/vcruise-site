@@ -562,6 +562,53 @@ select.field-control::-ms-expand {
 }
 
 /* Унікальні маршрути: на мобільній cover ↔ liner по таймеру (на lg — hover) */
+@keyframes cruise-loader-wave {
+  0% {
+    transform: translateX(0) translateY(0);
+  }
+  50% {
+    transform: translateX(-4%) translateY(-6px);
+  }
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+}
+
+@keyframes cruise-loader-tip {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.cruise-loader-wave {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--color-brand) 22%, transparent) 100%
+  );
+  border-radius: 50% 50% 0 0;
+  animation: cruise-loader-wave 4s ease-in-out infinite;
+}
+
+.cruise-loader-wave--delay {
+  animation-delay: 1.2s;
+}
+
+.cruise-loader-tip {
+  animation: cruise-loader-tip 4.5s ease-in-out;
+}
+
 @keyframes unique-route-cover-cycle {
   0%,
   42% {
@@ -665,6 +712,44 @@ select.field-control::-ms-expand {
   }
 }
 
+/* Класи лайнерів: повне фото в кадрі, без обрізання країв */
+.liner-class-media-frame {
+  background: var(--color-surface-muted);
+}
+
+.liner-class-media-img {
+  object-fit: contain;
+  object-position: center;
+}
+
+.liner-class-card-scrim-top {
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 42%;
+  background: linear-gradient(
+    180deg,
+    rgb(0 0 0 / 0.72) 0%,
+    rgb(0 0 0 / 0.28) 55%,
+    transparent 100%
+  );
+}
+
+.liner-class-card-scrim-bottom {
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 58%;
+  background: linear-gradient(
+    0deg,
+    rgb(0 0 0 / 0.92) 0%,
+    rgb(0 0 0 / 0.45) 45%,
+    transparent 100%
+  );
+}
+
 .liner-class-modal-nav-btn {
   display: flex;
   height: 2.25rem;
@@ -721,8 +806,9 @@ select.field-control::-ms-expand {
   width: auto;
   max-width: 100%;
   height: auto;
-  max-height: 2.75rem;
+  max-height: 3.25rem;
   object-fit: contain;
+  object-position: center;
 }
 
 .divider {

@@ -1,6 +1,9 @@
 import type { CruiseRecord } from "./types";
 
-export const CRUISES_CACHE_KEY = "vcruise:cruises-cache:v1";
+export const CRUISES_CACHE_KEY = "vcruise:cruises-cache:v2";
+
+/** sessionStorage ліміт ~5MB — не зберігаємо гігантський JSON. */
+const MAX_CACHE_BYTES = 4_500_000;
 
 type CruisesCache = {
   savedAt: number;
@@ -29,10 +32,9 @@ export function writeCruisesToSessionCache(cruises: CruiseRecord[]) {
   if (typeof window === "undefined") return;
 
   try {
-    sessionStorage.setItem(
-      CRUISES_CACHE_KEY,
-      JSON.stringify({ savedAt: Date.now(), cruises })
-    );
+    const payload = JSON.stringify({ savedAt: Date.now(), cruises });
+    if (payload.length > MAX_CACHE_BYTES) return;
+    sessionStorage.setItem(CRUISES_CACHE_KEY, payload);
   } catch {
     // ignore quota / private mode
   }

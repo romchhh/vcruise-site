@@ -20,7 +20,8 @@ const BACKUP_FILE = `${OUTPUT_FILE}.bak`;
 
 let cachedCruises: CruiseRecord[] | null = null;
 let cachedMtimeMs = 0;
-let cachedClient: ReturnType<typeof serializeCruisesForClient> | null = null;
+let cachedClientLite: ReturnType<typeof serializeCruisesForClient> | null = null;
+let cachedClientFull: ReturnType<typeof serializeCruisesForClient> | null = null;
 let cachedOffersMtimeMs = 0;
 
 function readMtimeMs(filePath = OUTPUT_FILE) {
@@ -33,7 +34,8 @@ function readMtimeMs(filePath = OUTPUT_FILE) {
 
 export function invalidateCruiseCache() {
   cachedCruises = null;
-  cachedClient = null;
+  cachedClientLite = null;
+  cachedClientFull = null;
   cachedMtimeMs = 0;
   cachedOffersMtimeMs = 0;
   invalidateOffersCache();
@@ -111,7 +113,8 @@ export function loadCruises() {
   }
 
   cachedCruises = filterFeatured(parsed);
-  cachedClient = null;
+  cachedClientLite = null;
+  cachedClientFull = null;
   cachedMtimeMs = mtimeMs || Date.now();
   return cachedCruises;
 }
@@ -133,19 +136,27 @@ export function loadCruisePage(key: number) {
   return { cruise, similar };
 }
 
-export function loadClientCruises() {
+export function loadClientCruises(options?: { includeOffers?: boolean }) {
+  const includeOffers = options?.includeOffers ?? false;
   const cruises = loadCruises();
   const mtimeMs = readMtimeMs();
   const offersMtime = offersCacheMtimeMs();
+  const cacheSlot = includeOffers ? cachedClientFull : cachedClientLite;
+
   if (
-    cachedClient &&
+    cacheSlot &&
     cachedMtimeMs === mtimeMs &&
     cachedOffersMtimeMs === offersMtime
   ) {
-    return cachedClient;
+    return cacheSlot;
   }
-  cachedClient = serializeCruisesForClient(cruises, loadOffersBySlugMap());
+
+  const serialized = serializeCruisesForClient(cruises, loadOffersBySlugMap(), {
+    includeOffers,
+  });
+  if (includeOffers) cachedClientFull = serialized;
+  else cachedClientLite = serialized;
   cachedMtimeMs = mtimeMs || cachedMtimeMs;
   cachedOffersMtimeMs = offersMtime;
-  return cachedClient;
+  return serialized;
 }

@@ -1,7 +1,9 @@
 import {
+  DEFAULT_CURRENCY,
   HERO_DURATION_OPTIONS,
   MONTH_LABELS,
 } from "./constants";
+import { parseCurrencyCode } from "./currency";
 import { sanitizeSelectedMonths } from "./month-helpers";
 import { getSearchBounds } from "./utils";
 import type {
@@ -31,7 +33,7 @@ function parseNumber(
 
 export function createDefaultFilters(
   cruises: CruiseRecord[],
-  currency: CurrencyCode = "NAT",
+  currency: CurrencyCode = DEFAULT_CURRENCY,
 ): CruiseSearchFilters {
   const bounds = getSearchBounds(cruises, currency);
 
@@ -84,7 +86,7 @@ export function parseSearchParams(
   const currencyRaw = Array.isArray(params.currency)
     ? params.currency[0]
     : params.currency;
-  const currency = (currencyRaw as CurrencyCode) || defaults.currency;
+  const currency = parseCurrencyCode(currencyRaw);
   const bounds = getSearchBounds(cruises, currency);
   const newLinersRaw = Array.isArray(params.newLiners)
     ? params.newLiners[0]
@@ -165,7 +167,7 @@ export function buildSearchParams(filters: Partial<CruiseSearchFilters>) {
   if (filters.sort && filters.sort !== "date_asc") {
     params.set("sort", filters.sort);
   }
-  if (filters.currency && filters.currency !== "NAT") {
+  if (filters.currency && filters.currency !== DEFAULT_CURRENCY) {
     params.set("currency", filters.currency);
   }
   if (filters.newLinersOnly) {

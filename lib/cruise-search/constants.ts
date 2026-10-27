@@ -7,11 +7,30 @@ export const NEW_LINER_MIN_BUILT_YEAR = 2020;
 
 export const CABIN_ORDER = ["Внутрішня", "З вікном", "З балконом", "Сьют"] as const;
 
+/** Базова валюта каталогу та карток (якщо в URL не вказано іншу). */
+export const DEFAULT_CURRENCY: CurrencyCode = "EUR";
+
+export const CURRENCY_FALLBACK_ORDER: CurrencyCode[] = [
+  "EUR",
+  "USD",
+  "NAT",
+];
+
 export const CURRENCY_SYMBOL: Record<CurrencyCode, string> = {
   NAT: "₴",
   USD: "$",
   EUR: "€",
 };
+
+export const CURRENCY_OPTIONS: Array<{
+  code: CurrencyCode;
+  label: string;
+  chip: string;
+}> = [
+  { code: "NAT", label: "Гривня", chip: "₴ UAH" },
+  { code: "USD", label: "Долар", chip: "$ USD" },
+  { code: "EUR", label: "Євро", chip: "€ EUR" },
+];
 
 export const MONTH_LABELS = [
   "Січ",

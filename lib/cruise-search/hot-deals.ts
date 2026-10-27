@@ -1,8 +1,13 @@
 import { unstable_cache } from "next/cache";
+import { DEFAULT_CURRENCY } from "./constants";
+import {
+  catalogPricesForDate,
+  pickPrimaryCatalogPrice,
+} from "./currency";
 import { buildSearchParams } from "./params";
 import { loadClientCruises } from "./load-cruises";
-import { cheapestPriceOnDate, hasBookableDates } from "./utils";
-import type { CruiseRecord } from "./types";
+import { hasBookableDates } from "./utils";
+import type { CruiseRecord, CurrencyCode } from "./types";
 import type { HotDeal } from "@/types";
 
 import {
@@ -96,12 +101,26 @@ function resolveLinerImage(cruise: CruiseRecord): string {
   return HOT_DEAL_IMAGE;
 }
 
+function originalPricesFromDeal(
+  prices: Partial<Record<CurrencyCode, number>>,
+  discountPercent: number,
+) {
+  const out: Partial<Record<CurrencyCode, number>> = {};
+  for (const [code, amount] of Object.entries(prices) as Array<
+    [CurrencyCode, number]
+  >) {
+    out[code] = originalPriceFromDeal(amount, discountPercent);
+  }
+  return out;
+}
+
 function mapToHotDeal(
   cruise: CruiseRecord,
   startDate: string,
-  price: number
+  prices: Partial<Record<CurrencyCode, number>>,
 ): HotDeal {
   const region = cruise.region_name || "Середземномор'я";
+  const price = pickPrimaryCatalogPrice(prices) ?? 0;
   const query = buildSearchParams({
     regions: [region],
     company: cruise.cruise_title,
@@ -109,12 +128,16 @@ function mapToHotDeal(
     dateFrom: startDate,
     dateTo: startDate,
     sort: "price_asc",
-    currency: "USD",
+    currency: DEFAULT_CURRENCY,
     newLinersOnly: false,
   });
 
   const route = cruise.route ?? [];
   const nights = Math.max(cruise.nights, 1);
+  const originalPrices = originalPricesFromDeal(
+    prices,
+    HOT_DEAL_DISCOUNT_PERCENT,
+  );
 
   return {
     id: String(cruise.key),
@@ -125,7 +148,11 @@ function mapToHotDeal(
     dateRange: formatDateRange(startDate, nights),
     nights,
     price,
-    originalPrice: originalPriceFromDeal(price, HOT_DEAL_DISCOUNT_PERCENT),
+    prices,
+    originalPrice:
+      pickPrimaryCatalogPrice(originalPrices) ??
+      originalPriceFromDeal(price, HOT_DEAL_DISCOUNT_PERCENT),
+    originalPrices,
     discountPercent: HOT_DEAL_DISCOUNT_PERCENT,
     priceBasis: "person",
     image: resolveLinerImage(cruise),
@@ -141,18 +168,19 @@ export function pickHotDeals(
     .filter((cruise) => hasBookableDates(cruise, referenceDate))
     .map((cruise) => {
       const startDate = nearestUpcomingDate(cruise, referenceDate);
-      const price = startDate
-        ? (cheapestPriceOnDate(cruise, startDate, "USD") ??
-          cheapestPriceOnDate(cruise, startDate, "EUR") ??
-          cheapestPriceOnDate(cruise, startDate, "NAT"))
-        : null;
+      const prices = startDate ? catalogPricesForDate(cruise, startDate) : {};
+      const price = pickPrimaryCatalogPrice(prices);
 
       if (price == null || !startDate) return null;
 
-      return { cruise, price, startDate };
+      return { cruise, prices, startDate };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
-    .sort((left, right) => left.price - right.price);
+    .sort(
+      (left, right) =>
+        (pickPrimaryCatalogPrice(left.prices) ?? 0) -
+        (pickPrimaryCatalogPrice(right.prices) ?? 0),
+    );
 
   const seenLiners = new Set<string>();
   const deals: HotDeal[] = [];
@@ -162,7 +190,7 @@ export function pickHotDeals(
     if (seenLiners.has(linerKey)) continue;
 
     seenLiners.add(linerKey);
-    deals.push(mapToHotDeal(item.cruise, item.startDate, item.price));
+    deals.push(mapToHotDeal(item.cruise, item.startDate, item.prices));
 
     if (deals.length >= HOT_DEALS_COUNT) break;
   }
@@ -177,6 +205,6 @@ async function loadHotDealsUncached() {
 
 export const getHotDeals = unstable_cache(
   loadHotDealsUncached,
-  ["hot-deals-v3"],
+  ["hot-deals-v4"],
   { revalidate: 3600 }
 );

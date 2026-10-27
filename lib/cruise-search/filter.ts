@@ -135,7 +135,7 @@ export function filterCruises(
 export function sortCruises(
   cruises: CruiseRecord[],
   sort: CruiseSort,
-  currency: CruiseSearchFilters["currency"] = "NAT",
+  currency: CruiseSearchFilters["currency"] = "EUR",
   dateFrom = "",
   dateTo = "",
 ) {

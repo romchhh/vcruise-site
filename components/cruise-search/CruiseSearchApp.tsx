@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buildCruiseDetailPath } from "@/lib/cruise-search/cruise-detail-url";
 import {
@@ -8,7 +8,10 @@ import {
   restoreSearchListState,
   saveSearchListState,
 } from "@/lib/cruise-search/search-list-session";
-import { SEARCH_RESULTS_PAGE_SIZE } from "@/lib/cruise-search/constants";
+import {
+  DEFAULT_CURRENCY,
+  SEARCH_RESULTS_PAGE_SIZE,
+} from "@/lib/cruise-search/constants";
 import { FEATURED_CRUISE_COMPANIES } from "@/lib/cruise-search/companies";
 import { filterCruises, sortCruises } from "@/lib/cruise-search/filter";
 import {
@@ -22,8 +25,10 @@ import type {
   CruiseRecord,
   CruiseSearchFilters as CruiseSearchFiltersState,
 } from "@/lib/cruise-search/types";
+import CruiseCurrencyToggle from "./CruiseCurrencyToggle";
 import CruiseSearchFilters from "./CruiseSearchFilters";
 import CruiseSearchResultCard from "./CruiseSearchResultCard";
+import CruiseSortControls from "./CruiseSortControls";
 
 export default function CruiseSearchApp({
   cruises,
@@ -213,23 +218,38 @@ export default function CruiseSearchApp({
     router.replace(query ? `/search?${query}` : "/search", { scroll: false });
   };
 
+  const mergeFilterPatch = (
+    current: CruiseSearchFiltersState,
+    patch: Partial<CruiseSearchFiltersState>,
+  ): CruiseSearchFiltersState => {
+    const next = { ...current, ...patch };
+
+    if ("year" in patch) {
+      next.months = sanitizeSelectedMonths(next.months, next.year);
+    }
+
+    if ("currency" in patch && patch.currency) {
+      const bounds = getSearchBounds(bookableCruises, patch.currency);
+      next.priceMin = bounds.priceMin;
+      next.priceMax = bounds.priceMax;
+    }
+
+    return next;
+  };
+
   const updateFilters = (patch: Partial<CruiseSearchFiltersState>) => {
+    const shouldSyncUrl =
+      "newLinersOnly" in patch ||
+      "sort" in patch ||
+      "currency" in patch;
+
     setFilters((current) => {
-      const next = { ...current, ...patch };
+      const next = mergeFilterPatch(current, patch);
 
-      if ("year" in patch) {
-        next.months = sanitizeSelectedMonths(next.months, next.year);
-      }
-
-      if ("currency" in patch && patch.currency) {
-        const bounds = getSearchBounds(bookableCruises, patch.currency);
-        next.priceMin = bounds.priceMin;
-        next.priceMax = bounds.priceMax;
-      }
-
-      if ("newLinersOnly" in patch) {
-        const query = buildSearchParams(next);
-        router.replace(query ? `/search?${query}` : "/search", { scroll: false });
+      if (shouldSyncUrl) {
+        queueMicrotask(() => {
+          startTransition(() => syncFiltersToUrl(next));
+        });
       }
 
       return next;
@@ -246,7 +266,7 @@ export default function CruiseSearchApp({
   };
 
   const resetFilters = () => {
-    const reset = createDefaultFilters(bookableCruises, "NAT");
+    const reset = createDefaultFilters(bookableCruises, DEFAULT_CURRENCY);
     setFilters(reset);
     router.replace("/search", { scroll: false });
   };
@@ -320,7 +340,21 @@ export default function CruiseSearchApp({
             </p>
           ) : null}
 
-          <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-6 space-y-4 rounded-card bg-white p-4 sm:mt-8 sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <CruiseSortControls
+                value={filters.sort}
+                onChange={(sort) => updateFilters({ sort })}
+              />
+              <CruiseCurrencyToggle
+                compact
+                value={filters.currency}
+                onChange={(currency) => updateFilters({ currency })}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-body text-subtitle">
               {results.length > visibleResults.length ? (
                 <>

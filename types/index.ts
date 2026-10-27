@@ -1,3 +1,7 @@
+import type { CurrencyCode } from "@/lib/cruise-search/types";
+
+export type CardCurrencyPrices = Partial<Record<CurrencyCode, number>>;
+
 export type Cruise = {
   id: string;
   region: string;
@@ -30,6 +34,7 @@ export type UniqueRoute = {
   dateRange: string;
   nights: number;
   price: number;
+  prices?: CardCurrencyPrices;
   /** Default: per person. */
   priceBasis?: PriceBasis;
   coverImage: string;
@@ -49,7 +54,10 @@ export type HotDeal = {
   dateRange: string;
   nights: number;
   price: number;
+  /** Усі валюти з каталогу для перемикача на головній. */
+  prices?: CardCurrencyPrices;
   originalPrice: number;
+  originalPrices?: CardCurrencyPrices;
   discountPercent: number;
   /** Default: per person. */
   priceBasis?: PriceBasis;

@@ -1,10 +1,15 @@
 import { unstable_cache } from "next/cache";
 import { UNIQUE_ROUTE_COVER_IMAGE as SHARED_UNIQUE_COVER } from "@/lib/cms/section-card-shared";
+import { DEFAULT_CURRENCY } from "./constants";
+import {
+  catalogPricesForDate,
+  pickPrimaryCatalogPrice,
+} from "./currency";
 import { buildSearchParams } from "./params";
 import { loadClientCruises } from "./load-cruises";
 import { matchesCruiseRegion } from "./region-match";
-import { cheapestPriceOnDate, hasBookableDates } from "./utils";
-import type { CruiseRecord } from "./types";
+import { hasBookableDates } from "./utils";
+import type { CruiseRecord, CurrencyCode } from "./types";
 import type { UniqueRoute } from "@/types";
 
 /**
@@ -95,11 +100,8 @@ function scoreRoute(cruise: CruiseRecord, today: string): number | null {
   if (!hasBookableDates(cruise, today)) return null;
 
   const startDate = nearestUpcomingDate(cruise, today);
-  const price = startDate
-    ? (cheapestPriceOnDate(cruise, startDate, "USD") ??
-      cheapestPriceOnDate(cruise, startDate, "EUR") ??
-      cheapestPriceOnDate(cruise, startDate, "NAT"))
-    : null;
+  const prices = startDate ? catalogPricesForDate(cruise, startDate) : {};
+  const price = pickPrimaryCatalogPrice(prices);
 
   if (!startDate || price == null) return null;
 
@@ -119,8 +121,9 @@ function scoreRoute(cruise: CruiseRecord, today: string): number | null {
 function mapToUniqueRoute(
   cruise: CruiseRecord,
   startDate: string,
-  price: number
+  prices: Partial<Record<CurrencyCode, number>>,
 ): UniqueRoute {
+  const price = pickPrimaryCatalogPrice(prices) ?? 0;
   const region = cruise.region_name || MEDITERRANEAN;
   const nights = Math.max(cruise.nights, 1);
   const route = cruise.route ?? [];
@@ -132,7 +135,7 @@ function mapToUniqueRoute(
     dateFrom: startDate,
     dateTo: startDate,
     sort: "date_asc",
-    currency: "USD",
+    currency: DEFAULT_CURRENCY,
     newLinersOnly: false,
   });
 
@@ -148,6 +151,7 @@ function mapToUniqueRoute(
     dateRange: formatDateRange(startDate, nights),
     nights,
     price,
+    prices,
     priceBasis: "person",
     coverImage: UNIQUE_ROUTE_COVER_IMAGE,
     linerImage,
@@ -165,12 +169,11 @@ export function pickUniqueRoutes(
       if (score == null) return null;
 
       const startDate = nearestUpcomingDate(cruise, referenceDate)!;
-      const price =
-        cheapestPriceOnDate(cruise, startDate, "USD") ??
-        cheapestPriceOnDate(cruise, startDate, "EUR") ??
-        cheapestPriceOnDate(cruise, startDate, "NAT")!;
+      const prices = catalogPricesForDate(cruise, startDate);
+      const price = pickPrimaryCatalogPrice(prices);
+      if (price == null) return null;
 
-      return { cruise, score, startDate, price };
+      return { cruise, score, startDate, prices };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
     .sort((a, b) => b.score - a.score);
@@ -188,7 +191,7 @@ export function pickUniqueRoutes(
 
     seenLiners.add(linerKey);
     seenCompanies.add(item.cruise.cruise_title);
-    picked.push(mapToUniqueRoute(item.cruise, item.startDate, item.price));
+    picked.push(mapToUniqueRoute(item.cruise, item.startDate, item.prices));
     return true;
   };
 

@@ -28,19 +28,21 @@ export default function LinerClassCard({
   onOpenDetails,
 }: LinerClassCardProps) {
   return (
-    <article className="group relative aspect-[3/4.5] w-full min-w-0 overflow-hidden rounded-card sm:aspect-[3/4.2] sm:min-h-[400px]">
-      <Image
-        src={linerClass.image}
-        alt={linerClass.title}
-        fill
-        className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
-        sizes="(max-width: 1024px) 50vw, 25vw"
-      />
+    <article
+      className="group relative aspect-[3/4.5] w-full min-w-0 overflow-hidden rounded-card liner-class-media-frame sm:aspect-[3/4.2] sm:min-h-[400px]"
+    >
+      <div className="absolute inset-2 sm:inset-3">
+        <Image
+          src={linerClass.image}
+          alt={linerClass.title}
+          fill
+          className="liner-class-media-img transition-transform duration-500 group-hover:scale-[1.02]"
+          sizes="(max-width: 1024px) 50vw, 25vw"
+        />
+      </div>
 
-      <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/80 via-black/25 to-black/95 sm:bg-gradient-to-t sm:from-black/95 sm:via-black/50 sm:to-black/15"
-        aria-hidden
-      />
+      <div className="liner-class-card-scrim-top" aria-hidden />
+      <div className="liner-class-card-scrim-bottom" aria-hidden />
 
       <div
         className="absolute inset-0 z-10 flex flex-col justify-between px-3 pb-3 pt-3 sm:inset-x-0 sm:bottom-0 sm:top-auto sm:h-auto sm:justify-end sm:px-5 sm:pb-5 sm:pt-20"

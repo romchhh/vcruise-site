@@ -1,4 +1,5 @@
 import { CABIN_ORDER } from "./constants";
+import { DEFAULT_CURRENCY } from "./constants";
 import type { CruiseRecord, CurrencyCode } from "./types";
 
 export function formatMoney(value: number | null | undefined) {
@@ -50,7 +51,7 @@ function cheapestFromCabins(
 
 export function cheapestPrice(
   cruise: CruiseRecord,
-  currency: CurrencyCode = "NAT"
+  currency: CurrencyCode = DEFAULT_CURRENCY
 ) {
   return cheapestFromCabins(cruise.from_price, currency);
 }
@@ -59,7 +60,7 @@ export function cheapestPrice(
 export function cheapestPriceOnDate(
   cruise: CruiseRecord,
   date: string | null | undefined,
-  currency: CurrencyCode = "NAT",
+  currency: CurrencyCode = DEFAULT_CURRENCY,
 ) {
   if (date) {
     const entry = (cruise.available_dates ?? []).find(
@@ -140,7 +141,7 @@ export function sailingDateInFilter(
 
 export function cabinPriceLadder(
   cruise: CruiseRecord,
-  currency: CurrencyCode = "NAT"
+  currency: CurrencyCode = DEFAULT_CURRENCY
 ) {
   return CABIN_ORDER
     .filter((cabin) => cruise.from_price?.[cabin]?.[currency] != null)
@@ -167,7 +168,7 @@ export function getDurationBounds(durationLabel: string) {
 
 export function getSearchBounds(
   cruises: CruiseRecord[],
-  currency: CurrencyCode = "NAT",
+  currency: CurrencyCode = DEFAULT_CURRENCY,
 ) {
   const nights = cruises.map((cruise) => cruise.nights).filter((n) => n > 0);
   const prices = cruises

@@ -1,10 +1,11 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { formatDisplayPrice } from "@/lib/cruise-search/format-display-price";
+import { priceInCurrency } from "@/lib/cruise-search/currency";
 import type { HotDeal } from "@/types";
-
-function formatUsd(value: number) {
-  return `$${value.toLocaleString("en-US")}`;
-}
+import { useHomeDisplayCurrency } from "./HomeDisplayCurrencyProvider";
 
 function nightsLabel(nights: number) {
   const n = Math.max(nights, 1);
@@ -18,6 +19,14 @@ function nightsLabel(nights: number) {
 }
 
 export default function HotDealCard({ deal }: { deal: HotDeal }) {
+  const { currency } = useHomeDisplayCurrency();
+  const price = priceInCurrency(deal.prices, currency, deal.price);
+  const originalPrice = priceInCurrency(
+    deal.originalPrices,
+    currency,
+    deal.originalPrice,
+  );
+
   return (
     <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-card bg-white">
       <div className="relative aspect-[5/4] shrink-0 overflow-hidden rounded-b-card-inner sm:aspect-[16/10]">
@@ -43,7 +52,15 @@ export default function HotDealCard({ deal }: { deal: HotDeal }) {
             >
               🔥
             </span>
-            <span className="text-pretty">Гаряча пропозиція</span>
+            <span className="min-w-0 text-pretty">
+              Гаряча пропозиція
+              {deal.linerName ? (
+                <>
+                  <span className="mx-1 opacity-70" aria-hidden>·</span>
+                  <span className="font-semibold">{deal.linerName}</span>
+                </>
+              ) : null}
+            </span>
           </span>
           <span
             className="type-overlay-badge shrink-0 rounded-full bg-[#EF4444] px-2 py-0.5 text-white max-sm:text-[0.6875rem] max-sm:leading-tight sm:px-2.5 sm:py-1"
@@ -89,10 +106,10 @@ export default function HotDealCard({ deal }: { deal: HotDeal }) {
               </span>
               <div className="flex shrink-0 flex-col items-end gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
                 <span className="type-card-meta text-subtitle line-through">
-                  {formatUsd(deal.originalPrice)}
+                  {formatDisplayPrice(originalPrice, currency)}
                 </span>
                 <span className="type-card-price text-[color:var(--color-brand)]">
-                  {formatUsd(deal.price)}
+                  {formatDisplayPrice(price, currency)}
                 </span>
               </div>
             </div>

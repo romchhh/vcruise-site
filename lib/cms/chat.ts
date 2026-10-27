@@ -70,37 +70,40 @@ const VISITOR_COOKIE = "vcruise_chat_visitor";
 
 export { VISITOR_COOKIE };
 
+export const CHAT_VISITOR_AUTO_ACK =
+  "Дякуємо за звернення! Менеджер звʼяжеться з вами найближчим часом. За потреби залиште імʼя та номер телефону в чаті.";
+
 function defaultPresets(): ChatPreset[] {
   return [
     {
-      id: "q-price",
+      id: "q-pick-cruise",
       kind: "visitor_question",
-      label: "Ціна круїзу",
-      text: "Підкажіть, будь ласка, орієнтовну вартість круїзу на двох?",
+      label: "Підібрати круїз",
+      text: "Хочу підібрати круїз. Підкажіть, будь ласка, варіанти за датами та бюджетом.",
       sortOrder: 1,
       active: true,
     },
     {
-      id: "q-dates",
+      id: "q-book-cruise",
       kind: "visitor_question",
-      label: "Дати",
-      text: "Які найближчі дати відправлення доступні?",
+      label: "Забронювати круїз",
+      text: "Хочу забронювати круїз. Допоможіть з оформленням та наявністю кают.",
       sortOrder: 2,
       active: true,
     },
     {
-      id: "q-visa",
+      id: "q-visa-pick",
       kind: "visitor_question",
-      label: "Віза",
-      text: "Чи допомагаєте з візовою підтримкою?",
+      label: "Підбір візи",
+      text: "Потрібна допомога з підбором візи для круїзної подорожі.",
       sortOrder: 3,
       active: true,
     },
     {
-      id: "q-cabin",
+      id: "q-consult",
       kind: "visitor_question",
-      label: "Каюта",
-      text: "Яку каюту порадите для першого круїзу?",
+      label: "Консультація",
+      text: "Потрібна консультація щодо круїзної подорожі.",
       sortOrder: 4,
       active: true,
     },
@@ -164,6 +167,89 @@ function ensurePresetsSeeded() {
     }
   });
   tx();
+  syncVisitorQuickPresets();
+}
+
+const LEGACY_VISITOR_PRESET_IDS = [
+  "q-price",
+  "q-dates",
+  "q-visa",
+  "q-cabin",
+];
+
+/** Оновлює швидкі кнопки чату (нові підписи) без зміни агентських шаблонів. */
+export function syncVisitorQuickPresets() {
+  if (isCmsBuildPhase()) return;
+  const db = getCmsSqlite();
+  const seeded = db
+    .prepare(`SELECT COUNT(*) as count FROM chat_presets`)
+    .get() as { count: number };
+  if (!seeded.count) return;
+  const now = new Date().toISOString();
+  const stmt = db.prepare(
+    `INSERT INTO chat_presets (id, kind, sort_order, data, updated_at)
+     VALUES (@id, @kind, @sort_order, @data, @updated_at)
+     ON CONFLICT(id) DO UPDATE SET
+       kind = excluded.kind,
+       sort_order = excluded.sort_order,
+       data = excluded.data,
+       updated_at = excluded.updated_at`,
+  );
+
+  const visitorButtons = defaultPresets().filter(
+    (preset) => preset.kind === "visitor_question",
+  );
+
+  const tx = db.transaction(() => {
+    for (const preset of visitorButtons) {
+      stmt.run({
+        id: preset.id,
+        kind: preset.kind,
+        sort_order: preset.sortOrder,
+        data: JSON.stringify(preset),
+        updated_at: now,
+      });
+    }
+
+    for (const legacyId of LEGACY_VISITOR_PRESET_IDS) {
+      const row = db
+        .prepare(`SELECT data FROM chat_presets WHERE id = ?`)
+        .get(legacyId) as { data: string } | undefined;
+      if (!row) continue;
+      const parsed = JSON.parse(row.data) as ChatPreset;
+      if (!parsed.active) continue;
+      const next = { ...parsed, active: false };
+      db.prepare(
+        `UPDATE chat_presets SET data = @data, updated_at = @updated_at WHERE id = @id`,
+      ).run({
+        id: legacyId,
+        data: JSON.stringify(next),
+        updated_at: now,
+      });
+    }
+  });
+  tx();
+}
+
+export function maybeSendVisitorAutoAck(conversationId: string) {
+  const conversation = getConversation(conversationId);
+  if (!conversation || conversation.status === "closed") return null;
+
+  const messages = listMessages(conversationId);
+  const hasAgentReply = messages.some((item) => item.role === "agent");
+  const alreadyAcked = messages.some(
+    (item) =>
+      item.role === "agent" && item.text.includes("Менеджер звʼяжеться"),
+  );
+  if (hasAgentReply || alreadyAcked) return null;
+
+  const settings = getChatSettings();
+  return addMessage({
+    conversationId,
+    role: "agent",
+    text: CHAT_VISITOR_AUTO_ACK,
+    authorName: settings.chatAgentName,
+  });
 }
 
 const DEFAULT_AGENT_IMAGE = "/images/chat-assistant.jpg";
@@ -612,6 +698,9 @@ export function listPresets(kind?: ChatPresetKind): ChatPreset[] {
       : defaultPresets();
   }
   ensurePresetsSeeded();
+  if (!kind || kind === "visitor_question") {
+    syncVisitorQuickPresets();
+  }
   const db = getCmsSqlite();
   const rows = (
     kind

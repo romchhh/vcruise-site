@@ -1,10 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import CruiseLinerImage from "@/components/cruise-search/CruiseLinerImage";
+import { priceInCurrency } from "@/lib/cruise-search/currency";
+import { formatDisplayPrice } from "@/lib/cruise-search/format-display-price";
 import type { UniqueRoute } from "@/types";
-
-function formatUsd(value: number) {
-  return `$${value.toLocaleString("en-US")}`;
-}
+import { useHomeDisplayCurrency } from "./HomeDisplayCurrencyProvider";
 
 function nightsLabel(nights: number) {
   const n = Math.max(nights, 1);
@@ -22,6 +23,8 @@ type UniqueRouteCardProps = {
 };
 
 export default function UniqueRouteCard({ route }: UniqueRouteCardProps) {
+  const { currency } = useHomeDisplayCurrency();
+  const price = priceInCurrency(route.prices, currency, route.price);
   const hasLinerHover =
     route.linerImage != null && route.linerImage !== route.coverImage;
 
@@ -93,7 +96,7 @@ export default function UniqueRouteCard({ route }: UniqueRouteCardProps) {
               Ціна від / за каюту
             </span>
             <span className="text-h3 font-bold leading-none text-white lg:text-h4">
-              {formatUsd(route.price)}
+              {formatDisplayPrice(price, currency)}
             </span>
           </div>
         </div>

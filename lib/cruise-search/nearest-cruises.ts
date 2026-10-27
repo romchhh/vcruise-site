@@ -1,8 +1,13 @@
 import { unstable_cache } from "next/cache";
+import { DEFAULT_CURRENCY } from "./constants";
+import {
+  catalogPricesForDate,
+  pickPrimaryCatalogPrice,
+} from "./currency";
 import { buildSearchParams } from "./params";
 import { matchesCruiseRegion } from "./region-match";
 import { loadClientCruises } from "./load-cruises";
-import { cheapestPriceOnDate, hasBookableDates } from "./utils";
+import { hasBookableDates } from "./utils";
 import type { CruiseRecord } from "./types";
 import type { Cruise } from "@/types";
 
@@ -137,11 +142,8 @@ function mapToCard(
   cruise: CruiseRecord,
   startDate: string
 ): Cruise {
-  const price =
-    cheapestPriceOnDate(cruise, startDate, "USD") ??
-    cheapestPriceOnDate(cruise, startDate, "NAT") ??
-    cheapestPriceOnDate(cruise, startDate, "EUR") ??
-    0;
+  const prices = catalogPricesForDate(cruise, startDate);
+  const price = pickPrimaryCatalogPrice(prices) ?? 0;
 
   const searchUrl = `/search?${buildSearchParams({
     regions: [slot.region],
@@ -149,7 +151,7 @@ function mapToCard(
     liner: cruise.liner_slug,
     dateFrom: startDate,
     sort: "date_asc",
-    currency: "USD",
+    currency: DEFAULT_CURRENCY,
     newLinersOnly: false,
   })}`;
 

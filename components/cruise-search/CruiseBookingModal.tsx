@@ -763,6 +763,32 @@ export default function CruiseBookingModal({
 
   const isPage = variant === "page";
 
+  const pageContinueHint = useMemo(() => {
+    if (!isPage || canContinueToForm) return null;
+    if (bookingUrl && offersLoading) {
+      return "Зачекайте, завантажуємо актуальні тарифи…";
+    }
+    if (hasOffers && !form.offerKey) {
+      return "Оберіть тариф у таблиці кают нижче на сторінці.";
+    }
+    if (!form.cabinType) {
+      return "Оберіть тип каюти, щоб активувати кнопку «Забронювати».";
+    }
+    if (!form.cruiseDate) {
+      return "Оберіть дату відправлення.";
+    }
+    return "Заповніть параметри бронювання.";
+  }, [
+    bookingUrl,
+    canContinueToForm,
+    form.cabinType,
+    form.cruiseDate,
+    form.offerKey,
+    hasOffers,
+    isPage,
+    offersLoading,
+  ]);
+
   useEffect(() => {
     if (!isPage || !onOffersPanel) return;
 
@@ -989,8 +1015,16 @@ export default function CruiseBookingModal({
                 </p>
               ) : (
               <>
-              <div>
-                <p className="text-caption mb-2 text-subtitle">Тип каюти *</p>
+              <div
+                className={
+                  isPage && !form.cabinType && cabinOptions.length > 0
+                    ? "rounded-card border border-amber-200 bg-amber-50/60 p-3"
+                    : ""
+                }
+              >
+                <p className="text-caption mb-2 font-medium text-[color:var(--color-black)]">
+                  Оберіть тип каюти *
+                </p>
 
                 {cabinOptions.length === 0 ? (
                   <p className="rounded-card bg-amber-50 px-3 py-2 text-caption text-amber-800">
@@ -1130,13 +1164,26 @@ export default function CruiseBookingModal({
               </>
               )}
 
+              {isPage && pageContinueHint ? (
+                <p
+                  id="cruise-booking-hint"
+                  className="text-caption text-amber-900"
+                  role="status"
+                >
+                  {pageContinueHint}
+                </p>
+              ) : null}
+
               <button
                 type="button"
                 disabled={!canContinueToForm}
                 onClick={isPage ? openContactModal : () => setStep("form")}
                 className="btn-primary btn-primary--block disabled:cursor-not-allowed disabled:opacity-60"
+                aria-describedby={
+                  isPage && pageContinueHint ? "cruise-booking-hint" : undefined
+                }
               >
-                {isPage ? "Звʼязатися щодо бронювання" : "Далі"}
+                {isPage ? "Забронювати" : "Далі"}
               </button>
             </div>
           ) : !isPage ? (

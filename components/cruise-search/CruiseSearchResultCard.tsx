@@ -3,7 +3,10 @@
 import CruiseLinerImage from "./CruiseLinerImage";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { CURRENCY_SYMBOL } from "@/lib/cruise-search/constants";
+import {
+  CURRENCY_OPTIONS,
+  CURRENCY_SYMBOL,
+} from "@/lib/cruise-search/constants";
 import {
   cheapestPriceOnDate,
   embarkationPort,
@@ -62,6 +65,18 @@ export default function CruiseSearchResultCard({
   );
   const price = cheapestPriceOnDate(cruise, highlightDate, currency);
   const symbol = CURRENCY_SYMBOL[currency];
+  const allCurrencyPrices = useMemo(
+    () =>
+      CURRENCY_OPTIONS.map(({ code }) => ({
+        code,
+        amount: cheapestPriceOnDate(cruise, highlightDate, code),
+      })),
+    [cruise, highlightDate],
+  );
+  const secondaryPrices = allCurrencyPrices.filter(
+    (item) =>
+      item.code !== currency && item.amount != null && item.amount > 0,
+  );
   const fromPort = embarkationPort(cruise);
   const route = cruise.route ?? [];
   const routePreview = route.slice(0, 3).join(" · ");
@@ -145,9 +160,21 @@ export default function CruiseSearchResultCard({
             <span className="text-caption max-w-[120px] leading-snug text-[color:var(--color-silver)]">
               Ціна від / за каюту
             </span>
-            <span className="text-h4 font-bold leading-none text-[color:var(--color-black)]">
-              {formatMoney(price)} {symbol}
-            </span>
+            <div className="text-right">
+              <span className="text-h4 font-bold leading-none text-[color:var(--color-black)]">
+                {formatMoney(price)} {symbol}
+              </span>
+              {secondaryPrices.length ? (
+                <p className="text-caption mt-1.5 text-subtitle">
+                  {secondaryPrices
+                    .map(
+                      (item) =>
+                        `${formatMoney(item.amount)} ${CURRENCY_SYMBOL[item.code]}`,
+                    )
+                    .join(" · ")}
+                </p>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
@@ -184,10 +211,16 @@ export default function CruiseSearchResultCard({
           <div className="space-y-3">
             {datesForList.map((item) => {
               const cabins = Object.entries(item.cabins ?? {})
-                .map(
-                  ([name, prices]) =>
-                    `${name}: ${formatMoney(prices?.[currency])} ${symbol}`
-                )
+                .map(([name, prices]) => {
+                  const parts = CURRENCY_OPTIONS
+                    .map(({ code }) => {
+                      const amount = prices?.[code];
+                      if (amount == null || amount <= 0) return null;
+                      return `${formatMoney(amount)} ${CURRENCY_SYMBOL[code]}`;
+                    })
+                    .filter(Boolean);
+                  return `${name}: ${parts.length ? parts.join(" · ") : "—"}`;
+                })
                 .join(" · ");
 
               return (

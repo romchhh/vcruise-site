@@ -2,8 +2,14 @@
 
 import CruiseLinerImage from "./CruiseLinerImage";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { CURRENCY_SYMBOL } from "@/lib/cruise-search/constants";
+import {
+  CURRENCY_OPTIONS,
+  CURRENCY_SYMBOL,
+  DEFAULT_CURRENCY,
+} from "@/lib/cruise-search/constants";
+import { catalogPricesForDate } from "@/lib/cruise-search/currency";
 import type { CruiseDetailQuery } from "@/lib/cruise-search/cruise-detail-url";
 import { buildSearchHrefFromListQuery } from "@/lib/cruise-search/cruise-detail-url";
 import { prefetchCruiseOffers } from "@/lib/cruise-search/fetch-cruise-offers-client";
@@ -16,9 +22,10 @@ import {
   getUpcomingDates,
 } from "@/lib/cruise-search/utils";
 import { countryCodeFromPlace } from "@/lib/cruise-search/country-flag";
-import type { CruiseRecord } from "@/lib/cruise-search/types";
+import type { CruiseRecord, CurrencyCode } from "@/lib/cruise-search/types";
 import CountryFlag from "./CountryFlag";
 import CruiseBookingModal from "./CruiseBookingModal";
+import CruiseCurrencyToggle from "./CruiseCurrencyToggle";
 import SimilarCruisesSection from "./SimilarCruisesSection";
 
 type RouteStop =
@@ -78,9 +85,20 @@ export default function CruiseDetailApp({
   similarCruises: CruiseRecord[];
   detailQuery: CruiseDetailQuery;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const returnHref = buildSearchHrefFromListQuery(detailQuery.from);
   const currency = detailQuery.currency;
   const symbol = CURRENCY_SYMBOL[currency];
+
+  const setCurrency = (next: CurrencyCode) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === DEFAULT_CURRENCY) params.delete("currency");
+    else params.set("currency", next);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
   const [offersPanel, setOffersPanel] = useState<ReactNode>(null);
 
   const upcomingDates = useMemo(() => getUpcomingDates(cruise), [cruise]);
@@ -95,6 +113,18 @@ export default function CruiseDetailApp({
   }, [detailQuery.sailing, upcomingDates]);
 
   const catalogPrice = cheapestPriceOnDate(cruise, preferredDate, currency);
+  const catalogPrices = useMemo(
+    () => catalogPricesForDate(cruise, preferredDate),
+    [cruise, preferredDate],
+  );
+  const secondaryCatalogPrices = useMemo(
+    () =>
+      CURRENCY_OPTIONS.map(({ code }) => ({
+        code,
+        amount: catalogPrices[code] ?? 0,
+      })).filter((item) => item.code !== currency && item.amount > 0),
+    [catalogPrices, currency],
+  );
   const [quotedFrom, setQuotedFrom] = useState<number | null | undefined>(
     undefined,
   );
@@ -103,6 +133,10 @@ export default function CruiseDetailApp({
   const stops = useMemo(() => routeStops(cruise.route ?? []), [cruise.route]);
   const nightsLabel =
     cruise.nights_str ?? (cruise.nights ? `${cruise.nights} ночей` : "");
+
+  useEffect(() => {
+    setQuotedFrom(undefined);
+  }, [currency, preferredDate]);
 
   useEffect(() => {
     const preferredUrl = resolveBookingUrl(cruise, preferredDate);
@@ -124,8 +158,12 @@ export default function CruiseDetailApp({
             ← Назад до результатів пошуку
           </Link>
 
-          <div className="mt-6 min-w-0 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:items-start lg:gap-8">
-            <div className="min-w-0 overflow-hidden rounded-card bg-white">
+          <div
+            className="mt-6 grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:items-start lg:gap-8"
+          >
+            <div
+              className="min-w-0 overflow-hidden rounded-card bg-white lg:col-start-1 lg:row-start-1"
+            >
               <div className="relative aspect-[16/9] bg-[color:var(--color-surface-muted)] lg:aspect-[2/1]">
                 {cruise.liner_logo ? (
                   <CruiseLinerImage
@@ -148,8 +186,32 @@ export default function CruiseDetailApp({
                   </p>
                 </div>
               </div>
+            </div>
 
-              <div className="px-5 py-5 sm:px-6 lg:px-8 lg:py-6">
+            <div
+              className="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-28"
+            >
+              <CruiseBookingModal
+                variant="page"
+                cruise={cruise}
+                currency={currency}
+                preferredDate={preferredDate}
+                initialGuests={{
+                  adults: detailQuery.adults,
+                  children: detailQuery.children,
+                  infants: detailQuery.infants,
+                }}
+                onOffersPanel={setOffersPanel}
+                onFromPrice={setQuotedFrom}
+                onClose={() => {
+                  // Page variant uses contact modal; no-op for back arrow removal.
+                }}
+              />
+            </div>
+
+            <div
+              className="min-w-0 overflow-hidden rounded-card bg-white px-5 py-5 sm:px-6 sm:py-6 lg:col-start-1 lg:row-start-2 lg:px-8"
+            >
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-card bg-[color:var(--color-surface-muted)] px-4 py-3.5">
                     <p className="text-caption text-[color:var(--color-silver)]">
@@ -165,14 +227,31 @@ export default function CruiseDetailApp({
                     ) : null}
                   </div>
                   <div className="rounded-card bg-[color:var(--color-brand-light)] px-4 py-3.5">
-                    <p className="text-caption text-[color:var(--color-silver)]">
-                      Ціна від
-                    </p>
-                    <p className="text-h4 mt-1 font-bold leading-none text-[color:var(--color-brand)]">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-caption text-[color:var(--color-silver)]">
+                        Ціна від
+                      </p>
+                      <CruiseCurrencyToggle
+                        compact
+                        value={currency}
+                        onChange={setCurrency}
+                      />
+                    </div>
+                    <p className="text-h4 mt-2 font-bold leading-none text-[color:var(--color-brand)]">
                       {highlightPrice == null
                         ? "…"
                         : `${formatMoney(highlightPrice)} ${symbol}`}
                     </p>
+                    {quotedFrom === undefined && secondaryCatalogPrices.length ? (
+                      <p className="text-caption mt-1.5 text-subtitle">
+                        {secondaryCatalogPrices
+                          .map(
+                            (item) =>
+                              `${formatMoney(item.amount)} ${CURRENCY_SYMBOL[item.code]}`,
+                          )
+                          .join(" · ")}
+                      </p>
+                    ) : null}
                     <p className="text-caption mt-1.5 text-subtitle">за каюту</p>
                   </div>
                 </div>
@@ -245,26 +324,6 @@ export default function CruiseDetailApp({
                     змінити в блоці бронювання.
                   </p>
                 ) : null}
-              </div>
-            </div>
-
-            <div className="mt-6 min-w-0 lg:mt-0 lg:sticky lg:top-28">
-              <CruiseBookingModal
-                variant="page"
-                cruise={cruise}
-                currency={currency}
-                preferredDate={preferredDate}
-                initialGuests={{
-                  adults: detailQuery.adults,
-                  children: detailQuery.children,
-                  infants: detailQuery.infants,
-                }}
-                onOffersPanel={setOffersPanel}
-                onFromPrice={setQuotedFrom}
-                onClose={() => {
-                  // Page variant uses contact modal; no-op for back arrow removal.
-                }}
-              />
             </div>
           </div>
 
