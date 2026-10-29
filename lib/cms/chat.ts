@@ -75,10 +75,10 @@ const VISITOR_COOKIE = "vcruise_chat_visitor";
 export { VISITOR_COOKIE };
 
 export const CHAT_VISITOR_AUTO_ACK =
-  "Дякуємо за звернення! Нижче можна одразу залишити імʼя та телефон — менеджер звʼяжеться з вами.";
+  "Дякуємо! Заповніть форму нижче (імʼя та телефон) — менеджер звʼяжеться з вами.";
 
 export const CHAT_CONTACT_THANKS =
-  "Дякуємо! Отримали ваші контакти. Менеджер незабаром звʼяжеться з вами — можете дописати деталі запиту в чаті.";
+  "Дякуємо, {name}! Контакти збережено. Менеджер незабаром напише або зателефонує — можете дописати деталі в чаті.";
 
 function defaultPresets(): ChatPreset[] {
   return [
@@ -259,15 +259,18 @@ export function ackVisitorContact(conversationId: string) {
   const messages = listMessages(conversationId);
   const already = messages.some(
     (item) =>
-      item.role === "agent" && item.text.includes("Отримали ваші контакти"),
+      item.role === "agent" && item.text.includes("Контакти збережено"),
   );
   if (already) return null;
 
   const settings = getChatSettings();
+  const firstName =
+    conversation.visitorName.trim().split(/\s+/)[0] || "друже";
+  const text = CHAT_CONTACT_THANKS.replace("{name}", firstName);
   return addMessage({
     conversationId,
     role: "agent",
-    text: CHAT_CONTACT_THANKS,
+    text,
     authorName: settings.chatAgentName,
   });
 }

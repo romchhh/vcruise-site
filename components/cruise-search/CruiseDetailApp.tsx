@@ -226,7 +226,7 @@ export default function CruiseDetailApp({
             {offersPanel ? (
               <section
                 id="cabin-offers"
-                className="min-w-0 order-2 scroll-mt-28 lg:order-[unset] lg:col-start-1 lg:row-start-2"
+                className="min-w-0 scroll-mt-28 lg:col-start-1 lg:row-start-2 order-2 lg:order-[unset] rounded-card ring-1 ring-[color:var(--color-line)]/80"
               >
                 {offersPanel}
               </section>

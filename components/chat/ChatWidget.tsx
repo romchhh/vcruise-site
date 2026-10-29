@@ -85,7 +85,20 @@ function AgentPhoto({
 function contactCaptured(conversation: ChatConversation | null) {
   if (!conversation) return false;
   if (conversation.visitorContactCapturedAt) return true;
-  return isValidChatPhone(conversation.visitorPhone || "");
+  return (
+    Boolean(conversation.visitorName?.trim()) &&
+    isValidChatPhone(conversation.visitorPhone || "")
+  );
+}
+
+function contactSavedLocally(conversationId: string) {
+  try {
+    return (
+      sessionStorage.getItem(`vcruise-chat-contact-${conversationId}`) === "1"
+    );
+  } catch {
+    return false;
+  }
 }
 
 export default function ChatWidget() {
@@ -136,6 +149,7 @@ export default function ChatWidget() {
       !askRating &&
       !contactSaved &&
       !contactCaptured(conversation) &&
+      !contactSavedLocally(conversation.id) &&
       (hasVisitorMessage || hasAgentReply),
   );
 
@@ -183,6 +197,23 @@ export default function ChatWidget() {
       })
       .catch(() => setConfig({ enabled: false } as ChatConfig));
   }, []);
+
+  useEffect(() => {
+    if (!config?.enabled || isAdmin) return;
+    let cancelled = false;
+    void fetch("/api/chat/session")
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled || !data?.ok || !data.conversation) return;
+        applyConversation(data.conversation);
+        setMessages(data.messages || []);
+        primed.current = true;
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [applyConversation, config?.enabled, isAdmin]);
 
   useEffect(() => {
     if (!config?.enabled || !isHome || open) {
@@ -311,7 +342,10 @@ export default function ChatWidget() {
     if (!conversation) return;
     setContactName(conversation.visitorName || "");
     setContactPhone(conversation.visitorPhone || "");
-    setContactSaved(contactCaptured(conversation));
+    setContactSaved(
+      contactCaptured(conversation) ||
+        contactSavedLocally(conversation.id),
+    );
   }, [
     conversation?.id,
     conversation?.visitorName,
@@ -462,6 +496,7 @@ export default function ChatWidget() {
         mergeMessages([data.contactThankYou]);
       }
       setContactSaved(true);
+      queueMicrotask(() => scrollToBottom());
       try {
         sessionStorage.setItem(
           `vcruise-chat-contact-${conversation.id}`,
@@ -804,7 +839,13 @@ export default function ChatWidget() {
           {!chatClosed && !askRating ? (
             <>
               {needsContact ? (
-                <div className={styles.contactCapture}>
+                <form
+                  className={styles.contactCapture}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void saveContact();
+                  }}
+                >
                   <p className={styles.contactTitle}>
                     Залиште імʼя та телефон — менеджер зможе відповісти, навіть
                     якщо ви закриєте чат:
@@ -813,6 +854,7 @@ export default function ChatWidget() {
                     <input
                       className={styles.contactInput}
                       type="text"
+                      name="name"
                       autoComplete="name"
                       placeholder="Ваше імʼя *"
                       value={contactName}
@@ -821,6 +863,7 @@ export default function ChatWidget() {
                     <input
                       className={styles.contactInput}
                       type="tel"
+                      name="tel"
                       autoComplete="tel"
                       placeholder="Телефон *"
                       value={contactPhone}
@@ -831,14 +874,13 @@ export default function ChatWidget() {
                     <p className={styles.contactError}>{contactError}</p>
                   ) : null}
                   <button
-                    type="button"
+                    type="submit"
                     className={styles.contactSubmit}
                     disabled={contactBusy}
-                    onClick={() => void saveContact()}
                   >
                     {contactBusy ? "…" : "Надіслати контакти"}
                   </button>
-                </div>
+                </form>
               ) : null}
 
               {config.questions.length > 0 && !needsContact ? (

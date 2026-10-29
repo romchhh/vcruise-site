@@ -22,6 +22,16 @@ import { uid } from "@/lib/cms/store";
 
 export const runtime = "nodejs";
 
+function visitorContactComplete(conversation: {
+  visitorName: string;
+  visitorPhone: string;
+}) {
+  return (
+    Boolean(conversation.visitorName?.trim()) &&
+    isValidChatPhone(conversation.visitorPhone)
+  );
+}
+
 export async function GET() {
   const settings = getChatSettings();
   if (!settings.chatEnabled) {
@@ -92,13 +102,16 @@ export async function POST(request: Request) {
     const nextPhone = body.visitorPhone?.trim()
       ? normalizeChatPhone(body.visitorPhone)
       : conversation.visitorPhone;
+    const nextName = body.visitorName?.trim() || conversation.visitorName;
     const capturedAt =
-      body.visitorPhone?.trim() && isValidChatPhone(nextPhone)
+      nextName &&
+      body.visitorPhone?.trim() &&
+      isValidChatPhone(nextPhone)
         ? conversation.visitorContactCapturedAt || new Date().toISOString()
         : conversation.visitorContactCapturedAt;
     conversation =
       updateConversation(conversation.id, {
-        visitorName: body.visitorName?.trim() || conversation.visitorName,
+        visitorName: nextName,
         visitorPhone: nextPhone || conversation.visitorPhone,
         visitorContactCapturedAt: capturedAt ?? undefined,
       }) || conversation;
@@ -108,7 +121,7 @@ export async function POST(request: Request) {
 
   if (
     conversation &&
-    isValidChatPhone(conversation.visitorPhone) &&
+    visitorContactComplete(conversation) &&
     (body?.visitorName || body?.visitorPhone)
   ) {
     const normalized = normalizeChatPhone(conversation.visitorPhone);

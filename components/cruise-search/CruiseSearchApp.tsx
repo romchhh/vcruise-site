@@ -257,6 +257,15 @@ export default function CruiseSearchApp({
     });
   };
 
+  const scrollToResults = () => {
+    window.setTimeout(() => {
+      resultsAnchorRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 120);
+  };
+
   const applyFilters = () => {
     const next = {
       ...filters,
@@ -264,18 +273,14 @@ export default function CruiseSearchApp({
     };
     setFilters(next);
     syncFiltersToUrl(next);
-    window.setTimeout(() => {
-      resultsAnchorRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 80);
+    scrollToResults();
   };
 
   const resetFilters = () => {
     const reset = createDefaultFilters(bookableCruises, DEFAULT_CURRENCY);
     setFilters(reset);
     router.replace("/search", { scroll: false });
+    scrollToResults();
   };
 
   const hasActiveFilters =
@@ -347,25 +352,27 @@ export default function CruiseSearchApp({
             </p>
           ) : null}
 
-          <div
+          <section
+            id="search-results"
             ref={resultsAnchorRef}
-            className="mt-6 scroll-mt-28 space-y-4 rounded-card bg-white p-4 sm:mt-8 sm:p-5"
+            className="scroll-mt-28 mt-6 space-y-4 sm:mt-8"
           >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <CruiseSortControls
-                value={filters.sort}
-                onChange={(sort) => updateFilters({ sort })}
-              />
-              <CruiseCurrencyToggle
-                compact
-                value={filters.currency}
-                onChange={(currency) => updateFilters({ currency })}
-              />
+            <div className="space-y-4 rounded-card bg-white p-4 sm:p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <CruiseSortControls
+                  value={filters.sort}
+                  onChange={(sort) => updateFilters({ sort })}
+                />
+                <CruiseCurrencyToggle
+                  compact
+                  value={filters.currency}
+                  onChange={(currency) => updateFilters({ currency })}
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="mt-4 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-body text-subtitle">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-body text-subtitle">
               {results.length > visibleResults.length ? (
                 <>
                   Показано{" "}
@@ -388,9 +395,9 @@ export default function CruiseSearchApp({
                 </>
               )}
             </p>
-          </div>
+            </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-5 sm:mt-8 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
             {results.length ? (
               visibleResults.map((cruise) => (
                 <CruiseSearchResultCard
@@ -420,23 +427,24 @@ export default function CruiseSearchApp({
                 </button>
               </div>
             )}
-          </div>
-
-          {hasMoreResults ? (
-            <div className="mt-8 flex justify-center">
-              <button
-                type="button"
-                onClick={() =>
-                  setVisibleCount((count) =>
-                    Math.min(count + SEARCH_RESULTS_PAGE_SIZE, results.length)
-                  )
-                }
-                className="btn-secondary"
-              >
-                Показати ще
-              </button>
             </div>
-          ) : null}
+
+            {hasMoreResults ? (
+              <div className="flex justify-center pt-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setVisibleCount((count) =>
+                      Math.min(count + SEARCH_RESULTS_PAGE_SIZE, results.length)
+                    )
+                  }
+                  className="btn-secondary"
+                >
+                  Показати ще
+                </button>
+              </div>
+            ) : null}
+          </section>
         </div>
       </div>
     </main>

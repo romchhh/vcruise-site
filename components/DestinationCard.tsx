@@ -20,7 +20,7 @@ export default function DestinationCard({
         src={destination.image}
         alt=""
         fill
-        className="object-cover transition-transform duration-500 group-hover:scale-105"
+        className="object-cover object-[center_42%] scale-[1.03] transition-transform duration-500 group-hover:scale-105"
         sizes="(max-width: 640px) 100vw, 50vw"
       />
 
