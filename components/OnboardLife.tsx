@@ -30,7 +30,7 @@ export default function OnboardLife() {
                 src={feature.image}
                 alt={feature.title}
                 fill
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                className="object-cover object-[center_45%] scale-[1.04] transition-transform duration-500 group-hover:scale-105"
                 sizes="(max-width: 1024px) 50vw, 25vw"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />

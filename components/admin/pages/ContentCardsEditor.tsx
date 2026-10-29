@@ -385,16 +385,23 @@ export default function ContentCardsEditor({
                               }
                             />
                           </Field>
-                          <Field label="Обкладинка (URL)">
-                            <input
-                              value={asString(card.image)}
-                              onChange={(event) =>
+                          <div>
+                            <span className={ui.detailLabel}>
+                              Обкладинка класу (завантаження або URL)
+                            </span>
+                            <ImageGalleryField
+                              images={
+                                asString(card.image)
+                                  ? [asString(card.image)]
+                                  : []
+                              }
+                              onChange={(images) =>
                                 updateCard(index, {
-                                  image: event.target.value,
+                                  image: images[0] || "",
                                 })
                               }
                             />
-                          </Field>
+                          </div>
                         </div>
                         <Field label="Заголовок у модалці">
                           <input

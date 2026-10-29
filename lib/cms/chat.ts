@@ -7,6 +7,7 @@ import {
   type SiteSettings,
 } from "./store";
 import { publishChatEvent } from "./chat-events";
+import { isValidChatPhone, normalizeChatPhone } from "@/lib/chat/phone";
 
 export type ChatAttachment = {
   url: string;
@@ -51,6 +52,8 @@ export type ChatConversation = {
   /** Why the visitor should see the rating prompt. */
   ratingAskReason?: ChatRatingAskReason | null;
   ratingDismissedAt?: string | null;
+  /** Коли відвідувач залишив імʼя та телефон у чаті. */
+  visitorContactCapturedAt?: string | null;
 };
 
 /** Ask for a rating after this many hours without new messages. */
@@ -72,7 +75,10 @@ const VISITOR_COOKIE = "vcruise_chat_visitor";
 export { VISITOR_COOKIE };
 
 export const CHAT_VISITOR_AUTO_ACK =
-  "Дякуємо за звернення! Менеджер відповість найближчим часом. Будь ласка, залиште нижче своє імʼя та номер телефону — ми зателефонуємо або напишемо в зручний месенджер.";
+  "Дякуємо за звернення! Нижче можна одразу залишити імʼя та телефон — менеджер звʼяжеться з вами.";
+
+export const CHAT_CONTACT_THANKS =
+  "Дякуємо! Отримали ваші контакти. Менеджер незабаром звʼяжеться з вами — можете дописати деталі запиту в чаті.";
 
 function defaultPresets(): ChatPreset[] {
   return [
@@ -242,6 +248,26 @@ export function maybeSendVisitorAutoAck(conversationId: string) {
     conversationId,
     role: "agent",
     text: CHAT_VISITOR_AUTO_ACK,
+    authorName: settings.chatAgentName,
+  });
+}
+
+export function ackVisitorContact(conversationId: string) {
+  const conversation = getConversation(conversationId);
+  if (!conversation || conversation.status === "closed") return null;
+
+  const messages = listMessages(conversationId);
+  const already = messages.some(
+    (item) =>
+      item.role === "agent" && item.text.includes("Отримали ваші контакти"),
+  );
+  if (already) return null;
+
+  const settings = getChatSettings();
+  return addMessage({
+    conversationId,
+    role: "agent",
+    text: CHAT_CONTACT_THANKS,
     authorName: settings.chatAgentName,
   });
 }
@@ -536,7 +562,9 @@ export function createConversation(input: {
     id: uid("chat"),
     visitorId: input.visitorId,
     visitorName: input.visitorName?.trim() || "",
-    visitorPhone: input.visitorPhone?.trim() || "",
+    visitorPhone: input.visitorPhone?.trim()
+      ? normalizeChatPhone(input.visitorPhone)
+      : "",
     page: input.page?.trim() || "/",
     status: "open",
     createdAt: now,
@@ -605,6 +633,7 @@ export function updateConversation(
       | "ratedAt"
       | "ratingAskReason"
       | "ratingDismissedAt"
+      | "visitorContactCapturedAt"
     >
   >,
   options?: { silent?: boolean }

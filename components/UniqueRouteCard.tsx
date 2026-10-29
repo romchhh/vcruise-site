@@ -34,7 +34,7 @@ export default function UniqueRouteCard({ route }: UniqueRouteCardProps) {
         <CruiseLinerImage
           src={route.coverImage}
           alt={route.title}
-          className={`object-cover ${
+          className={`object-cover object-center scale-[1.05] ${
             hasLinerHover
               ? "unique-route-image-cover--cycle opacity-100 transition-opacity duration-500 ease-in-out lg:group-hover:opacity-0"
               : ""
@@ -46,7 +46,7 @@ export default function UniqueRouteCard({ route }: UniqueRouteCardProps) {
             src={route.linerImage!}
             alt=""
             ariaHidden
-            className="unique-route-image-liner--cycle object-cover opacity-0 transition-opacity duration-500 ease-in-out lg:group-hover:opacity-100"
+            className="unique-route-image-liner--cycle object-cover object-center scale-[1.05] opacity-0 transition-opacity duration-500 ease-in-out lg:group-hover:opacity-100"
             sizes="(max-width: 1024px) 88vw, 33vw"
           />
         ) : null}

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   VISITOR_COOKIE,
+  ackVisitorContact,
   createConversation,
   getChatSettings,
   getConversation,
@@ -83,18 +84,27 @@ export async function POST(request: Request) {
       visitorId,
       page: body?.page,
       visitorName: body?.visitorName,
-      visitorPhone: body?.visitorPhone,
+      visitorPhone: body?.visitorPhone?.trim()
+        ? normalizeChatPhone(body.visitorPhone)
+        : undefined,
     });
   } else if (body?.visitorName || body?.visitorPhone) {
     const nextPhone = body.visitorPhone?.trim()
       ? normalizeChatPhone(body.visitorPhone)
       : conversation.visitorPhone;
+    const capturedAt =
+      body.visitorPhone?.trim() && isValidChatPhone(nextPhone)
+        ? conversation.visitorContactCapturedAt || new Date().toISOString()
+        : conversation.visitorContactCapturedAt;
     conversation =
       updateConversation(conversation.id, {
         visitorName: body.visitorName?.trim() || conversation.visitorName,
         visitorPhone: nextPhone || conversation.visitorPhone,
+        visitorContactCapturedAt: capturedAt ?? undefined,
       }) || conversation;
   }
+
+  let contactThankYou = null as ReturnType<typeof ackVisitorContact>;
 
   if (
     conversation &&
@@ -107,7 +117,15 @@ export async function POST(request: Request) {
         updateConversation(conversation.id, { visitorPhone: normalized }) ||
         conversation;
     }
+    if (!conversation.visitorContactCapturedAt) {
+      conversation =
+        updateConversation(conversation.id, {
+          visitorContactCapturedAt: new Date().toISOString(),
+        }) || conversation;
+    }
     upsertLeadFromChatConversation(conversation);
+    contactThankYou = ackVisitorContact(conversation.id);
+    conversation = getConversation(conversation.id) || conversation;
 
     const phoneJustAdded = !previousPhone && conversation.visitorPhone.trim();
     if (phoneJustAdded) {
@@ -134,6 +152,7 @@ export async function POST(request: Request) {
     ok: true,
     conversation: synced,
     messages: listMessages(synced.id),
+    contactThankYou,
     askRating: Boolean(synced.ratingAskReason && synced.rating == null),
   });
 

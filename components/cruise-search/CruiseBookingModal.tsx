@@ -769,7 +769,7 @@ export default function CruiseBookingModal({
       return "Зачекайте, завантажуємо актуальні тарифи…";
     }
     if (hasOffers && !form.offerKey) {
-      return "Оберіть тариф у таблиці кают нижче на сторінці.";
+      return "Оберіть тариф у таблиці кают під фото лайнера.";
     }
     if (!form.cabinType) {
       return "Оберіть тип каюти, щоб активувати кнопку «Забронювати».";

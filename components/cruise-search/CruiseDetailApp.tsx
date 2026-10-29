@@ -76,6 +76,16 @@ function seaDaysLabel(days: number) {
   return `${days} днів у морі`;
 }
 
+function formatRouteSummary(stops: RouteStop[]) {
+  const ports = stops.filter((stop) => stop.kind === "port");
+  if (ports.length === 0) return "";
+  if (ports.length === 1) return ports[0].name;
+  if (ports.length === 2) return `${ports[0].name} → ${ports[1].name}`;
+  return `${ports[0].name} → … → ${ports[ports.length - 1].name}`;
+}
+
+const ROUTE_COLLAPSE_THRESHOLD = 5;
+
 export default function CruiseDetailApp({
   cruise,
   similarCruises,
@@ -100,6 +110,7 @@ export default function CruiseDetailApp({
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
   const [offersPanel, setOffersPanel] = useState<ReactNode>(null);
+  const [routeExpanded, setRouteExpanded] = useState(false);
 
   const upcomingDates = useMemo(() => getUpcomingDates(cruise), [cruise]);
   const preferredDate = useMemo(() => {
@@ -131,6 +142,9 @@ export default function CruiseDetailApp({
   const highlightPrice = quotedFrom === undefined ? catalogPrice : quotedFrom;
   const fromPort = embarkationPort(cruise);
   const stops = useMemo(() => routeStops(cruise.route ?? []), [cruise.route]);
+  const routeSummary = useMemo(() => formatRouteSummary(stops), [stops]);
+  const routeIsLong = stops.length >= ROUTE_COLLAPSE_THRESHOLD;
+  const showCompactRoute = routeIsLong && !routeExpanded;
   const nightsLabel =
     cruise.nights_str ?? (cruise.nights ? `${cruise.nights} ночей` : "");
 
@@ -162,9 +176,9 @@ export default function CruiseDetailApp({
             className="mt-6 grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:items-start lg:gap-8"
           >
             <div
-              className="min-w-0 overflow-hidden rounded-card bg-white lg:col-start-1 lg:row-start-1"
+              className="min-w-0 overflow-hidden rounded-card bg-white order-1 lg:col-start-1 lg:row-start-1"
             >
-              <div className="relative aspect-[16/9] bg-[color:var(--color-surface-muted)] lg:aspect-[2/1]">
+              <div className="relative aspect-[16/9] max-h-[220px] bg-[color:var(--color-surface-muted)] sm:max-h-[260px] lg:aspect-[21/9] lg:max-h-[240px]">
                 {cruise.liner_logo ? (
                   <CruiseLinerImage
                     src={cruise.liner_logo}
@@ -189,7 +203,7 @@ export default function CruiseDetailApp({
             </div>
 
             <div
-              className="min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-28"
+              className="min-w-0 order-3 lg:order-[unset] lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:sticky lg:top-28"
             >
               <CruiseBookingModal
                 variant="page"
@@ -209,8 +223,19 @@ export default function CruiseDetailApp({
               />
             </div>
 
+            {offersPanel ? (
+              <section
+                id="cabin-offers"
+                className="min-w-0 order-2 scroll-mt-28 lg:order-[unset] lg:col-start-1 lg:row-start-2"
+              >
+                {offersPanel}
+              </section>
+            ) : null}
+
             <div
-              className="min-w-0 overflow-hidden rounded-card bg-white px-5 py-5 sm:px-6 sm:py-6 lg:col-start-1 lg:row-start-2 lg:px-8"
+              className={`min-w-0 order-4 overflow-hidden rounded-card bg-white px-5 py-5 sm:px-6 sm:py-6 lg:order-[unset] lg:col-start-1 lg:px-8 ${
+                offersPanel ? "lg:row-start-3" : "lg:row-start-2"
+              }`}
             >
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-card bg-[color:var(--color-surface-muted)] px-4 py-3.5">
@@ -269,9 +294,25 @@ export default function CruiseDetailApp({
 
                 {stops.length ? (
                   <div className="mt-5 border-t border-[color:var(--color-line)] pt-5">
-                    <p className="text-caption text-[color:var(--color-silver)]">
-                      Маршрут
-                    </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-caption text-[color:var(--color-silver)]">
+                        Маршрут
+                      </p>
+                      {routeIsLong ? (
+                        <button
+                          type="button"
+                          className="text-caption font-semibold text-[color:var(--color-brand)] hover:underline"
+                          onClick={() => setRouteExpanded((value) => !value)}
+                        >
+                          {routeExpanded ? "Згорнути" : "Показати повністю"}
+                        </button>
+                      ) : null}
+                    </div>
+                    {showCompactRoute ? (
+                      <p className="text-body mt-2 line-clamp-2 font-semibold leading-snug text-[color:var(--color-black)]">
+                        {routeSummary}
+                      </p>
+                    ) : (
                     <ol className="mt-3">
                       {stops.map((stop, index) => (
                         <li
@@ -314,6 +355,7 @@ export default function CruiseDetailApp({
                         </li>
                       ))}
                     </ol>
+                    )}
                   </div>
                 ) : null}
 
@@ -326,15 +368,6 @@ export default function CruiseDetailApp({
                 ) : null}
             </div>
           </div>
-
-          {offersPanel ? (
-            <section
-              id="cabin-offers"
-              className="mt-8 min-w-0 scroll-mt-28"
-            >
-              {offersPanel}
-            </section>
-          ) : null}
 
           <SimilarCruisesSection
             similarCruises={similarCruises}

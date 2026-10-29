@@ -82,6 +82,12 @@ function AgentPhoto({
   );
 }
 
+function contactCaptured(conversation: ChatConversation | null) {
+  if (!conversation) return false;
+  if (conversation.visitorContactCapturedAt) return true;
+  return isValidChatPhone(conversation.visitorPhone || "");
+}
+
 export default function ChatWidget() {
   const pathname = usePathname();
   const isAdmin = pathname?.startsWith("/admin");
@@ -108,6 +114,7 @@ export default function ChatWidget() {
   const [contactPhone, setContactPhone] = useState("");
   const [contactBusy, setContactBusy] = useState(false);
   const [contactError, setContactError] = useState("");
+  const [contactSaved, setContactSaved] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -127,7 +134,8 @@ export default function ChatWidget() {
     conversation &&
       !chatClosed &&
       !askRating &&
-      !isValidChatPhone(conversation.visitorPhone || "") &&
+      !contactSaved &&
+      !contactCaptured(conversation) &&
       (hasVisitorMessage || hasAgentReply),
   );
 
@@ -147,6 +155,7 @@ export default function ChatWidget() {
       return next;
     });
     if (next.rating != null) setRatingThanks(true);
+    if (contactCaptured(next)) setContactSaved(true);
   }, []);
 
   const scrollToBottom = useCallback(() => {
@@ -302,7 +311,13 @@ export default function ChatWidget() {
     if (!conversation) return;
     setContactName(conversation.visitorName || "");
     setContactPhone(conversation.visitorPhone || "");
-  }, [conversation?.id, conversation?.visitorName, conversation?.visitorPhone]);
+    setContactSaved(contactCaptured(conversation));
+  }, [
+    conversation?.id,
+    conversation?.visitorName,
+    conversation?.visitorPhone,
+    conversation?.visitorContactCapturedAt,
+  ]);
 
   useEffect(() => {
     if (!open || !conversation) return;
@@ -437,6 +452,24 @@ export default function ChatWidget() {
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error("contact_failed");
       if (data.conversation) applyConversation(data.conversation);
+      if (Array.isArray(data.messages)) {
+        setMessages(
+          [...data.messages].sort((a, b) =>
+            a.createdAt.localeCompare(b.createdAt),
+          ),
+        );
+      } else if (data.contactThankYou) {
+        mergeMessages([data.contactThankYou]);
+      }
+      setContactSaved(true);
+      try {
+        sessionStorage.setItem(
+          `vcruise-chat-contact-${conversation.id}`,
+          "1",
+        );
+      } catch {
+        // ignore
+      }
     } catch {
       setContactError("Не вдалося зберегти. Спробуйте ще раз.");
     } finally {
@@ -773,8 +806,8 @@ export default function ChatWidget() {
               {needsContact ? (
                 <div className={styles.contactCapture}>
                   <p className={styles.contactTitle}>
-                    Щоб менеджер міг відповісти, коли вас не буде біля екрана,
-                    залиште контакти:
+                    Залиште імʼя та телефон — менеджер зможе відповісти, навіть
+                    якщо ви закриєте чат:
                   </p>
                   <div className={styles.contactFields}>
                     <input
@@ -808,7 +841,7 @@ export default function ChatWidget() {
                 </div>
               ) : null}
 
-              {config.questions.length > 0 ? (
+              {config.questions.length > 0 && !needsContact ? (
                 <div className={styles.quick}>
                   {config.questions.map((question) => (
                     <button

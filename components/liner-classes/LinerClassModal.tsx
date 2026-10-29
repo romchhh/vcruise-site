@@ -168,20 +168,18 @@ export default function LinerClassModal({
           <div className="px-5 py-6 sm:px-8 sm:py-8 lg:px-10">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-10 xl:gap-12 lg:items-start">
               <div
-                className="relative aspect-[4/3] w-full overflow-hidden rounded-card-inner liner-class-media-frame sm:aspect-[3/2]"
+                className="relative aspect-[4/3] w-full overflow-hidden rounded-card-inner liner-class-media-frame liner-class-modal-photo sm:aspect-[3/2]"
               >
                 {activePhoto ? (
-                  <div className="absolute inset-3 sm:inset-5">
-                    <Image
-                      key={activePhoto}
-                      src={activePhoto}
-                      alt={`${linerClass.title} — фото ${photoIndex + 1}`}
-                      fill
-                      className="liner-class-media-img"
-                      sizes="(max-width: 1024px) 100vw, 620px"
-                      priority
-                    />
-                  </div>
+                  <Image
+                    key={activePhoto}
+                    src={activePhoto}
+                    alt={`${linerClass.title} — фото ${photoIndex + 1}`}
+                    fill
+                    className="liner-class-media-img"
+                    sizes="(max-width: 1024px) 100vw, 620px"
+                    priority
+                  />
                 ) : null}
 
                 {photos.length > 1 ? (

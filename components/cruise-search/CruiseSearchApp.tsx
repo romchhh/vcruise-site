@@ -37,6 +37,7 @@ export default function CruiseSearchApp({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const resultsAnchorRef = useRef<HTMLDivElement>(null);
   const bookableCruises = useMemo(
     () => cruises.filter((cruise) => hasBookableDates(cruise)),
     [cruises]
@@ -263,6 +264,12 @@ export default function CruiseSearchApp({
     };
     setFilters(next);
     syncFiltersToUrl(next);
+    window.setTimeout(() => {
+      resultsAnchorRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 80);
   };
 
   const resetFilters = () => {
@@ -340,7 +347,10 @@ export default function CruiseSearchApp({
             </p>
           ) : null}
 
-          <div className="mt-6 space-y-4 rounded-card bg-white p-4 sm:mt-8 sm:p-5">
+          <div
+            ref={resultsAnchorRef}
+            className="mt-6 scroll-mt-28 space-y-4 rounded-card bg-white p-4 sm:mt-8 sm:p-5"
+          >
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <CruiseSortControls
                 value={filters.sort}

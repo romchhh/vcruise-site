@@ -31,15 +31,13 @@ export default function LinerClassCard({
     <article
       className="group relative aspect-[3/4.5] w-full min-w-0 overflow-hidden rounded-card liner-class-media-frame sm:aspect-[3/4.2] sm:min-h-[400px]"
     >
-      <div className="absolute inset-2 sm:inset-3">
-        <Image
-          src={linerClass.image}
-          alt={linerClass.title}
-          fill
-          className="liner-class-media-img transition-transform duration-500 group-hover:scale-[1.02]"
-          sizes="(max-width: 1024px) 50vw, 25vw"
-        />
-      </div>
+      <Image
+        src={linerClass.image}
+        alt={linerClass.title}
+        fill
+        className="liner-class-media-img"
+        sizes="(max-width: 1024px) 50vw, 25vw"
+      />
 
       <div className="liner-class-card-scrim-top" aria-hidden />
       <div className="liner-class-card-scrim-bottom" aria-hidden />
