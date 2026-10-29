@@ -24,6 +24,10 @@ const DEFAULT_AGENT_IMAGE = "/images/chat-assistant.jpg";
 const TEASER_DELAY_MS = 7000;
 const TEASER_STORAGE_KEY = "vcruise-chat-teaser-dismissed";
 
+function quickButtonsStorageKey(conversationId: string) {
+  return `vcruise-chat-quick-used-${conversationId}`;
+}
+
 function needsRating(conversation: ChatConversation) {
   return conversation.rating == null && Boolean(conversation.ratingAskReason);
 }
@@ -128,6 +132,7 @@ export default function ChatWidget() {
   const [contactBusy, setContactBusy] = useState(false);
   const [contactError, setContactError] = useState("");
   const [contactSaved, setContactSaved] = useState(false);
+  const [quickHidden, setQuickHidden] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -360,6 +365,14 @@ export default function ChatWidget() {
       contactCaptured(conversation) ||
         contactSavedLocally(conversation.id),
     );
+    try {
+      setQuickHidden(
+        sessionStorage.getItem(quickButtonsStorageKey(conversation.id)) ===
+          "1",
+      );
+    } catch {
+      setQuickHidden(false);
+    }
   }, [
     conversation?.id,
     conversation?.visitorName,
@@ -402,7 +415,7 @@ export default function ChatWidget() {
   useEffect(() => {
     if (!open || !stickToBottomRef.current) return;
     requestAnimationFrame(() => scrollToBottom("auto"));
-  }, [needsContact, askRating, contactSaved, open, scrollToBottom]);
+  }, [needsContact, askRating, contactSaved, quickHidden, open, scrollToBottom]);
 
   useEffect(() => {
     if (!open || !conversation) return;
@@ -561,6 +574,18 @@ export default function ChatWidget() {
     } finally {
       setContactBusy(false);
     }
+  }
+
+  async function sendQuickMessage(text: string) {
+    if (conversation?.id) {
+      try {
+        sessionStorage.setItem(quickButtonsStorageKey(conversation.id), "1");
+      } catch {
+        // ignore
+      }
+    }
+    setQuickHidden(true);
+    await sendMessage(text);
   }
 
   async function sendMessage(rawText: string) {
@@ -938,14 +963,14 @@ export default function ChatWidget() {
                 </form>
               ) : null}
 
-              {config.questions.length > 0 && !needsContact ? (
+              {config.questions.length > 0 && !needsContact && !quickHidden ? (
                 <div className={styles.quick}>
                   {config.questions.map((question) => (
                     <button
                       key={question.id}
                       type="button"
                       className={styles.quickChip}
-                      onClick={() => void sendMessage(question.text)}
+                      onClick={() => void sendQuickMessage(question.text)}
                       disabled={sending}
                     >
                       {question.label}
