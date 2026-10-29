@@ -129,6 +129,9 @@ export default function ChatWidget() {
   const [contactError, setContactError] = useState("");
   const [contactSaved, setContactSaved] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const lastScrolledMessageIdRef = useRef<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastSoundId = useRef<string | null>(null);
@@ -172,10 +175,21 @@ export default function ChatWidget() {
     if (contactCaptured(next)) setContactSaved(true);
   }, []);
 
-  const scrollToBottom = useCallback(() => {
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const end = messagesEndRef.current;
+    if (end) {
+      end.scrollIntoView({ behavior, block: "end" });
+      return;
+    }
     const el = listRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
+
+  const isNearBottom = useCallback((threshold = 100) => {
+    const el = listRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
   }, []);
 
   useEffect(() => {
@@ -354,9 +368,41 @@ export default function ChatWidget() {
   ]);
 
   useEffect(() => {
+    if (!open) return;
+    const el = listRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      stickToBottomRef.current = isNearBottom();
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [open, isNearBottom]);
+
+  useEffect(() => {
     if (!open || !conversation) return;
-    scrollToBottom();
-  }, [messages, open, conversation, scrollToBottom]);
+    const last = messages[messages.length - 1];
+    const lastId = last?.id ?? null;
+    const messageChanged = lastId !== lastScrolledMessageIdRef.current;
+    lastScrolledMessageIdRef.current = lastId;
+
+    if (!messageChanged && !stickToBottomRef.current) return;
+
+    if (messageChanged) {
+      stickToBottomRef.current = true;
+    }
+
+    const behavior: ScrollBehavior =
+      messageChanged && last?.role === "visitor" ? "smooth" : "auto";
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => scrollToBottom(behavior));
+    });
+  }, [messages, open, conversation?.id, scrollToBottom]);
+
+  useEffect(() => {
+    if (!open || !stickToBottomRef.current) return;
+    requestAnimationFrame(() => scrollToBottom("auto"));
+  }, [needsContact, askRating, contactSaved, open, scrollToBottom]);
 
   useEffect(() => {
     if (!open || !conversation) return;
@@ -419,9 +465,11 @@ export default function ChatWidget() {
     dismissTeaser();
     setOpen(true);
     setUnread(0);
+    stickToBottomRef.current = true;
     if (!conversation) {
       await ensureSession();
     }
+    requestAnimationFrame(() => scrollToBottom("auto"));
   }
 
   function addPendingFiles(files: File[]) {
@@ -496,7 +544,10 @@ export default function ChatWidget() {
         mergeMessages([data.contactThankYou]);
       }
       setContactSaved(true);
-      queueMicrotask(() => scrollToBottom());
+      stickToBottomRef.current = true;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => scrollToBottom("smooth"));
+      });
       try {
         sessionStorage.setItem(
           `vcruise-chat-contact-${conversation.id}`,
@@ -541,6 +592,8 @@ export default function ChatWidget() {
       mergeMessages([data.message]);
       if (data.autoReply) mergeMessages([data.autoReply]);
       if (data.conversation) applyConversation(data.conversation);
+      stickToBottomRef.current = true;
+      requestAnimationFrame(() => scrollToBottom("smooth"));
       setText("");
       pendingFiles.forEach((item) => {
         if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
@@ -759,9 +812,11 @@ export default function ChatWidget() {
                 </div>
               );
             })}
+            <div ref={messagesEndRef} className={styles.messagesEnd} aria-hidden />
           </div>
 
-          {askRating || ratingThanks ? (
+          <div className={styles.panelFooter}>
+            {askRating || ratingThanks ? (
             <div className={styles.ratingCard}>
               {ratingThanks || conversation?.rating != null ? (
                 <div className={styles.ratingThanks}>
@@ -834,7 +889,7 @@ export default function ChatWidget() {
                 </>
               )}
             </div>
-          ) : null}
+            ) : null}
 
           {!chatClosed && !askRating ? (
             <>
@@ -1002,6 +1057,7 @@ export default function ChatWidget() {
               Діалог завершено. Якщо потрібна допомога — напишіть нам знову.
             </div>
           ) : null}
+          </div>
         </div>
       ) : null}
 
