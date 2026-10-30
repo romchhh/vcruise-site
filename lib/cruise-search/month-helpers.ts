@@ -46,3 +46,14 @@ export function sanitizeSelectedMonths(
     isMonthSelectable(month, year, referenceDate)
   );
 }
+
+/** Year context for month chips when the year dropdown is hidden (dates take precedence). */
+export function effectiveMonthYear(
+  year: string,
+  dateFrom = "",
+  dateTo = "",
+) {
+  if (dateFrom.length >= 4) return dateFrom.slice(0, 4);
+  if (dateTo.length >= 4) return dateTo.slice(0, 4);
+  return year;
+}

@@ -16,7 +16,7 @@ function buildShipSearchHref(ship: LinerClass["ships"][number]) {
 }
 
 const shipChipClass =
-  "chip chip-glass normal-case text-caption leading-tight max-sm:px-2.5 max-sm:py-1 sm:px-3 sm:py-1";
+  "chip chip-glass normal-case text-caption leading-snug max-w-full whitespace-normal text-center max-sm:px-2.5 max-sm:py-1 sm:px-3 sm:py-1";
 
 type LinerClassCardProps = {
   linerClass: LinerClass;
@@ -29,7 +29,7 @@ export default function LinerClassCard({
 }: LinerClassCardProps) {
   return (
     <article
-      className="group relative aspect-[3/4.5] w-full min-w-0 overflow-hidden rounded-card liner-class-media-frame sm:aspect-[3/4.2] sm:min-h-[400px]"
+      className="group relative aspect-[3/4] w-full min-w-0 overflow-hidden rounded-card liner-class-media-frame sm:aspect-[4/5] sm:min-h-[380px]"
     >
       <Image
         src={linerClass.image}
@@ -52,7 +52,7 @@ export default function LinerClassCard({
         </h3>
 
         <div className="mt-2 flex flex-col sm:mt-3">
-          <div className="flex max-h-[5.5rem] flex-wrap content-end gap-1 overflow-y-auto sm:max-h-none sm:content-start sm:gap-2">
+          <div className="flex flex-wrap content-start gap-1 sm:gap-2">
             {linerClass.ships.map((ship) => {
               const href = buildShipSearchHref(ship);
 

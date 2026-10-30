@@ -712,28 +712,30 @@ select.field-control::-ms-expand {
   }
 }
 
-/* Класи лайнерів: повноекранна обкладинка; легкий zoom ховає чорні смуги в PNG */
+/* Класи лайнерів: cover; zoom і позиція ховають letterbox у PNG */
 .liner-class-media-frame {
   background: var(--color-surface-muted);
 }
 
 .liner-class-media-img {
   object-fit: cover;
-  object-position: center;
-  transform: scale(1.06);
+  object-position: center 42%;
+  transform: scale(1.12);
+  transform-origin: center center;
   transition: transform 0.5s ease;
 }
 
 .liner-class-media-frame:hover .liner-class-media-img {
-  transform: scale(1.09);
+  transform: scale(1.15);
 }
 
 .liner-class-modal-photo .liner-class-media-img {
-  transform: scale(1.04);
+  object-position: center 40%;
+  transform: scale(1.18);
 }
 
 .liner-class-modal-photo:hover .liner-class-media-img {
-  transform: scale(1.06);
+  transform: scale(1.2);
 }
 
 .liner-class-card-scrim-top {
@@ -741,11 +743,11 @@ select.field-control::-ms-expand {
   position: absolute;
   inset-inline: 0;
   top: 0;
-  height: 42%;
+  height: 38%;
   background: linear-gradient(
     180deg,
-    rgb(0 0 0 / 0.72) 0%,
-    rgb(0 0 0 / 0.28) 55%,
+    rgb(0 0 0 / 0.65) 0%,
+    rgb(0 0 0 / 0.22) 55%,
     transparent 100%
   );
 }
@@ -755,11 +757,11 @@ select.field-control::-ms-expand {
   position: absolute;
   inset-inline: 0;
   bottom: 0;
-  height: 58%;
+  height: 52%;
   background: linear-gradient(
     0deg,
-    rgb(0 0 0 / 0.92) 0%,
-    rgb(0 0 0 / 0.45) 45%,
+    rgb(0 0 0 / 0.88) 0%,
+    rgb(0 0 0 / 0.38) 42%,
     transparent 100%
   );
 }
@@ -784,6 +786,10 @@ select.field-control::-ms-expand {
 .liner-class-modal-chip {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  text-align: center;
+  white-space: normal;
   border-radius: 999px;
   padding: 0.5rem 0.875rem;
   font-size: var(--text-caption-size);

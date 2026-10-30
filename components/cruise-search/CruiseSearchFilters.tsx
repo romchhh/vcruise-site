@@ -8,7 +8,7 @@ import {
   REGION_TREE,
 } from "@/lib/cruise-search/constants";
 import type { CruiseSearchFilters } from "@/lib/cruise-search/types";
-import { isMonthSelectable } from "@/lib/cruise-search/month-helpers";
+import { effectiveMonthYear, isMonthSelectable } from "@/lib/cruise-search/month-helpers";
 import { todayIso } from "@/lib/cruise-search/utils";
 import BudgetRangeSlider from "./BudgetRangeSlider";
 import CruiseCurrencyToggle from "./CruiseCurrencyToggle";
@@ -25,8 +25,6 @@ type Props = {
   onReset: () => void;
 };
 
-const years = ["Будь-коли", "2026", "2027", "2028"];
-
 export default function CruiseSearchFilters({
   filters,
   companies,
@@ -40,9 +38,14 @@ export default function CruiseSearchFilters({
   const selectedRegion = filters.regions[0] ?? "";
 
   const minDate = todayIso();
+  const monthYear = effectiveMonthYear(
+    filters.year,
+    filters.dateFrom,
+    filters.dateTo,
+  );
 
   const toggleMonth = (month: string) => {
-    if (!isMonthSelectable(month, filters.year)) return;
+    if (!isMonthSelectable(month, monthYear)) return;
 
     const months = filters.months.includes(month)
       ? filters.months.filter((item) => item !== month)
@@ -141,31 +144,6 @@ export default function CruiseSearchFilters({
 
         <label className="flex flex-col gap-2">
           <span className="text-caption font-semibold text-[color:var(--color-black)]">
-            Рік
-          </span>
-          <select
-            value={filters.year}
-            onChange={(event) => {
-              const year = event.target.value;
-              onChange({
-                year,
-                months: filters.months.filter((month) =>
-                  isMonthSelectable(month, year)
-                ),
-              });
-            }}
-            className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
-          >
-            {years.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-2">
-          <span className="text-caption font-semibold text-[color:var(--color-black)]">
             Тривалість
           </span>
           <select
@@ -181,31 +159,43 @@ export default function CruiseSearchFilters({
           </select>
         </label>
 
-        <label className="flex flex-col gap-2">
-          <span className="text-caption font-semibold text-[color:var(--color-black)]">
-            Дата від
-          </span>
-          <input
-            type="date"
-            min={minDate}
-            value={filters.dateFrom}
-            onChange={(event) => onChange({ dateFrom: event.target.value })}
-            className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
-          />
-        </label>
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:col-span-2 xl:col-span-2">
+          <label className="flex flex-col gap-2">
+            <span className="text-caption font-semibold text-[color:var(--color-black)]">
+              Дата від
+            </span>
+            <input
+              type="date"
+              min={minDate}
+              value={filters.dateFrom}
+              onChange={(event) =>
+                onChange({
+                  dateFrom: event.target.value,
+                  year: "Будь-коли",
+                })
+              }
+              className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
+            />
+          </label>
 
-        <label className="flex flex-col gap-2">
-          <span className="text-caption font-semibold text-[color:var(--color-black)]">
-            Дата до
-          </span>
-          <input
-            type="date"
-            min={filters.dateFrom || minDate}
-            value={filters.dateTo}
-            onChange={(event) => onChange({ dateTo: event.target.value })}
-            className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
-          />
-        </label>
+          <label className="flex flex-col gap-2">
+            <span className="text-caption font-semibold text-[color:var(--color-black)]">
+              Дата до
+            </span>
+            <input
+              type="date"
+              min={filters.dateFrom || minDate}
+              value={filters.dateTo}
+              onChange={(event) =>
+                onChange({
+                  dateTo: event.target.value,
+                  year: "Будь-коли",
+                })
+              }
+              className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
+            />
+          </label>
+        </div>
 
         <BudgetRangeSlider
           minBound={priceBoundMin}
@@ -224,7 +214,7 @@ export default function CruiseSearchFilters({
         <div className="mt-3 flex flex-wrap gap-2">
           {MONTH_LABELS.map((month) => {
             const selected = filters.months.includes(month);
-            const selectable = isMonthSelectable(month, filters.year);
+            const selectable = isMonthSelectable(month, monthYear);
             return (
               <button
                 key={month}

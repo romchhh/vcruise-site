@@ -3,7 +3,21 @@ import {
   HERO_DESTINATION_REGION_IDS,
   REGION_TREE,
 } from "./constants";
+import {
+  AFRICA_COUNTRY_CODES,
+  JAPAN_COUNTRY_CODE,
+  routeVisitsAnyCountry,
+  routeVisitsCountry,
+} from "./country-flag";
 import type { CruiseRecord } from "./types";
+
+const AFRICA_REGION_IDS = new Set(["AFR", "INW", "RED"]);
+const AFRICA_REGION_ID_PATTERNS = [
+  /^Africa & Indian Ocean/i,
+  /^Canaries and African Atlantic/i,
+] as const;
+
+const JAPAN_REGION_TOKENS = new Set(["JPN", "Японія"]);
 
 /**
  * Expand a UI region token (hero label, tree group, leaf id/label, finder alias)
@@ -60,6 +74,38 @@ function collectRegionMatchers(region: string) {
   return { ids, names };
 }
 
+function isAfricaRegionFilter(region: string, ids: Set<string>) {
+  if (region === "Африка") return true;
+  if (ids.has("AFR") || ids.has("INW") || ids.has("RED")) return true;
+  return false;
+}
+
+function matchesAfricaCatalogRegion(cruise: CruiseRecord) {
+  const regionId = cruise.region_id ?? "";
+  const regionName = cruise.region_name ?? "";
+
+  if (AFRICA_REGION_IDS.has(regionId)) return true;
+  if (AFRICA_REGION_ID_PATTERNS.some((pattern) => pattern.test(regionId))) {
+    return true;
+  }
+  if (regionName.includes("Африка") || regionName.includes("Червоне море")) {
+    return true;
+  }
+
+  return routeVisitsAnyCountry(cruise.route, AFRICA_COUNTRY_CODES);
+}
+
+function isJapanRegionFilter(region: string) {
+  if (JAPAN_REGION_TOKENS.has(region)) return true;
+  return region === "JPN";
+}
+
+function matchesJapanCatalogRegion(cruise: CruiseRecord) {
+  if (cruise.region_id === "JPN") return true;
+  if ((cruise.region_name ?? "").includes("Япон")) return true;
+  return routeVisitsCountry(cruise.route, JAPAN_COUNTRY_CODE);
+}
+
 export function matchesCruiseRegion(cruise: CruiseRecord, region: string) {
   if (!region) return true;
 
@@ -72,6 +118,14 @@ export function matchesCruiseRegion(cruise: CruiseRecord, region: string) {
   // Legacy soft match: some region_ids are English phrases containing tree ids.
   for (const id of ids) {
     if (id.length >= 3 && cruise.region_id.includes(id)) return true;
+  }
+
+  if (isJapanRegionFilter(region) && matchesJapanCatalogRegion(cruise)) {
+    return true;
+  }
+
+  if (isAfricaRegionFilter(region, ids) && matchesAfricaCatalogRegion(cruise)) {
+    return true;
   }
 
   return false;

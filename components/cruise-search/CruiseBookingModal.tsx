@@ -769,7 +769,7 @@ export default function CruiseBookingModal({
       return "Зачекайте, завантажуємо актуальні тарифи…";
     }
     if (hasOffers && !form.offerKey) {
-      return "Оберіть тариф у таблиці кают під фото лайнера.";
+      return "Оберіть тариф у таблиці кают нижче.";
     }
     if (!form.cabinType) {
       return "Оберіть тип каюти, щоб активувати кнопку «Забронювати».";
@@ -801,19 +801,28 @@ export default function CruiseBookingModal({
       ? `На жаль, немає вільних кают при розміщенні на ${cabinPlacementLabel(form.adults, form.children, form.infants)}. Спробуйте вибрати меншу кількість.`
       : null;
 
+    const showOffersTable =
+      (offersLoading && !hasOffers) || hasOffers || Boolean(emptyMessage);
     const showContactUnderOffers =
       hasOffers || offersLoading || Boolean(emptyMessage);
 
+    if (!showOffersTable && !showContactUnderOffers) {
+      onOffersPanel(null);
+      return () => onOffersPanel(null);
+    }
+
     onOffersPanel(
       <div className="min-w-0 space-y-4">
-        <CabinOffersTable
-          offers={filteredOffers}
-          currency={currency}
-          selectedKey={form.offerKey}
-          onSelect={selectOfferAndScroll}
-          loading={offersLoading && !hasOffers}
-          emptyMessage={emptyMessage}
-        />
+        {showOffersTable ? (
+          <CabinOffersTable
+            offers={filteredOffers}
+            currency={currency}
+            selectedKey={form.offerKey}
+            onSelect={selectOfferAndScroll}
+            loading={offersLoading && !hasOffers}
+            emptyMessage={emptyMessage}
+          />
+        ) : null}
         {showContactUnderOffers ? (
           <div
             id="cruise-contact-cta"

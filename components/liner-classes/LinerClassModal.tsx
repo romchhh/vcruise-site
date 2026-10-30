@@ -166,9 +166,9 @@ export default function LinerClassModal({
           </div>
 
           <div className="px-5 py-6 sm:px-8 sm:py-8 lg:px-10">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-10 xl:gap-12 lg:items-start">
+            <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-10 xl:gap-12 lg:items-start">
               <div
-                className="relative aspect-[4/3] w-full overflow-hidden rounded-card-inner liner-class-media-frame liner-class-modal-photo sm:aspect-[3/2]"
+                className="relative aspect-[16/10] w-full min-w-0 overflow-hidden rounded-card-inner liner-class-media-frame liner-class-modal-photo sm:aspect-[3/2]"
               >
                 {activePhoto ? (
                   <Image
@@ -204,12 +204,12 @@ export default function LinerClassModal({
                 ) : null}
               </div>
 
-              <div className="flex flex-col">
-                <h3 className="text-h4 font-bold leading-snug text-[color:var(--color-black)]">
+              <div className="flex min-w-0 flex-col overflow-visible">
+                <h3 className="text-h4 font-bold leading-snug text-[color:var(--color-black)] break-words">
                   {linerClass.modalHeadline}
                 </h3>
 
-                <div className="text-body mt-4 space-y-3 text-subtitle">
+                <div className="text-body mt-4 space-y-3 break-words text-subtitle [overflow-wrap:anywhere]">
                   {linerClass.modalDescription.map((paragraph) => (
                     <p key={paragraph}>{paragraph}</p>
                   ))}
@@ -226,7 +226,10 @@ export default function LinerClassModal({
                       const href = buildLinerSearchHref(linerClass, liner);
                       if (!href) {
                         return (
-                          <span key={liner} className="liner-class-modal-chip">
+                          <span
+                            key={liner}
+                            className="liner-class-modal-chip max-w-full whitespace-normal text-center"
+                          >
                             {liner}
                           </span>
                         );
@@ -237,7 +240,7 @@ export default function LinerClassModal({
                           key={liner}
                           href={href}
                           onClick={onClose}
-                          className="liner-class-modal-chip liner-class-modal-chip--link"
+                          className="liner-class-modal-chip liner-class-modal-chip--link max-w-full whitespace-normal text-center"
                         >
                           {liner}
                         </Link>

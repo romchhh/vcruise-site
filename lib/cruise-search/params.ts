@@ -66,8 +66,21 @@ export function parseSearchParams(
   const defaults = createDefaultFilters(cruises);
   const regions = parseList(params.where).filter((item) => item !== "Будь-який");
   const yearRaw = Array.isArray(params.year) ? params.year[0] : params.year;
+  const dateFrom = Array.isArray(params.dateFrom)
+    ? params.dateFrom[0] ?? ""
+    : params.dateFrom ?? "";
+  const dateTo = Array.isArray(params.dateTo)
+    ? params.dateTo[0] ?? ""
+    : params.dateTo ?? "";
+
+  // Exact dates supersede the hero «year» param (same intent, no double filter).
   const year =
-    yearRaw && yearRaw !== "Будь-коли" ? yearRaw : defaults.year;
+    dateFrom || dateTo
+      ? defaults.year
+      : yearRaw && yearRaw !== "Будь-коли"
+        ? yearRaw
+        : defaults.year;
+
   const months = sanitizeSelectedMonths(
     parseList(params.months).filter((item) =>
       MONTH_LABELS.includes(item as (typeof MONTH_LABELS)[number])
@@ -107,12 +120,8 @@ export function parseSearchParams(
     year,
     months,
     duration,
-    dateFrom: Array.isArray(params.dateFrom)
-      ? params.dateFrom[0] ?? ""
-      : params.dateFrom ?? "",
-    dateTo: Array.isArray(params.dateTo)
-      ? params.dateTo[0] ?? ""
-      : params.dateTo ?? "",
+    dateFrom,
+    dateTo,
     adults: parseNumber(params.adults, 0),
     children: parseNumber(params.children, 0),
     infants: parseNumber(params.infants, 0),
@@ -133,7 +142,13 @@ export function buildSearchParams(filters: Partial<CruiseSearchFilters>) {
     params.set("where", filters.regions.join(","));
   }
 
-  if (filters.year && filters.year !== "Будь-коли") {
+  const hasExactDates = Boolean(filters.dateFrom || filters.dateTo);
+
+  if (
+    filters.year &&
+    filters.year !== "Будь-коли" &&
+    !hasExactDates
+  ) {
     params.set("year", filters.year);
   }
 

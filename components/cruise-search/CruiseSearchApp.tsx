@@ -19,7 +19,7 @@ import {
   createDefaultFilters,
   parseSearchParams,
 } from "@/lib/cruise-search/params";
-import { sanitizeSelectedMonths } from "@/lib/cruise-search/month-helpers";
+import { effectiveMonthYear, sanitizeSelectedMonths } from "@/lib/cruise-search/month-helpers";
 import { getSearchBounds, hasBookableDates } from "@/lib/cruise-search/utils";
 import type {
   CruiseRecord,
@@ -229,6 +229,18 @@ export default function CruiseSearchApp({
       next.months = sanitizeSelectedMonths(next.months, next.year);
     }
 
+    if ("dateFrom" in patch || "dateTo" in patch) {
+      if (next.dateFrom || next.dateTo) {
+        next.year = "Будь-коли";
+      }
+      const monthYear = effectiveMonthYear(
+        next.year,
+        next.dateFrom,
+        next.dateTo,
+      );
+      next.months = sanitizeSelectedMonths(next.months, monthYear);
+    }
+
     if ("currency" in patch && patch.currency) {
       const bounds = getSearchBounds(bookableCruises, patch.currency);
       next.priceMin = bounds.priceMin;
@@ -267,9 +279,15 @@ export default function CruiseSearchApp({
   };
 
   const applyFilters = () => {
+    const monthYear = effectiveMonthYear(
+      filters.year,
+      filters.dateFrom,
+      filters.dateTo,
+    );
     const next = {
       ...filters,
-      months: sanitizeSelectedMonths(filters.months, filters.year),
+      months: sanitizeSelectedMonths(filters.months, monthYear),
+      ...(filters.dateFrom || filters.dateTo ? { year: "Будь-коли" as const } : {}),
     };
     setFilters(next);
     syncFiltersToUrl(next);
@@ -287,7 +305,9 @@ export default function CruiseSearchApp({
     filters.regions.length > 0 ||
     filters.company ||
     filters.liner ||
-    filters.year !== "Будь-коли" ||
+    (filters.year !== "Будь-коли" &&
+      !filters.dateFrom &&
+      !filters.dateTo) ||
     filters.months.length > 0 ||
     filters.duration !== "Будь-яка" ||
     filters.dateFrom ||

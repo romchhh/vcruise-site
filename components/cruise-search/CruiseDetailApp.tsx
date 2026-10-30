@@ -175,10 +175,8 @@ export default function CruiseDetailApp({
           <div
             className="mt-6 grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:items-start lg:gap-8"
           >
-            <div
-              className="min-w-0 overflow-hidden rounded-card bg-white order-1 lg:col-start-1 lg:row-start-1"
-            >
-              <div className="relative aspect-[16/9] max-h-[220px] bg-[color:var(--color-surface-muted)] sm:max-h-[260px] lg:aspect-[21/9] lg:max-h-[240px]">
+            <div className="min-w-0 overflow-hidden rounded-card bg-white order-1 lg:col-start-1 lg:row-start-1">
+              <div className="relative h-[280px] w-full bg-[color:var(--color-surface-muted)] sm:h-[320px] lg:h-[400px]">
                 {cruise.liner_logo ? (
                   <CruiseLinerImage
                     src={cruise.liner_logo}
@@ -186,7 +184,12 @@ export default function CruiseDetailApp({
                     sizes="(max-width: 1024px) 100vw, 720px"
                     priority
                   />
-                ) : null}
+                ) : (
+                  <div
+                    className="absolute inset-0 bg-gradient-to-br from-[color:var(--color-brand)] to-[color:var(--color-brand-dark,#085a9c)]"
+                    aria-hidden
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 lg:p-8">
                   <span className="chip chip-muted-brand bg-white/90">
@@ -202,9 +205,7 @@ export default function CruiseDetailApp({
               </div>
             </div>
 
-            <div
-              className="min-w-0 order-3 lg:order-[unset] lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:sticky lg:top-28"
-            >
+            <div className="min-w-0 order-3 lg:order-[unset] lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:sticky lg:top-28">
               <CruiseBookingModal
                 variant="page"
                 cruise={cruise}
@@ -226,7 +227,7 @@ export default function CruiseDetailApp({
             {offersPanel ? (
               <section
                 id="cabin-offers"
-                className="min-w-0 scroll-mt-28 lg:col-start-1 lg:row-start-2 order-2 lg:order-[unset] rounded-card ring-1 ring-[color:var(--color-line)]/80"
+                className="min-w-0 scroll-mt-28 lg:col-start-1 lg:row-start-2 order-2 lg:order-[unset]"
               >
                 {offersPanel}
               </section>

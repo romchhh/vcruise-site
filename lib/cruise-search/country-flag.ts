@@ -189,6 +189,53 @@ function lookup(value: string) {
   return COUNTRY_NAMES[key] ?? null;
 }
 
+/** Sub-Saharan + North Africa + Red Sea hubs used for «Японія»-style route matching. */
+export const AFRICA_COUNTRY_CODES = new Set([
+  "DZ",
+  "AO",
+  "BJ",
+  "BW",
+  "CV",
+  "EG",
+  "GH",
+  "KE",
+  "MG",
+  "MU",
+  "MZ",
+  "NA",
+  "SC",
+  "SN",
+  "ST",
+  "TZ",
+  "ZA",
+  "ZW",
+  "MA",
+  "RE",
+]);
+
+export const JAPAN_COUNTRY_CODE = "JP";
+
+export function routeVisitsCountry(
+  route: string[] | undefined,
+  countryCode: string,
+) {
+  for (const place of route ?? []) {
+    if (countryCodeFromPlace(place) === countryCode) return true;
+  }
+  return false;
+}
+
+export function routeVisitsAnyCountry(
+  route: string[] | undefined,
+  countryCodes: Set<string>,
+) {
+  for (const place of route ?? []) {
+    const code = countryCodeFromPlace(place);
+    if (code && countryCodes.has(code)) return true;
+  }
+  return false;
+}
+
 /** Flag code for a route place line such as "Італія" or "Флорида, США". */
 export function countryCodeFromPlace(place: string): string | null {
   const cleaned = place.replace(NOTE, " ").replace(/\s+/g, " ").trim();

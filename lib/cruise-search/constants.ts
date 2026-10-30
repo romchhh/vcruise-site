@@ -91,7 +91,7 @@ export const FINDER_REGION_ALIASES: Record<string, string[]> = {
 export const HERO_DESTINATION_REGION_IDS: Record<string, string[]> = {
   "Південна Європа": ["GRE", "MED-W", "CAN", "MED-E"],
   "Північна Європа": ["ISL", "BAL", "UK", "NOR"],
-  Африка: ["RED"],
+  Африка: ["RED", "AFR", "INW"],
   Азія: ["UAE", "SEA", "JPN", "Asian Cruises"],
   "Австралія та Океанія": ["AUS", "POL"],
   "Трансатлантичні круїзи": [
@@ -129,7 +129,11 @@ export const REGION_TREE = [
   { group: null, items: [["ARC", "Арктика та Гренландія"]] },
   {
     group: "Африка та Індійський океан",
-    items: [["RED", "Червоне море"]],
+    items: [
+      ["AFR", "Африка та Індійський океан"],
+      ["INW", "О. Індійського океану"],
+      ["RED", "Червоне море"],
+    ],
   },
   { group: null, items: [["BER", "Бермуди"]] },
   { group: null, items: [["GV", "Гранд вояжи"]] },
