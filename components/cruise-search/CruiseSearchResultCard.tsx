@@ -7,13 +7,13 @@ import {
   CURRENCY_OPTIONS,
   CURRENCY_SYMBOL,
 } from "@/lib/cruise-search/constants";
+import { matchingSailingDates } from "@/lib/cruise-search/filter";
 import {
   cheapestPriceOnDate,
   embarkationPort,
   formatDate,
   formatMoney,
   getUpcomingDates,
-  sailingDateInFilter,
 } from "@/lib/cruise-search/utils";
 import { resolveBookingUrl } from "@/lib/cruise-search/booking-url";
 import { prefetchCruiseOffers } from "@/lib/cruise-search/fetch-cruise-offers-client";
@@ -47,22 +47,31 @@ export default function CruiseSearchResultCard({
   currency,
   dateFrom = "",
   dateTo = "",
+  year = "Будь-коли",
+  months = [],
   onOpen,
 }: {
   cruise: CruiseRecord;
   currency: CurrencyCode;
   dateFrom?: string;
   dateTo?: string;
+  year?: string;
+  months?: string[];
   onOpen: (cruise: CruiseRecord, preferredDate?: string) => void;
 }) {
   const [datesOpen, setDatesOpen] = useState(false);
   const cardRef = useRef<HTMLElement | null>(null);
   const prefetchedKeyRef = useRef("");
   const upcomingDates = useMemo(() => getUpcomingDates(cruise), [cruise]);
-  const highlightDate = useMemo(
-    () => sailingDateInFilter(cruise, dateFrom, dateTo),
-    [cruise, dateFrom, dateTo],
+  const sailingWindow = useMemo(
+    () => ({ dateFrom, dateTo, year, months }),
+    [dateFrom, dateTo, year, months],
   );
+  const matchedDates = useMemo(
+    () => matchingSailingDates(cruise, sailingWindow),
+    [cruise, sailingWindow],
+  );
+  const highlightDate = matchedDates[0] ?? null;
   const price = cheapestPriceOnDate(cruise, highlightDate, currency);
   const symbol = CURRENCY_SYMBOL[currency];
   const allCurrencyPrices = useMemo(
@@ -93,16 +102,11 @@ export default function CruiseSearchResultCard({
     prefetchCruiseOffers(bookingUrl);
   }, [cruise, highlightDate]);
 
-
   const datesForList = useMemo(() => {
-    if (!dateFrom && !dateTo) return upcomingDates;
-    return upcomingDates.filter((item) => {
-      const date = item.date!;
-      if (dateFrom && !dateTo) return date === dateFrom;
-      if (!dateFrom && dateTo) return date <= dateTo;
-      return date >= dateFrom && date <= dateTo;
-    });
-  }, [upcomingDates, dateFrom, dateTo]);
+    const allowed = new Set(matchedDates);
+    if (!allowed.size) return upcomingDates;
+    return upcomingDates.filter((item) => item.date && allowed.has(item.date));
+  }, [matchedDates, upcomingDates]);
 
   const openDetail = () => onOpen(cruise, highlightDate ?? undefined);
 

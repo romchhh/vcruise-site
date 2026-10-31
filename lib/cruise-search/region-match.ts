@@ -74,10 +74,10 @@ function collectRegionMatchers(region: string) {
   return { ids, names };
 }
 
-function isAfricaRegionFilter(region: string, ids: Set<string>) {
-  if (region === "Африка") return true;
-  if (ids.has("AFR") || ids.has("INW") || ids.has("RED")) return true;
-  return false;
+function isBroadAfricaFilter(region: string) {
+  return (
+    region === "Африка" || region === "Африка та Індійський океан"
+  );
 }
 
 function matchesAfricaCatalogRegion(cruise: CruiseRecord) {
@@ -115,16 +115,11 @@ export function matchesCruiseRegion(cruise: CruiseRecord, region: string) {
     return true;
   }
 
-  // Legacy soft match: some region_ids are English phrases containing tree ids.
-  for (const id of ids) {
-    if (id.length >= 3 && cruise.region_id.includes(id)) return true;
-  }
-
   if (isJapanRegionFilter(region) && matchesJapanCatalogRegion(cruise)) {
     return true;
   }
 
-  if (isAfricaRegionFilter(region, ids) && matchesAfricaCatalogRegion(cruise)) {
+  if (isBroadAfricaFilter(region) && matchesAfricaCatalogRegion(cruise)) {
     return true;
   }
 

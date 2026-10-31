@@ -15,6 +15,7 @@ import {
 import { FEATURED_CRUISE_COMPANIES } from "@/lib/cruise-search/companies";
 import { filterCruises, sortCruises } from "@/lib/cruise-search/filter";
 import {
+  alignCompanyLinerFilters,
   buildSearchParams,
   createDefaultFilters,
   parseSearchParams,
@@ -43,7 +44,7 @@ export default function CruiseSearchApp({
     [cruises]
   );
 
-  const initialFilters = useMemo(() => {
+  const appliedFilters = useMemo(() => {
     const params: Record<string, string | string[] | undefined> = {};
     searchParams.forEach((value, key) => {
       params[key] = value;
@@ -51,17 +52,17 @@ export default function CruiseSearchApp({
     return parseSearchParams(params, bookableCruises);
   }, [bookableCruises, searchParams]);
 
-  const [filters, setFilters] =
-    useState<CruiseSearchFiltersState>(initialFilters);
+  const [draftFilters, setDraftFilters] =
+    useState<CruiseSearchFiltersState>(appliedFilters);
 
   const priceBounds = useMemo(
-    () => getSearchBounds(bookableCruises, filters.currency),
-    [bookableCruises, filters.currency],
+    () => getSearchBounds(bookableCruises, appliedFilters.currency),
+    [bookableCruises, appliedFilters.currency],
   );
 
   const defaults = useMemo(
-    () => createDefaultFilters(bookableCruises, filters.currency),
-    [bookableCruises, filters.currency],
+    () => createDefaultFilters(bookableCruises, appliedFilters.currency),
+    [bookableCruises, appliedFilters.currency],
   );
   const [visibleCount, setVisibleCount] = useState(SEARCH_RESULTS_PAGE_SIZE);
   const pendingScrollRef = useRef<number | null>(null);
@@ -85,20 +86,20 @@ export default function CruiseSearchApp({
       buildCruiseDetailPath(key, {
         listQuery: nextListQuery,
         sailing: deepLinkDate,
-        currency: initialFilters.currency,
-        adults: initialFilters.adults > 0 ? initialFilters.adults : 2,
-        children: initialFilters.children,
-        infants: initialFilters.infants,
+        currency: appliedFilters.currency,
+        adults: appliedFilters.adults > 0 ? appliedFilters.adults : 2,
+        children: appliedFilters.children,
+        infants: appliedFilters.infants,
       }),
     );
   }, [
     bookableCruises,
     deepLinkCruiseKey,
     deepLinkDate,
-    initialFilters.adults,
-    initialFilters.children,
-    initialFilters.currency,
-    initialFilters.infants,
+    appliedFilters.adults,
+    appliedFilters.children,
+    appliedFilters.currency,
+    appliedFilters.infants,
     router,
     searchParams,
   ]);
@@ -123,19 +124,19 @@ export default function CruiseSearchApp({
     );
     // Keep a company from deep-links even if it's outside the featured list.
     if (
-      filters.company &&
-      !list.includes(filters.company) &&
-      available.has(filters.company)
+      appliedFilters.company &&
+      !list.includes(appliedFilters.company) &&
+      available.has(appliedFilters.company)
     ) {
-      list.push(filters.company);
+      list.push(appliedFilters.company);
     }
     return list.sort((a, b) => a.localeCompare(b, "uk"));
-  }, [bookableCruises, filters.company]);
+  }, [bookableCruises, appliedFilters.company]);
 
   const liners = useMemo(() => {
-    const pool = filters.company
+    const pool = draftFilters.company
       ? bookableCruises.filter(
-          (cruise) => cruise.cruise_title === filters.company
+          (cruise) => cruise.cruise_title === draftFilters.company
         )
       : bookableCruises;
 
@@ -146,34 +147,33 @@ export default function CruiseSearchApp({
     );
 
     // Ensure the selected liner from URL is always visible in the dropdown.
-    if (filters.liner && !map.has(filters.liner)) {
+    if (draftFilters.liner && !map.has(draftFilters.liner)) {
       const match = bookableCruises.find(
-        (cruise) => cruise.liner_slug === filters.liner,
+        (cruise) => cruise.liner_slug === draftFilters.liner,
       );
       if (match?.liner_name) {
-        map.set(filters.liner, match.liner_name);
+        map.set(draftFilters.liner, match.liner_name);
       }
     }
 
     return [...map.entries()]
       .map(([slug, name]) => ({ slug, name }))
       .sort((left, right) => left.name.localeCompare(right.name, "uk"));
-  }, [bookableCruises, filters.company, filters.liner]);
+  }, [bookableCruises, draftFilters.company, draftFilters.liner]);
 
   const results = useMemo(() => {
-    const filtered = filterCruises(bookableCruises, filters);
-    return sortCruises(
-      filtered,
-      filters.sort,
-      filters.currency,
-      filters.dateFrom,
-      filters.dateTo,
-    );
-  }, [bookableCruises, filters]);
+    const filtered = filterCruises(bookableCruises, appliedFilters);
+    return sortCruises(filtered, appliedFilters.sort, appliedFilters.currency, {
+      dateFrom: appliedFilters.dateFrom,
+      dateTo: appliedFilters.dateTo,
+      year: appliedFilters.year,
+      months: appliedFilters.months,
+    });
+  }, [bookableCruises, appliedFilters]);
 
   useEffect(() => {
-    setFilters(initialFilters);
-  }, [initialFilters]);
+    setDraftFilters(appliedFilters);
+  }, [appliedFilters]);
 
   useEffect(() => {
     setVisibleCount(SEARCH_RESULTS_PAGE_SIZE);
@@ -206,16 +206,17 @@ export default function CruiseSearchApp({
       buildCruiseDetailPath(cruise.key, {
         listQuery,
         sailing: preferredDate,
-        currency: filters.currency,
-        adults: filters.adults > 0 ? filters.adults : 2,
-        children: filters.children,
-        infants: filters.infants,
+        currency: appliedFilters.currency,
+        adults: appliedFilters.adults > 0 ? appliedFilters.adults : 2,
+        children: appliedFilters.children,
+        infants: appliedFilters.infants,
       }),
     );
   };
 
   const syncFiltersToUrl = (nextFilters: CruiseSearchFiltersState) => {
-    const query = buildSearchParams(nextFilters);
+    const aligned = alignCompanyLinerFilters(nextFilters, bookableCruises);
+    const query = buildSearchParams(aligned);
     router.replace(query ? `/search?${query}` : "/search", { scroll: false });
   };
 
@@ -224,6 +225,19 @@ export default function CruiseSearchApp({
     patch: Partial<CruiseSearchFiltersState>,
   ): CruiseSearchFiltersState => {
     const next = { ...current, ...patch };
+
+    if ("liner" in patch && patch.liner) {
+      const match = bookableCruises.find(
+        (cruise) => cruise.liner_slug === patch.liner,
+      );
+      if (match?.cruise_title) {
+        next.company = match.cruise_title;
+      }
+    }
+
+    if ("company" in patch && patch.company !== current.company) {
+      next.liner = "";
+    }
 
     if ("year" in patch) {
       next.months = sanitizeSelectedMonths(next.months, next.year);
@@ -256,7 +270,7 @@ export default function CruiseSearchApp({
       "sort" in patch ||
       "currency" in patch;
 
-    setFilters((current) => {
+    setDraftFilters((current) => {
       const next = mergeFilterPatch(current, patch);
 
       if (shouldSyncUrl) {
@@ -280,45 +294,57 @@ export default function CruiseSearchApp({
 
   const applyFilters = () => {
     const monthYear = effectiveMonthYear(
-      filters.year,
-      filters.dateFrom,
-      filters.dateTo,
+      draftFilters.year,
+      draftFilters.dateFrom,
+      draftFilters.dateTo,
     );
-    const next = {
-      ...filters,
-      months: sanitizeSelectedMonths(filters.months, monthYear),
-      ...(filters.dateFrom || filters.dateTo ? { year: "Будь-коли" as const } : {}),
+    let next = {
+      ...draftFilters,
+      months: sanitizeSelectedMonths(draftFilters.months, monthYear),
+      ...(draftFilters.dateFrom || draftFilters.dateTo
+        ? { year: "Будь-коли" as const }
+        : {}),
     };
-    setFilters(next);
+    next = alignCompanyLinerFilters(next, bookableCruises);
+    setDraftFilters(next);
     syncFiltersToUrl(next);
     scrollToResults();
   };
 
   const resetFilters = () => {
     const reset = createDefaultFilters(bookableCruises, DEFAULT_CURRENCY);
-    setFilters(reset);
+    setDraftFilters(reset);
     router.replace("/search", { scroll: false });
     scrollToResults();
   };
 
   const hasActiveFilters =
-    filters.regions.length > 0 ||
-    filters.company ||
-    filters.liner ||
-    (filters.year !== "Будь-коли" &&
-      !filters.dateFrom &&
-      !filters.dateTo) ||
-    filters.months.length > 0 ||
-    filters.duration !== "Будь-яка" ||
-    filters.dateFrom ||
-    filters.dateTo ||
-    filters.priceMin > priceBounds.priceMin ||
-    filters.priceMax < priceBounds.priceMax ||
-    filters.newLinersOnly;
+    appliedFilters.regions.length > 0 ||
+    appliedFilters.company ||
+    appliedFilters.liner ||
+    (appliedFilters.year !== "Будь-коли" &&
+      !appliedFilters.dateFrom &&
+      !appliedFilters.dateTo) ||
+    appliedFilters.months.length > 0 ||
+    appliedFilters.duration !== "Будь-яка" ||
+    appliedFilters.dateFrom ||
+    appliedFilters.dateTo ||
+    appliedFilters.priceMin > priceBounds.priceMin ||
+    appliedFilters.priceMax < priceBounds.priceMax ||
+    appliedFilters.newLinersOnly;
 
-  const activeRegionLabel = filters.regions[0] || "";
+  const activeRegionLabel = appliedFilters.regions[0] || "";
   const activeLinerLabel =
-    liners.find((item) => item.slug === filters.liner)?.name || "";
+    liners.find((item) => item.slug === appliedFilters.liner)?.name ||
+    bookableCruises.find((c) => c.liner_slug === appliedFilters.liner)
+      ?.liner_name ||
+    "";
+
+  const filtersDirty = useMemo(
+    () =>
+      buildSearchParams(draftFilters) !== buildSearchParams(appliedFilters),
+    [draftFilters, appliedFilters],
+  );
 
   return (
     <main className="bg-background pb-16 pt-28 sm:pt-32">
@@ -333,16 +359,16 @@ export default function CruiseSearchApp({
               Актуальні пропозиції від провідних круїзних компаній. Оберіть
               напрямок, дати та тривалість — ми покажемо найкращі варіанти.
             </p>
-            {activeRegionLabel || activeLinerLabel || filters.company ? (
+            {activeRegionLabel || activeLinerLabel || appliedFilters.company ? (
               <div className="mt-3 flex flex-col gap-1">
                 {activeRegionLabel ? (
                   <p className="text-caption font-semibold text-[color:var(--color-brand)]">
                     Обраний напрямок: {activeRegionLabel}
                   </p>
                 ) : null}
-                {filters.company ? (
+                {appliedFilters.company ? (
                   <p className="text-caption font-semibold text-[color:var(--color-brand)]">
-                    Компанія: {filters.company}
+                    Компанія: {appliedFilters.company}
                   </p>
                 ) : null}
                 {activeLinerLabel ? (
@@ -355,7 +381,7 @@ export default function CruiseSearchApp({
           </div>
 
           <CruiseSearchFilters
-            filters={filters}
+            filters={draftFilters}
             companies={companies}
             liners={liners}
             priceBoundMin={priceBounds.priceMin}
@@ -364,6 +390,13 @@ export default function CruiseSearchApp({
             onApply={applyFilters}
             onReset={resetFilters}
           />
+
+          {filtersDirty ? (
+            <p className="text-caption mt-3 font-medium text-[color:var(--color-brand)]">
+              Зміни у фільтрах ще не застосовані — натисніть «Застосувати», щоб
+              оновити результати.
+            </p>
+          ) : null}
 
           {hasActiveFilters ? (
             <p className="text-caption mt-4 text-subtitle">
@@ -380,12 +413,12 @@ export default function CruiseSearchApp({
             <div className="space-y-4 rounded-card bg-white p-4 sm:p-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <CruiseSortControls
-                  value={filters.sort}
+                  value={appliedFilters.sort}
                   onChange={(sort) => updateFilters({ sort })}
                 />
                 <CruiseCurrencyToggle
                   compact
-                  value={filters.currency}
+                  value={appliedFilters.currency}
                   onChange={(currency) => updateFilters({ currency })}
                 />
               </div>
@@ -423,9 +456,11 @@ export default function CruiseSearchApp({
                 <CruiseSearchResultCard
                   key={cruise.key}
                   cruise={cruise}
-                  currency={filters.currency}
-                  dateFrom={filters.dateFrom}
-                  dateTo={filters.dateTo}
+                  currency={appliedFilters.currency}
+                  dateFrom={appliedFilters.dateFrom}
+                  dateTo={appliedFilters.dateTo}
+                  year={appliedFilters.year}
+                  months={appliedFilters.months}
                   onOpen={openCruise}
                 />
               ))

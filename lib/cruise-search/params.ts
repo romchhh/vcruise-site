@@ -59,6 +59,25 @@ export function createDefaultFilters(
   };
 }
 
+/** Keep company ↔ liner consistent with catalog (4gates slugs). */
+export function alignCompanyLinerFilters(
+  filters: CruiseSearchFilters,
+  cruises: CruiseRecord[],
+): CruiseSearchFilters {
+  if (!filters.liner) return filters;
+
+  const match = cruises.find((cruise) => cruise.liner_slug === filters.liner);
+  if (!match) {
+    return { ...filters, liner: "" };
+  }
+
+  if (!filters.company || filters.company !== match.cruise_title) {
+    return { ...filters, company: match.cruise_title };
+  }
+
+  return filters;
+}
+
 export function parseSearchParams(
   params: Record<string, string | string[] | undefined>,
   cruises: CruiseRecord[]
@@ -108,31 +127,34 @@ export function parseSearchParams(
   const priceMin = parseNumber(params.priceMin, bounds.priceMin);
   const priceMax = parseNumber(params.priceMax, bounds.priceMax);
 
-  return {
-    ...defaults,
-    regions,
-    company: Array.isArray(params.company)
-      ? params.company[0] ?? ""
-      : params.company ?? "",
-    liner: Array.isArray(params.liner)
-      ? params.liner[0] ?? ""
-      : params.liner ?? "",
-    year,
-    months,
-    duration,
-    dateFrom,
-    dateTo,
-    adults: parseNumber(params.adults, 0),
-    children: parseNumber(params.children, 0),
-    infants: parseNumber(params.infants, 0),
-    durMin: bounds.durMin,
-    durMax: bounds.durMax,
-    priceMin: Math.min(Math.max(priceMin, bounds.priceMin), bounds.priceMax),
-    priceMax: Math.max(Math.min(priceMax, bounds.priceMax), bounds.priceMin),
-    sort: (sortRaw as CruiseSort) || defaults.sort,
-    currency,
-    newLinersOnly: newLinersRaw === "1",
-  };
+  return alignCompanyLinerFilters(
+    {
+      ...defaults,
+      regions,
+      company: Array.isArray(params.company)
+        ? params.company[0] ?? ""
+        : params.company ?? "",
+      liner: Array.isArray(params.liner)
+        ? params.liner[0] ?? ""
+        : params.liner ?? "",
+      year,
+      months,
+      duration,
+      dateFrom,
+      dateTo,
+      adults: parseNumber(params.adults, 0),
+      children: parseNumber(params.children, 0),
+      infants: parseNumber(params.infants, 0),
+      durMin: bounds.durMin,
+      durMax: bounds.durMax,
+      priceMin: Math.min(Math.max(priceMin, bounds.priceMin), bounds.priceMax),
+      priceMax: Math.max(Math.min(priceMax, bounds.priceMax), bounds.priceMin),
+      sort: (sortRaw as CruiseSort) || defaults.sort,
+      currency,
+      newLinersOnly: newLinersRaw === "1",
+    },
+    cruises,
+  );
 }
 
 export function buildSearchParams(filters: Partial<CruiseSearchFilters>) {

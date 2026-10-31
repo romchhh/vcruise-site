@@ -8,7 +8,6 @@ import {
   cheapestPriceOnDate,
   getDurationBounds,
   hasBookableDates,
-  sailingDateInFilter,
   todayIso,
 } from "./utils";
 import type { CruiseRecord, CruiseSearchFilters, CruiseSort } from "./types";
@@ -19,18 +18,59 @@ function matchesHeroDuration(cruise: CruiseRecord, duration: string) {
   return cruise.nights >= bounds.min && cruise.nights <= bounds.max;
 }
 
-function matchesYearAndMonths(
-  cruise: CruiseRecord,
-  year: string,
-  months: string[]
-) {
-  if (year === "Будь-коли" && months.length === 0) return true;
+export type SailingWindow = {
+  dateFrom?: string;
+  dateTo?: string;
+  year?: string;
+  months?: string[];
+};
 
+export function hasSailingWindow(window: SailingWindow) {
+  return Boolean(
+    window.dateFrom ||
+      window.dateTo ||
+      (window.year && window.year !== "Будь-коли") ||
+      window.months?.length,
+  );
+}
+
+function isoInSailingWindow(iso: string, window: SailingWindow) {
+  const dateFrom = window.dateFrom ?? "";
+  const dateTo = window.dateTo ?? "";
+  const year = window.year && window.year !== "Будь-коли" ? window.year : "";
+  const months = window.months ?? [];
+
+  if (dateFrom && dateTo) {
+    if (iso < dateFrom || iso > dateTo) return false;
+  } else if (dateFrom) {
+    if (iso !== dateFrom) return false;
+  } else if (dateTo) {
+    if (iso > dateTo) return false;
+  }
+
+  if (year && iso.slice(0, 4) !== year) return false;
+
+  if (months.length) {
+    const monthIndex = Number(iso.slice(5, 7)) - 1;
+    const monthYear = year || iso.slice(0, 4);
+    const activeMonths = sanitizeSelectedMonths(months, monthYear);
+    if (!activeMonths.some((label) => MONTH_INDEX[label] === monthIndex)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/** Bookable departures that satisfy date range, year and months together. */
+export function matchingSailingDates(
+  cruise: CruiseRecord,
+  window: SailingWindow = {},
+) {
   const today = todayIso();
   const dates = (cruise.available_dates ?? [])
     .map((item) => item.date)
     .filter((date): date is string => Boolean(date && date >= today));
-
   const pool =
     dates.length > 0
       ? dates
@@ -38,47 +78,22 @@ function matchesYearAndMonths(
         ? [cruise.base_date_start]
         : [];
 
-  if (!pool.length) return year === "Будь-коли" && months.length === 0;
+  const matched = hasSailingWindow(window)
+    ? pool.filter((iso) => isoInSailingWindow(iso, window))
+    : pool;
 
-  const activeMonths = sanitizeSelectedMonths(months, year);
-
-  return pool.some((iso) => {
-    const [dateYear, dateMonth] = iso.split("-");
-    if (year !== "Будь-коли" && dateYear !== year) return false;
-
-    if (!activeMonths.length) return true;
-
-    const monthIndex = Number(dateMonth) - 1;
-    return activeMonths.some((label) => MONTH_INDEX[label] === monthIndex);
-  });
+  return [...matched].sort();
 }
 
-function matchesDateRange(
+function bookingUrlMatchesLiner(
   cruise: CruiseRecord,
-  dateFrom: string,
-  dateTo: string
+  iso: string,
+  linerSlug: string,
 ) {
-  if (!dateFrom && !dateTo) return true;
-
-  const today = todayIso();
-  const dates = (cruise.available_dates ?? [])
-    .map((item) => item.date)
-    .filter((date): date is string => Boolean(date && date >= today));
-
-  if (!dates.length) return false;
-
-  // Only «від» → exact sailing day (not «from this day onward»).
-  if (dateFrom && !dateTo) {
-    return dates.some((date) => date === dateFrom);
-  }
-
-  if (!dateFrom && dateTo) {
-    return dates.some((date) => date <= dateTo);
-  }
-
-  return dates.some(
-    (date) => date >= dateFrom && date <= dateTo,
-  );
+  const entry = (cruise.available_dates ?? []).find((item) => item.date === iso);
+  const url = entry?.booking_url?.toLowerCase() ?? "";
+  if (!url) return true;
+  return url.includes(linerSlug.toLowerCase());
 }
 
 export function filterCruises(
@@ -96,19 +111,18 @@ export function filterCruises(
       return false;
     }
 
+    const sailings = matchingSailingDates(cruise, filters).filter((iso) =>
+      filters.liner
+        ? bookingUrlMatchesLiner(cruise, iso, filters.liner)
+        : true,
+    );
+
+    if (filters.liner && sailings.length === 0) return false;
+    if (hasSailingWindow(filters) && sailings.length === 0) return false;
+
     if (!matchesCruiseRegions(cruise, filters.regions)) return false;
 
     if (!matchesHeroDuration(cruise, filters.duration)) return false;
-
-    if (
-      !matchesYearAndMonths(cruise, filters.year, filters.months)
-    ) {
-      return false;
-    }
-
-    if (!matchesDateRange(cruise, filters.dateFrom, filters.dateTo)) {
-      return false;
-    }
 
     if (
       filters.newLinersOnly &&
@@ -119,7 +133,7 @@ export function filterCruises(
 
     const price = cheapestPriceOnDate(
       cruise,
-      sailingDateInFilter(cruise, filters.dateFrom, filters.dateTo),
+      sailings[0],
       filters.currency,
     );
     if (price != null) {
@@ -136,15 +150,15 @@ export function sortCruises(
   cruises: CruiseRecord[],
   sort: CruiseSort,
   currency: CruiseSearchFilters["currency"] = "EUR",
-  dateFrom = "",
-  dateTo = "",
+  window: SailingWindow = {},
 ) {
+  const sailingOf = (cruise: CruiseRecord) =>
+    matchingSailingDates(cruise, window)[0] ?? "";
+
   return [...cruises].sort((left, right) => {
     if (sort.startsWith("date")) {
-      const leftDate =
-        sailingDateInFilter(left, dateFrom, dateTo) ?? "";
-      const rightDate =
-        sailingDateInFilter(right, dateFrom, dateTo) ?? "";
+      const leftDate = sailingOf(left);
+      const rightDate = sailingOf(right);
       return sort === "date_asc"
         ? leftDate.localeCompare(rightDate)
         : rightDate.localeCompare(leftDate);
@@ -152,17 +166,11 @@ export function sortCruises(
 
     if (sort.startsWith("price")) {
       const leftPrice =
-        cheapestPriceOnDate(
-          left,
-          sailingDateInFilter(left, dateFrom, dateTo),
-          currency,
-        ) ?? Number.POSITIVE_INFINITY;
+        cheapestPriceOnDate(left, sailingOf(left), currency) ??
+        Number.POSITIVE_INFINITY;
       const rightPrice =
-        cheapestPriceOnDate(
-          right,
-          sailingDateInFilter(right, dateFrom, dateTo),
-          currency,
-        ) ?? Number.POSITIVE_INFINITY;
+        cheapestPriceOnDate(right, sailingOf(right), currency) ??
+        Number.POSITIVE_INFINITY;
       return sort === "price_asc"
         ? leftPrice - rightPrice
         : rightPrice - leftPrice;
