@@ -56,20 +56,42 @@ export function cheapestPrice(
   return cheapestFromCabins(cruise.from_price, currency);
 }
 
-/** Cheapest cabin price for a specific sailing date, else cruise-level from_price. */
+/**
+ * Price of this itinerary. `available_dates` belong to other sailings
+ * and must not replace this route's fare.
+ */
 export function cheapestPriceOnDate(
   cruise: CruiseRecord,
   date: string | null | undefined,
   currency: CurrencyCode = DEFAULT_CURRENCY,
 ) {
-  if (date) {
-    const entry = (cruise.available_dates ?? []).find(
-      (item) => item.date === date,
-    );
-    const fromDate = cheapestFromCabins(entry?.cabins, currency);
-    if (fromDate != null) return fromDate;
+  if (date && cruise.base_date_start && date !== cruise.base_date_start) {
+    return null;
   }
   return cheapestPrice(cruise, currency);
+}
+
+/** Catalog row whose own departure is this liner + date, not a nearest-date link. */
+export function findItineraryForSailing(
+  cruises: CruiseRecord[],
+  linerSlug: string,
+  date: string,
+  nights?: number,
+) {
+  const slug = linerSlug.trim().toLowerCase();
+  if (!slug || !date) return null;
+
+  const matches = cruises.filter(
+    (cruise) =>
+      cruise.liner_slug?.toLowerCase() === slug &&
+      cruise.base_date_start === date,
+  );
+  if (!matches.length) return null;
+  if (nights) {
+    const sameLength = matches.find((cruise) => cruise.nights === nights);
+    if (sameLength) return sameLength;
+  }
+  return matches[0];
 }
 
 export function embarkationPort(cruise: CruiseRecord) {

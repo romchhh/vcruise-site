@@ -13,7 +13,12 @@ import {
   SEARCH_RESULTS_PAGE_SIZE,
 } from "@/lib/cruise-search/constants";
 import { FEATURED_CRUISE_COMPANIES } from "@/lib/cruise-search/companies";
-import { filterCruises, sortCruises } from "@/lib/cruise-search/filter";
+import {
+  filterCruises,
+  groupCruisesByItinerary,
+  itineraryGroupKey,
+  sortCruises,
+} from "@/lib/cruise-search/filter";
 import {
   alignCompanyLinerFilters,
   buildSearchParams,
@@ -163,12 +168,18 @@ export default function CruiseSearchApp({
 
   const results = useMemo(() => {
     const filtered = filterCruises(bookableCruises, appliedFilters);
-    return sortCruises(filtered, appliedFilters.sort, appliedFilters.currency, {
-      dateFrom: appliedFilters.dateFrom,
-      dateTo: appliedFilters.dateTo,
-      year: appliedFilters.year,
-      months: appliedFilters.months,
-    });
+    const sorted = sortCruises(
+      filtered,
+      appliedFilters.sort,
+      appliedFilters.currency,
+      {
+        dateFrom: appliedFilters.dateFrom,
+        dateTo: appliedFilters.dateTo,
+        year: appliedFilters.year,
+        months: appliedFilters.months,
+      },
+    );
+    return groupCruisesByItinerary(sorted);
   }, [bookableCruises, appliedFilters]);
 
   useEffect(() => {
@@ -452,15 +463,12 @@ export default function CruiseSearchApp({
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
             {results.length ? (
-              visibleResults.map((cruise) => (
+              visibleResults.map((group) => (
                 <CruiseSearchResultCard
-                  key={cruise.key}
-                  cruise={cruise}
+                  key={itineraryGroupKey(group[0])}
+                  cruise={group[0]}
+                  departures={group}
                   currency={appliedFilters.currency}
-                  dateFrom={appliedFilters.dateFrom}
-                  dateTo={appliedFilters.dateTo}
-                  year={appliedFilters.year}
-                  months={appliedFilters.months}
                   onOpen={openCruise}
                 />
               ))

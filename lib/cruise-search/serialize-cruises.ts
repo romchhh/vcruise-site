@@ -1,5 +1,6 @@
 import { offersForBookingUrl } from "./load-offers-cache";
 import { normalizeCruiseCabinOffer } from "./offer-key";
+import { ownCruiseBookingUrl } from "./utils";
 import type {
   CabinPriceMap,
   CruiseCabinOffer,
@@ -64,9 +65,19 @@ export function serializeCruisesForClient(
 ): CruiseRecord[] {
   const includeOffers = options?.includeOffers !== false;
   return cruises.map((cruise) => {
-    const available_dates = (cruise.available_dates || [])
-      .map((date) => serializeDate(date, offersBySlug, includeOffers))
-      .filter((item): item is CruiseDate => Boolean(item));
+    const ownDate = cruise.base_date_start;
+    const ownEntry = ownDate
+      ? serializeDate(
+          {
+            date: ownDate,
+            booking_url: ownCruiseBookingUrl(cruise) || undefined,
+            cabins: cruise.from_price,
+          },
+          offersBySlug,
+          includeOffers,
+        )
+      : null;
+    const available_dates = ownEntry ? [ownEntry] : [];
 
     return {
       key: cruise.key,

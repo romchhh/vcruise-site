@@ -166,7 +166,7 @@ export function findCruisePick(
     (item) =>
       item.cruise_title === company &&
       item.liner_slug === liner &&
-      (item.available_dates ?? []).some((entry) => entry.date === date),
+      item.base_date_start === date,
   );
 
   if (!cruise) return null;
@@ -328,10 +328,10 @@ export function buildCruisePickOptions(
 
   for (const cruise of cruises) {
     if (!cruise.cruise_title || !cruise.liner_slug) continue;
-    const dates = (cruise.available_dates ?? [])
-      .map((item) => item.date)
-      .filter((date): date is string => Boolean(date && date >= today))
-      .sort();
+    const dates =
+      cruise.base_date_start && cruise.base_date_start >= today
+        ? [cruise.base_date_start]
+        : [];
     if (!dates.length) continue;
 
     const key = `${cruise.cruise_title}::${cruise.liner_slug}`;

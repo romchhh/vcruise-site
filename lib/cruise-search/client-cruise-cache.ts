@@ -1,6 +1,6 @@
 import type { CruiseRecord } from "./types";
 
-export const CRUISES_CACHE_KEY = "vcruise:cruises-cache:v2";
+export const CRUISES_CACHE_KEY = "vcruise:cruises-cache:v3";
 
 /** sessionStorage ліміт ~5MB — не зберігаємо гігантський JSON. */
 const MAX_CACHE_BYTES = 4_500_000;

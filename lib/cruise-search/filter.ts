@@ -175,3 +175,32 @@ export function sortCruises(
     return 0;
   });
 }
+
+/** Same liner, length and port sequence — one 4gates card, many departures. */
+export function itineraryGroupKey(cruise: CruiseRecord) {
+  return [
+    cruise.liner_slug,
+    cruise.nights,
+    cruise.region_name,
+    (cruise.route ?? []).join("\n"),
+  ].join("\u0000");
+}
+
+export function groupCruisesByItinerary(cruises: CruiseRecord[]) {
+  const groups: CruiseRecord[][] = [];
+  const index = new Map<string, CruiseRecord[]>();
+
+  for (const cruise of cruises) {
+    const key = itineraryGroupKey(cruise);
+    const existing = index.get(key);
+    if (existing) {
+      existing.push(cruise);
+      continue;
+    }
+    const group = [cruise];
+    index.set(key, group);
+    groups.push(group);
+  }
+
+  return groups;
+}

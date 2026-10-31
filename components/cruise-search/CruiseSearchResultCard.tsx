@@ -7,13 +7,11 @@ import {
   CURRENCY_OPTIONS,
   CURRENCY_SYMBOL,
 } from "@/lib/cruise-search/constants";
-import { matchingSailingDates } from "@/lib/cruise-search/filter";
 import {
   cheapestPriceOnDate,
   embarkationPort,
   formatDate,
   formatMoney,
-  getUpcomingDates,
 } from "@/lib/cruise-search/utils";
 import { resolveBookingUrl } from "@/lib/cruise-search/booking-url";
 import { prefetchCruiseOffers } from "@/lib/cruise-search/fetch-cruise-offers-client";
@@ -44,71 +42,63 @@ function InfoRow({
 
 export default function CruiseSearchResultCard({
   cruise,
+  departures,
   currency,
-  dateFrom = "",
-  dateTo = "",
-  year = "Будь-коли",
-  months = [],
   onOpen,
 }: {
   cruise: CruiseRecord;
+  /** Same route, one entry per departure. First item is the card headline. */
+  departures?: CruiseRecord[];
   currency: CurrencyCode;
-  dateFrom?: string;
-  dateTo?: string;
-  year?: string;
-  months?: string[];
   onOpen: (cruise: CruiseRecord, preferredDate?: string) => void;
 }) {
   const [datesOpen, setDatesOpen] = useState(false);
   const cardRef = useRef<HTMLElement | null>(null);
   const prefetchedKeyRef = useRef("");
-  const upcomingDates = useMemo(() => getUpcomingDates(cruise), [cruise]);
-  const sailingWindow = useMemo(
-    () => ({ dateFrom, dateTo, year, months }),
-    [dateFrom, dateTo, year, months],
+  const sailings = useMemo(
+    () => (departures?.length ? departures : [cruise]),
+    [cruise, departures],
   );
-  const matchedDates = useMemo(
-    () => matchingSailingDates(cruise, sailingWindow),
-    [cruise, sailingWindow],
+  const headline = sailings[0];
+  const datesInOrder = useMemo(
+    () =>
+      [...sailings].sort((left, right) =>
+        (left.base_date_start ?? "").localeCompare(right.base_date_start ?? ""),
+      ),
+    [sailings],
   );
-  const highlightDate = matchedDates[0] ?? null;
-  const price = cheapestPriceOnDate(cruise, highlightDate, currency);
+  const highlightDate = headline.base_date_start ?? null;
+  const price = cheapestPriceOnDate(headline, highlightDate, currency);
   const symbol = CURRENCY_SYMBOL[currency];
   const allCurrencyPrices = useMemo(
     () =>
       CURRENCY_OPTIONS.map(({ code }) => ({
         code,
-        amount: cheapestPriceOnDate(cruise, highlightDate, code),
+        amount: cheapestPriceOnDate(headline, highlightDate, code),
       })),
-    [cruise, highlightDate],
+    [headline, highlightDate],
   );
   const secondaryPrices = allCurrencyPrices.filter(
     (item) =>
       item.code !== currency && item.amount != null && item.amount > 0,
   );
-  const fromPort = embarkationPort(cruise);
-  const route = cruise.route ?? [];
+  const fromPort = embarkationPort(headline);
+  const route = headline.route ?? [];
   const routePreview = route.slice(0, 3).join(" · ");
   const routeExtra = route.length > 3 ? ` +${route.length - 3}` : "";
-  const nightsLabel = cruise.nights_str ?? `${cruise.nights} ночей`;
+  const nightsLabel = headline.nights_str ?? `${headline.nights} ночей`;
 
   const prefetchOffers = useCallback(() => {
-    const bookingUrl = resolveBookingUrl(cruise, highlightDate);
+    const bookingUrl = resolveBookingUrl(headline, highlightDate);
     if (!bookingUrl) return;
 
     if (prefetchedKeyRef.current === bookingUrl) return;
     prefetchedKeyRef.current = bookingUrl;
 
     prefetchCruiseOffers(bookingUrl);
-  }, [cruise, highlightDate]);
+  }, [headline, highlightDate]);
 
-  const datesForList = useMemo(() => {
-    const allowed = new Set(matchedDates);
-    if (!allowed.size) return upcomingDates;
-    return upcomingDates.filter((item) => item.date && allowed.has(item.date));
-  }, [matchedDates, upcomingDates]);
-
-  const openDetail = () => onOpen(cruise, highlightDate ?? undefined);
+  const openDetail = () => onOpen(headline, highlightDate ?? undefined);
 
   return (
     <article
@@ -120,28 +110,28 @@ export default function CruiseSearchResultCard({
         onClick={openDetail}
         className="flex flex-1 flex-col text-left"
       >
-        <span className="chip chip-muted-brand w-fit">{cruise.region_name}</span>
+        <span className="chip chip-muted-brand w-fit">{headline.region_name}</span>
 
         <h3 className="text-h4 mt-3 font-bold text-[color:var(--color-black)]">
-          {cruise.liner_name}
+          {headline.liner_name}
         </h3>
 
         <div className="relative mt-4 aspect-[4/3] overflow-hidden rounded-card-inner bg-[color:var(--color-surface-muted)]">
-        {cruise.liner_logo ? (
+        {headline.liner_logo ? (
           <CruiseLinerImage
-            src={cruise.liner_logo}
-            alt={cruise.liner_name}
+            src={headline.liner_logo}
+            alt={headline.liner_name}
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
         ) : (
           <div className="flex h-full items-center justify-center px-4 text-center text-caption text-subtitle">
-            {cruise.liner_name}
+            {headline.liner_name}
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
         <div className="absolute inset-x-0 bottom-0 px-4 pb-4">
           <p className="text-caption font-medium text-white">
-            {cruise.cruise_title}
+            {headline.cruise_title}
           </p>
         </div>
       </div>
@@ -194,7 +184,7 @@ export default function CruiseSearchResultCard({
         >
           Забронювати
         </button>
-        {datesForList.length > 1 ? (
+        {datesInOrder.length > 1 ? (
           <button
             type="button"
             onClick={() => setDatesOpen((open) => !open)}
@@ -202,7 +192,7 @@ export default function CruiseSearchResultCard({
           >
             {datesOpen
               ? "Сховати дати"
-              : `Усі дати (${datesForList.length})`}
+              : `Усі дати (${datesInOrder.length})`}
             <ChevronDown
               className={`h-4 w-4 transition-transform ${datesOpen ? "rotate-180" : ""}`}
             />
@@ -213,32 +203,26 @@ export default function CruiseSearchResultCard({
       {datesOpen ? (
         <div className="divider mt-4 border-t border-[color:var(--color-divider)] pt-4">
           <div className="space-y-3">
-            {datesForList.map((item) => {
-              const cabins = Object.entries(item.cabins ?? {})
-                .map(([name, prices]) => {
-                  const parts = CURRENCY_OPTIONS
-                    .map(({ code }) => {
-                      const amount = prices?.[code];
-                      if (amount == null || amount <= 0) return null;
-                      return `${formatMoney(amount)} ${CURRENCY_SYMBOL[code]}`;
-                    })
-                    .filter(Boolean);
-                  return `${name}: ${parts.length ? parts.join(" · ") : "—"}`;
-                })
-                .join(" · ");
+            {datesInOrder.map((item) => {
+              const date = item.base_date_start ?? "";
+              const amount = cheapestPriceOnDate(item, date, currency);
 
               return (
-                <div
-                  key={item.date}
-                  className="border-t border-[color:var(--color-divider)] pt-3 first:border-t-0 first:pt-0"
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => onOpen(item, date || undefined)}
+                  className="block w-full border-t border-[color:var(--color-divider)] pt-3 text-left first:border-t-0 first:pt-0"
                 >
                   <p className="text-caption font-semibold text-[color:var(--color-black)]">
-                    {formatDate(item.date)}
+                    {formatDate(date)}
                   </p>
                   <p className="text-caption mt-1 text-subtitle">
-                    {cabins || "—"}
+                    {amount != null
+                      ? `${formatMoney(amount)} ${symbol}`
+                      : "—"}
                   </p>
-                </div>
+                </button>
               );
             })}
           </div>
