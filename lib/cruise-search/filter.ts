@@ -7,8 +7,8 @@ import { matchesCruiseRegions } from "./region-match";
 import {
   cheapestPriceOnDate,
   getDurationBounds,
+  getUpcomingDates,
   hasBookableDates,
-  todayIso,
 } from "./utils";
 import type { CruiseRecord, CruiseSearchFilters, CruiseSort } from "./types";
 
@@ -62,27 +62,15 @@ function isoInSailingWindow(iso: string, window: SailingWindow) {
   return true;
 }
 
-/** Bookable departures that satisfy date range, year and months together. */
+/** The cruise's own departure, when it satisfies date range, year and months. */
 export function matchingSailingDates(
   cruise: CruiseRecord,
   window: SailingWindow = {},
 ) {
-  const today = todayIso();
-  const dates = (cruise.available_dates ?? [])
-    .map((item) => item.date)
-    .filter((date): date is string => Boolean(date && date >= today));
-  const pool =
-    dates.length > 0
-      ? dates
-      : cruise.base_date_start && cruise.base_date_start >= today
-        ? [cruise.base_date_start]
-        : [];
-
-  const matched = hasSailingWindow(window)
-    ? pool.filter((iso) => isoInSailingWindow(iso, window))
-    : pool;
-
-  return [...matched].sort();
+  const date = getUpcomingDates(cruise)[0]?.date;
+  if (!date) return [];
+  if (hasSailingWindow(window) && !isoInSailingWindow(date, window)) return [];
+  return [date];
 }
 
 function bookingUrlMatchesLiner(

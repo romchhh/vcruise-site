@@ -79,8 +79,8 @@ def parse_price_cabins(html: str) -> dict:
 
 def parse_price_cabins_next(html: str) -> list[dict]:
     """
-    Поле price_cabins_next — список усіх доступних дат відправлення,
-    кожна зі своїм блоком цін по категоріях кают і посиланням на бронювання.
+    Поле price_cabins_next — найближчі інші рейси лайнера, не дата цього маршруту.
+    Власна дата відправлення круїзу лежить у date_start / base_date_start.
 
     `offers[]` для дати підставляються з offers_by_slug.json під час serialize на сайті.
     """

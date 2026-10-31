@@ -89,14 +89,33 @@ export function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** 4gates page of this sailing: cruise-{slug}-{start}-{nights}nights.html */
+export function ownCruiseBookingUrl(cruise: CruiseRecord) {
+  const date = cruise.base_date_start;
+  const slug = cruise.liner_slug?.trim();
+  const nights = cruise.nights;
+  if (!date || !slug || !nights) return "";
+  return `https://4gates.cruises/ua/search/cruise-${slug}-${date}-${nights}nights.html`;
+}
+
+/**
+ * This cruise's own departure. `available_dates` are other sailings
+ * (often a different route) and must not be shown as this itinerary.
+ */
 export function getUpcomingDates(
   cruise: CruiseRecord,
   referenceDate = todayIso()
 ) {
-  return (cruise.available_dates ?? [])
-    .filter((item) => item.date && item.date >= referenceDate)
-    .slice()
-    .sort((left, right) => left.date!.localeCompare(right.date!));
+  const date = cruise.base_date_start;
+  if (!date || date < referenceDate) return [];
+  const bookingUrl = ownCruiseBookingUrl(cruise);
+  return [
+    {
+      date,
+      ...(bookingUrl ? { booking_url: bookingUrl } : {}),
+      cabins: cruise.from_price,
+    },
+  ];
 }
 
 export function hasBookableDates(
@@ -107,16 +126,7 @@ export function hasBookableDates(
 }
 
 export function nearestDate(cruise: CruiseRecord, referenceDate = todayIso()) {
-  const upcoming = getUpcomingDates(cruise, referenceDate);
-  if (upcoming.length) return upcoming[0]?.date ?? null;
-
-  const dates = (cruise.available_dates ?? [])
-    .map((item) => item.date)
-    .filter(Boolean)
-    .sort();
-
-  if (!dates.length) return cruise.base_date_start ?? null;
-  return dates[0] ?? null;
+  return getUpcomingDates(cruise, referenceDate)[0]?.date ?? null;
 }
 
 /** First sailing date that falls inside an optional date filter. */

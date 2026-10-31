@@ -74,17 +74,9 @@ function formatRouteTitle(route: string[]) {
 }
 
 function nearestUpcomingDate(cruise: CruiseRecord, today: string) {
-  const dates = (cruise.available_dates ?? [])
-    .map((item) => item.date)
-    .filter((date) => date && date >= today)
-    .sort();
-
-  if (dates.length) return dates[0]!;
-
   if (cruise.base_date_start && cruise.base_date_start >= today) {
     return cruise.base_date_start;
   }
-
   return null;
 }
 
