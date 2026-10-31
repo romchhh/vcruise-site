@@ -1,6 +1,6 @@
 import { CABIN_ORDER } from "./constants";
 import { DEFAULT_CURRENCY } from "./constants";
-import type { CruiseRecord, CurrencyCode } from "./types";
+import type { CruiseDate, CruiseRecord, CurrencyCode } from "./types";
 
 export function formatMoney(value: number | null | undefined) {
   if (value === null || value === undefined) return "—";
@@ -126,16 +126,20 @@ export function ownCruiseBookingUrl(cruise: CruiseRecord) {
  */
 export function getUpcomingDates(
   cruise: CruiseRecord,
-  referenceDate = todayIso()
-) {
+  referenceDate = todayIso(),
+): CruiseDate[] {
   const date = cruise.base_date_start;
   if (!date || date < referenceDate) return [];
   const bookingUrl = ownCruiseBookingUrl(cruise);
+  const seeded = (cruise.available_dates ?? []).find(
+    (item) => item.date === date,
+  );
   return [
     {
       date,
       ...(bookingUrl ? { booking_url: bookingUrl } : {}),
-      cabins: cruise.from_price,
+      cabins: cruise.from_price ?? seeded?.cabins,
+      ...(seeded?.offers?.length ? { offers: seeded.offers } : {}),
     },
   ];
 }

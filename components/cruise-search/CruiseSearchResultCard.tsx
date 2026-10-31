@@ -89,7 +89,7 @@ export default function CruiseSearchResultCard({
   const nightsLabel = headline.nights_str ?? `${headline.nights} ночей`;
 
   const prefetchOffers = useCallback(() => {
-    const bookingUrl = resolveBookingUrl(headline, highlightDate);
+    const bookingUrl = resolveBookingUrl(headline, highlightDate ?? undefined);
     if (!bookingUrl) return;
 
     if (prefetchedKeyRef.current === bookingUrl) return;
