@@ -16,6 +16,8 @@ export type CruiseOffersPayload = {
   guestSpecific: boolean;
   fetchedAt: number;
   source: "disk" | "live";
+  /** Disk row has prices, but cabin numbers need a live promo id. */
+  promoPending?: boolean;
 };
 
 const CACHE_TTL_MS = 15 * 60 * 1000;
@@ -53,10 +55,40 @@ export function getCachedCruiseOffers(
   return readCache(offersRequestKey(bookingUrl, guests));
 }
 
+const PREFETCH_LIMIT = 2;
+let activePrefetch = 0;
+const prefetchQueue: Array<() => void> = [];
+
+function pumpPrefetch(task: () => void) {
+  if (activePrefetch < PREFETCH_LIMIT) {
+    activePrefetch += 1;
+    task();
+    return;
+  }
+  prefetchQueue.push(task);
+}
+
+function finishPrefetch() {
+  activePrefetch = Math.max(0, activePrefetch - 1);
+  const next = prefetchQueue.shift();
+  if (!next) return;
+  activePrefetch += 1;
+  next();
+}
+
 export function prefetchCruiseOffers(bookingUrl: string) {
   if (!bookingUrl.trim()) return Promise.resolve();
-  return fetchCruiseOffers({ bookingUrl }).catch(() => {
-    // Prefetch is best-effort.
+  return new Promise<void>((resolve) => {
+    pumpPrefetch(() => {
+      fetchCruiseOffers({ bookingUrl })
+        .catch(() => {
+          // Prefetch is best-effort.
+        })
+        .finally(() => {
+          finishPrefetch();
+          resolve();
+        });
+    });
   });
 }
 
@@ -70,6 +102,7 @@ async function requestOffers(
     adults: String(guests.adults),
     children: String(guests.children),
     infants: String(guests.infants),
+    teens: String(guests.childrenTeen ?? 0),
   });
   if (forceRefresh) params.set("refresh", "1");
 
@@ -79,8 +112,9 @@ async function requestOffers(
       error?: string;
       guestSpecific?: boolean;
       source?: "disk" | "live";
+      promoPending?: boolean;
     }>(`/api/cruise-offers?${params}`, {
-      retries: 2,
+      retries: forceRefresh ? 1 : 2,
       timeoutMs: 90_000,
       init: { cache: "no-store" },
     });
@@ -90,6 +124,7 @@ async function requestOffers(
       guestSpecific: Boolean(data.guestSpecific && (data.offers?.length ?? 0)),
       fetchedAt: Date.now(),
       source: data.source === "disk" ? "disk" : "live",
+      promoPending: Boolean(data.promoPending),
     } satisfies CruiseOffersPayload;
   } catch (error) {
     throw new Error(normalizeClientFetchError(error));
@@ -109,7 +144,8 @@ export async function fetchCruiseOffers({
 
   if (!forceRefresh) {
     const cached = readCache(key);
-    if (cached) return cached;
+    const cachedHasPromo = cached?.offers.some((offer) => offer.promoid);
+    if (cached && (cachedHasPromo || cached.offers.length === 0)) return cached;
   }
 
   const pending = inflight.get(key);
@@ -117,7 +153,12 @@ export async function fetchCruiseOffers({
 
   const promise = requestOffers(bookingUrl, guests, forceRefresh)
     .then((payload) => {
-      cache.set(key, payload);
+      if (
+        payload.offers.length === 0 ||
+        payload.offers.some((offer) => offer.promoid)
+      ) {
+        cache.set(key, payload);
+      }
       return payload;
     })
     .finally(() => {

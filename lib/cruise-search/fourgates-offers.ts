@@ -63,14 +63,13 @@ export function mapGuestsToFourgates(
   adults: number,
   children: number,
   infants = 0,
+  childrenTeen = 0,
 ): FourgatesGuestParams {
   void infants;
-  const aduls = Math.max(1, Math.round(adults));
-  const kids = Math.max(0, Math.round(children));
   return {
-    adults: aduls,
-    childrenYoung: kids,
-    childrenTeen: 0,
+    adults: Math.max(1, Math.round(adults)),
+    childrenYoung: Math.max(0, Math.round(children)),
+    childrenTeen: Math.max(0, Math.round(childrenTeen)),
   };
 }
 
@@ -94,10 +93,10 @@ function parseCabinMeta(name: string) {
   };
 }
 
-type ParsedOffer = CruiseCabinOffer & { shipId?: string };
+type ParsedOffer = CruiseCabinOffer;
 
-function stripShipId(offers: ParsedOffer[]): CruiseCabinOffer[] {
-  return offers.map(({ shipId: _shipId, ...offer }) => offer);
+export function offersIncludePromo(offers: CruiseCabinOffer[]) {
+  return offers.some((offer) => Boolean(offer.promoid));
 }
 
 function parsePricesFromRow(rowHtml: string): Partial<Record<CurrencyCode, number>> {
@@ -206,16 +205,18 @@ function parseRowHtml(
 
   const meta = parseCabinMeta(cabinName);
   const shipId = rowHtml.match(/ship_id=["'](\d+)["']/i)?.[1];
+  const promoid = rowHtml.match(/\bpromoid=["']([^"']+)["']/i)?.[1];
 
   return {
     cabinCode,
     cabinName,
     cabinCategory: category,
     tariffName,
+    promoid: promoid?.trim() || undefined,
+    shipId: shipId?.trim() || undefined,
     areaM2: meta.areaM2,
     decks: meta.decks,
     price,
-    shipId,
   };
 }
 
@@ -332,7 +333,7 @@ async function loadOffersFromFourgates(
   }
 
   const data = (await res.json()) as { cabins?: string };
-  return stripShipId(parseCabinsHtml(data.cabins ?? ""));
+  return parseCabinsHtml(data.cabins ?? "");
 }
 
 export async function warmFourgatesSession(): Promise<void> {

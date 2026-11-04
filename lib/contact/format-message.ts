@@ -11,11 +11,20 @@ export type CruiseBookingDetails = {
   cabinType?: string;
   cabinCode?: string;
   cabinName?: string;
+  /** Chosen cabin number on the deck plan, when 4gates published one. */
+  cabinNumber?: string;
   tariffName?: string;
   priceLabel?: string;
   adults?: number;
   children?: number;
+  childrenTeen?: number;
   infants?: number;
+  passengers?: {
+    role: string;
+    firstName: string;
+    lastName: string;
+    birthDate?: string;
+  }[];
   shipBuiltYear?: number;
   shipRenovatedYear?: number;
   shipClass?: string;
@@ -96,6 +105,11 @@ export function formatContactTelegramMessage(payload: ContactFormPayload) {
         booking.cabinCode,
         booking.cabinName || booking.cabinType,
         booking.tariffName,
+        booking.cabinNumber
+          ? booking.cabinNumber === "MANAGER"
+            ? "номер уточнює менеджер"
+            : `№ ${booking.cabinNumber}`
+          : "",
       ].filter(Boolean);
       lines.push(`🚪 Каюта: ${cabinParts.join(" · ")}`);
     }
@@ -106,13 +120,27 @@ export function formatContactTelegramMessage(payload: ContactFormPayload) {
 
     const adults = booking.adults ?? 0;
     const children = booking.children ?? 0;
+    const childrenTeen = booking.childrenTeen ?? 0;
     const infants = booking.infants ?? 0;
-    if (adults || children || infants) {
+    if (adults || children || childrenTeen || infants) {
       lines.push(
         `👥 Туристи: ${adults} дор.` +
-          (children ? `, ${children} дит.` : "") +
+          (children ? `, ${children} дит. 2–11` : "") +
+          (childrenTeen ? `, ${childrenTeen} дит. 12–17` : "") +
           (infants ? `, ${infants} нем.` : ""),
       );
+    }
+
+    if (booking.passengers?.length) {
+      lines.push("", "👤 Пасажири:");
+      booking.passengers.forEach((passenger, index) => {
+        const birth = passenger.birthDate
+          ? formatIsoDateLabel(passenger.birthDate)
+          : "";
+        lines.push(
+          `${index + 1}. ${passenger.lastName} ${passenger.firstName} (${passenger.role}${birth ? `, ${birth}` : ""})`,
+        );
+      });
     }
 
     if (booking.bookingUrl) {

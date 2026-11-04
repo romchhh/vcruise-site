@@ -6,8 +6,12 @@ import Header from "@/components/Header";
 import CruiseDetailLoader from "@/components/cruise-search/CruiseDetailLoader";
 import CruiseDetailSkeleton from "@/components/cruise-search/CruiseDetailSkeleton";
 import JsonLd from "@/components/JsonLd";
+import {
+  fetchFourgatesOffers,
+  mapGuestsToFourgates,
+} from "@/lib/cruise-search/fourgates-offers";
 import { loadCruisePage, loadCruises } from "@/lib/cruise-search/load-cruises";
-import { findItineraryForSailing } from "@/lib/cruise-search/utils";
+import { findItineraryForSailing, ownCruiseBookingUrl } from "@/lib/cruise-search/utils";
 import { createMetadata } from "@/lib/seo";
 import { breadcrumbSchema, webPageSchema } from "@/lib/schema";
 
@@ -88,6 +92,18 @@ export default async function CruiseDetailPage({
       redirect(detailHref(owner.key, query, owner.base_date_start));
     }
     redirect(detailHref(cruise.key, query));
+  }
+
+  const bookingUrl = ownCruiseBookingUrl(cruise);
+  if (bookingUrl) {
+    // Start the slow operator quote during the document request so the
+    // client's /api/cruise-offers call joins the same in-flight request.
+    void fetchFourgatesOffers(
+      bookingUrl,
+      mapGuestsToFourgates(2, 0, 0, 0),
+    ).catch(() => {
+      // The booking panel retries and shows its own error.
+    });
   }
 
   const title = cruise.liner_name || "Круїз";

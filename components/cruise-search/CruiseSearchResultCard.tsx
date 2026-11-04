@@ -1,7 +1,7 @@
 "use client";
 
 import CruiseLinerImage from "./CruiseLinerImage";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import {
   CURRENCY_OPTIONS,
@@ -100,9 +100,26 @@ export default function CruiseSearchResultCard({
 
   const openDetail = () => onOpen(headline, highlightDate ?? undefined);
 
+  useEffect(() => {
+    const node = cardRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          prefetchOffers();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "240px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [prefetchOffers]);
+
   return (
     <article
       ref={cardRef}
+      onPointerEnter={prefetchOffers}
       className="flex h-full flex-col rounded-card bg-white p-4 sm:p-5"
     >
       <button

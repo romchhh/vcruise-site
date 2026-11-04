@@ -12,6 +12,10 @@ export type CruiseCabinOffer = {
   cabinName: string;
   cabinCategory?: "Внутрішня" | "З вікном" | "З балконом" | "Сьют";
   tariffName: string;
+  /** 4gates promo id. Needed to load deck numbers for this tariff. */
+  promoid?: string;
+  /** 4gates ship id. Needed for the cabin description popup. */
+  shipId?: string;
   areaM2?: number;
   decks?: string;
   price: CabinPrices;

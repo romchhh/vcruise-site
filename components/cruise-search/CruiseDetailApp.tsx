@@ -3,18 +3,17 @@
 import CruiseLinerImage from "./CruiseLinerImage";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  CURRENCY_OPTIONS,
   CURRENCY_SYMBOL,
   DEFAULT_CURRENCY,
 } from "@/lib/cruise-search/constants";
-import { catalogPricesForDate } from "@/lib/cruise-search/currency";
 import type { CruiseDetailQuery } from "@/lib/cruise-search/cruise-detail-url";
 import { buildSearchHrefFromListQuery } from "@/lib/cruise-search/cruise-detail-url";
 import { prefetchCruiseOffers } from "@/lib/cruise-search/fetch-cruise-offers-client";
 import { resolveBookingUrl } from "@/lib/cruise-search/booking-url";
 import {
+  addDaysIso,
   cheapestPriceOnDate,
   embarkationPort,
   formatDate,
@@ -109,7 +108,6 @@ export default function CruiseDetailApp({
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
-  const [offersPanel, setOffersPanel] = useState<ReactNode>(null);
   const [routeExpanded, setRouteExpanded] = useState(false);
 
   const upcomingDates = useMemo(() => getUpcomingDates(cruise), [cruise]);
@@ -124,18 +122,6 @@ export default function CruiseDetailApp({
   }, [detailQuery.sailing, upcomingDates]);
 
   const catalogPrice = cheapestPriceOnDate(cruise, preferredDate, currency);
-  const catalogPrices = useMemo(
-    () => catalogPricesForDate(cruise, preferredDate),
-    [cruise, preferredDate],
-  );
-  const secondaryCatalogPrices = useMemo(
-    () =>
-      CURRENCY_OPTIONS.map(({ code }) => ({
-        code,
-        amount: catalogPrices[code] ?? 0,
-      })).filter((item) => item.code !== currency && item.amount > 0),
-    [catalogPrices, currency],
-  );
   const [quotedFrom, setQuotedFrom] = useState<number | null | undefined>(
     undefined,
   );
@@ -172,16 +158,14 @@ export default function CruiseDetailApp({
             ← Назад до результатів пошуку
           </Link>
 
-          <div
-            className="mt-6 grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:items-start lg:gap-8"
-          >
-            <div className="min-w-0 overflow-hidden rounded-card bg-white order-1 lg:col-start-1 lg:row-start-1">
-              <div className="relative h-[280px] w-full bg-[color:var(--color-surface-muted)] sm:h-[320px] lg:h-[400px]">
+          <header className="mt-4 overflow-hidden rounded-card bg-white">
+            <div className="grid sm:grid-cols-[minmax(260px,42%)_minmax(0,1fr)]">
+              <div className="relative aspect-[16/10] bg-[color:var(--color-surface-muted)] sm:aspect-auto sm:min-h-[260px]">
                 {cruise.liner_logo ? (
                   <CruiseLinerImage
                     src={cruise.liner_logo}
                     alt={cruise.liner_name}
-                    sizes="(max-width: 1024px) 100vw, 720px"
+                    sizes="(max-width: 640px) 100vw, 480px"
                     priority
                   />
                 ) : (
@@ -190,111 +174,93 @@ export default function CruiseDetailApp({
                     aria-hidden
                   />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6 lg:p-8">
-                  <span className="chip chip-muted-brand bg-white/90">
-                    {cruise.region_name}
-                  </span>
-                  <h1 className="text-h2 mt-3 font-bold text-white">
+              </div>
+              <div className="flex min-w-0 flex-col p-4 sm:p-5 lg:p-6">
+                <div className="min-w-0">
+                  <span className="chip chip-muted-brand">{cruise.region_name}</span>
+                  <h1 className="text-h3 mt-2 font-bold text-[color:var(--color-black)]">
                     {cruise.liner_name}
                   </h1>
-                  <p className="text-body mt-1 text-white/90">
+                  <p className="text-caption mt-1 text-subtitle">
                     {cruise.cruise_title}
                   </p>
+                  {routeSummary ? (
+                    <p className="text-caption mt-2 line-clamp-2 font-semibold leading-snug text-[color:var(--color-black)]">
+                      {routeSummary}
+                    </p>
+                  ) : null}
+                </div>
+
+                <dl className="mt-4 grid gap-2 border-t border-[color:var(--color-line)] pt-4 text-caption">
+                  <div className="grid grid-cols-[minmax(6.5rem,auto)_minmax(0,1fr)] gap-x-3 gap-y-0.5">
+                    <dt className="text-[color:var(--color-silver)]">Відправлення</dt>
+                    <dd className="font-semibold text-[color:var(--color-black)]">
+                      {formatDate(preferredDate)}
+                      {cruise.nights
+                        ? ` → ${formatDate(addDaysIso(preferredDate, cruise.nights))}`
+                        : ""}
+                    </dd>
+                  </div>
+                  {nightsLabel ? (
+                    <div className="grid grid-cols-[minmax(6.5rem,auto)_minmax(0,1fr)] gap-x-3">
+                      <dt className="text-[color:var(--color-silver)]">Тривалість</dt>
+                      <dd className="font-semibold text-[color:var(--color-black)]">
+                        {nightsLabel}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {fromPort ? (
+                    <div className="grid grid-cols-[minmax(6.5rem,auto)_minmax(0,1fr)] gap-x-3">
+                      <dt className="text-[color:var(--color-silver)]">Порт</dt>
+                      <dd className="font-semibold text-[color:var(--color-black)]">
+                        {fromPort}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+
+                <div className="mt-4 rounded-card-inner bg-[color:var(--color-surface-muted)] p-3.5 sm:p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                    <CruiseCurrencyToggle
+                      compact
+                      value={currency}
+                      onChange={setCurrency}
+                    />
+                    <div className="min-w-0 sm:text-right">
+                      <p className="text-h3 font-bold tabular-nums leading-none text-[color:var(--color-brand)]">
+                        {highlightPrice == null
+                          ? "…"
+                          : `${formatMoney(highlightPrice)} ${symbol}`}
+                      </p>
+                      <p className="text-caption mt-1.5 text-subtitle">від · за каюту</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+          </header>
 
-            <div className="min-w-0 order-3 lg:order-[unset] lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:sticky lg:top-28">
-              <CruiseBookingModal
-                variant="page"
-                cruise={cruise}
-                currency={currency}
-                preferredDate={preferredDate}
-                initialGuests={{
-                  adults: detailQuery.adults,
-                  children: detailQuery.children,
-                  infants: detailQuery.infants,
-                }}
-                onOffersPanel={setOffersPanel}
-                onFromPrice={setQuotedFrom}
-                onClose={() => {
-                  // Page variant uses contact modal; no-op for back arrow removal.
-                }}
-              />
-            </div>
+          <div className="mt-4" id="cabin-offers">
+            <CruiseBookingModal
+              variant="page"
+              cruise={cruise}
+              currency={currency}
+              preferredDate={preferredDate}
+              initialGuests={{
+                adults: detailQuery.adults,
+                children: detailQuery.children,
+                infants: detailQuery.infants,
+              }}
+              onFromPrice={setQuotedFrom}
+              onClose={() => {
+                // Page variant uses the contact modal.
+              }}
+            />
+          </div>
 
-            {offersPanel ? (
-              <section
-                id="cabin-offers"
-                className="min-w-0 scroll-mt-28 lg:col-start-1 lg:row-start-2 order-2 lg:order-[unset]"
-              >
-                {offersPanel}
-              </section>
-            ) : null}
-
-            <div
-              className={`min-w-0 order-4 overflow-hidden rounded-card bg-white px-5 py-5 sm:px-6 sm:py-6 lg:order-[unset] lg:col-start-1 lg:px-8 ${
-                offersPanel ? "lg:row-start-3" : "lg:row-start-2"
-              }`}
-            >
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-card bg-[color:var(--color-surface-muted)] px-4 py-3.5">
-                    <p className="text-caption text-[color:var(--color-silver)]">
-                      Найближча дата
-                    </p>
-                    <p className="text-body mt-1 font-bold text-[color:var(--color-black)]">
-                      {formatDate(preferredDate)}
-                    </p>
-                    {nightsLabel ? (
-                      <p className="text-caption mt-0.5 text-subtitle">
-                        {nightsLabel}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="rounded-card bg-[color:var(--color-brand-light)] px-4 py-3.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-caption text-[color:var(--color-silver)]">
-                        Ціна від
-                      </p>
-                      <CruiseCurrencyToggle
-                        compact
-                        value={currency}
-                        onChange={setCurrency}
-                      />
-                    </div>
-                    <p className="text-h4 mt-2 font-bold leading-none text-[color:var(--color-brand)]">
-                      {highlightPrice == null
-                        ? "…"
-                        : `${formatMoney(highlightPrice)} ${symbol}`}
-                    </p>
-                    {quotedFrom === undefined && secondaryCatalogPrices.length ? (
-                      <p className="text-caption mt-1.5 text-subtitle">
-                        {secondaryCatalogPrices
-                          .map(
-                            (item) =>
-                              `${formatMoney(item.amount)} ${CURRENCY_SYMBOL[item.code]}`,
-                          )
-                          .join(" · ")}
-                      </p>
-                    ) : null}
-                    <p className="text-caption mt-1.5 text-subtitle">за каюту</p>
-                  </div>
-                </div>
-
-                {fromPort ? (
-                  <div className="mt-5 border-t border-[color:var(--color-line)] pt-5">
-                    <p className="text-caption text-[color:var(--color-silver)]">
-                      Відправлення
-                    </p>
-                    <p className="text-body mt-1 font-semibold text-[color:var(--color-black)]">
-                      {fromPort}
-                    </p>
-                  </div>
-                ) : null}
-
+          <div className="mt-4 overflow-hidden rounded-card bg-white px-5 py-5 sm:px-6">
                 {stops.length ? (
-                  <div className="mt-5 border-t border-[color:var(--color-line)] pt-5">
+                  <div>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-caption text-[color:var(--color-silver)]">
                         Маршрут
@@ -368,7 +334,6 @@ export default function CruiseDetailApp({
                   </p>
                 ) : null}
             </div>
-          </div>
 
           <SimilarCruisesSection
             similarCruises={similarCruises}

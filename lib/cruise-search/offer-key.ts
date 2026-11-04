@@ -18,7 +18,7 @@ export function offerKeyOf(offer: CruiseCabinOffer): string {
   const price =
     offer.price?.NAT ?? offer.price?.USD ?? offer.price?.EUR ?? 0;
   const category = offer.cabinCategory ?? "";
-  return `${offer.cabinCode}::${tariff}::${price}::${category}`;
+  return `${offer.cabinCode}::${tariff}::${price}::${category}::${offer.promoid ?? ""}`;
 }
 
 export function normalizeCruiseCabinOffer(

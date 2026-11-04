@@ -30,6 +30,8 @@ function serializeOffers(
       cabinName: normalized.cabinName,
       cabinCategory: normalized.cabinCategory,
       tariffName: normalized.tariffName,
+      promoid: normalized.promoid,
+      shipId: normalized.shipId,
       areaM2: normalized.areaM2,
       decks: normalized.decks,
       price: normalized.price,

@@ -38,6 +38,7 @@ function parseBooking(value: unknown): CruiseBookingDetails | null | undefined {
   const cabinType = String(booking.cabinType ?? "").trim();
   const cabinCode = String(booking.cabinCode ?? "").trim();
   const cabinName = String(booking.cabinName ?? "").trim();
+  const cabinNumber = String(booking.cabinNumber ?? "").trim();
   const tariffName = String(booking.tariffName ?? "").trim();
   const shipClass = String(booking.shipClass ?? "").trim();
   const companyClass = String(booking.companyClass ?? "").trim();
@@ -46,6 +47,7 @@ function parseBooking(value: unknown): CruiseBookingDetails | null | undefined {
 
   const adults = optionalPositiveInt(booking.adults);
   const children = optionalPositiveInt(booking.children);
+  const childrenTeen = optionalPositiveInt(booking.childrenTeen);
   const infants = optionalPositiveInt(booking.infants);
   const shipBuiltYear = optionalYear(booking.shipBuiltYear);
   const shipRenovatedYear = optionalYear(booking.shipRenovatedYear);
@@ -70,6 +72,29 @@ function parseBooking(value: unknown): CruiseBookingDetails | null | undefined {
       ? bookingUrl.slice(0, 500)
       : undefined;
 
+  const passengers = Array.isArray(booking.passengers)
+    ? booking.passengers
+        .slice(0, 12)
+        .flatMap((item) => {
+          if (!item || typeof item !== "object") return [];
+          const row = item as Record<string, unknown>;
+          const firstName = String(row.firstName ?? "").trim().slice(0, 80);
+          const lastName = String(row.lastName ?? "").trim().slice(0, 80);
+          const role = String(row.role ?? "").trim().slice(0, 40);
+          const birthDate = String(row.birthDate ?? "").trim();
+          if (firstName.length < 2 || lastName.length < 2) return [];
+          if (birthDate && !/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return [];
+          return [
+            {
+              firstName,
+              lastName,
+              role: role || "Пасажир",
+              birthDate: birthDate || undefined,
+            },
+          ];
+        })
+    : undefined;
+
   return {
     linerName: (linerName || company).slice(0, 120),
     company: (company || linerName).slice(0, 120),
@@ -81,10 +106,15 @@ function parseBooking(value: unknown): CruiseBookingDetails | null | undefined {
     cabinType: cabinType ? cabinType.slice(0, 80) : undefined,
     cabinCode: cabinCode ? cabinCode.slice(0, 40) : undefined,
     cabinName: cabinName ? cabinName.slice(0, 160) : undefined,
+    cabinNumber:
+      cabinNumber && /^[A-Za-z0-9]{1,16}$/.test(cabinNumber)
+        ? cabinNumber
+        : undefined,
     tariffName: tariffName ? tariffName.slice(0, 80) : undefined,
     priceLabel: priceLabel ? priceLabel.slice(0, 80) : undefined,
     adults,
     children,
+    childrenTeen,
     infants,
     shipBuiltYear,
     shipRenovatedYear,
@@ -95,6 +125,7 @@ function parseBooking(value: unknown): CruiseBookingDetails | null | undefined {
     reviewScore,
     reviewCount,
     bookingUrl: safeBookingUrl,
+    passengers: passengers?.length ? passengers : undefined,
   };
 }
 
