@@ -10,10 +10,16 @@ import {
   offersForBookingUrl,
   rememberDiskOffers,
 } from "@/lib/cruise-search/load-offers-cache";
+import { normalizeCruiseCabinOffer } from "@/lib/cruise-search/offer-key";
+import type { CruiseCabinOffer } from "@/lib/cruise-search/types";
 
 export const runtime = "nodejs";
 
 const CACHE_SEC = 900;
+
+function normalizeOffers(offers: CruiseCabinOffer[]) {
+  return offers.map(normalizeCruiseCabinOffer);
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -55,7 +61,8 @@ export async function GET(request: Request) {
     if (!skipDisk && referenceParty) {
       const diskOffers = offersForBookingUrl(bookingUrl);
       if (diskOffers?.length) {
-        const promoPending = !offersIncludePromo(diskOffers);
+        const offers = normalizeOffers(diskOffers);
+        const promoPending = !offersIncludePromo(offers);
         if (promoPending) {
           const guests = mapGuestsToFourgates(safeAdults, safeChildren, 0, 0);
           void fetchFourgatesOffers(bookingUrl, guests)
@@ -68,7 +75,7 @@ export async function GET(request: Request) {
         }
         return NextResponse.json(
           {
-            offers: diskOffers,
+            offers,
             guestSpecific: false,
             source: "disk",
             promoPending,
@@ -90,7 +97,7 @@ export async function GET(request: Request) {
       0,
       safeTeens,
     );
-    const offers = await fetchFourgatesOffers(bookingUrl, guests);
+    const offers = normalizeOffers(await fetchFourgatesOffers(bookingUrl, guests));
 
     if (referenceParty && offers.length) {
       try {

@@ -10,6 +10,7 @@ import {
   normalizeTariffName,
   offerKeyOf,
 } from "@/lib/cruise-search/offer-key";
+import { isValidPromoid } from "@/lib/cruise-search/promoid";
 import { formatMoney } from "@/lib/cruise-search/utils";
 import type { CruiseCabinOffer, CurrencyCode } from "@/lib/cruise-search/types";
 import { CURRENCY_SYMBOL } from "@/lib/cruise-search/constants";
@@ -310,7 +311,7 @@ export default function CabinOffersTable({
         </table>
       </div>
 
-      {selectedOffer?.promoid ? (
+      {selectedOffer && isValidPromoid(selectedOffer.promoid) ? (
         <div className="border-t border-[color:var(--color-line)]">
           <CabinDeckPicker
             bookingUrl={bookingUrl}
@@ -320,6 +321,20 @@ export default function CabinOffersTable({
             teens={teens}
             onConfirm={onCabinConfirm}
           />
+        </div>
+      ) : selectedOffer ? (
+        <div className="border-t border-[color:var(--color-line)] px-4 py-4 sm:px-5">
+          <p className="text-caption text-[color:var(--color-black)]">
+            Для цього тарифу номер каюти та наявність уточнює менеджер після
+            заявки.
+          </p>
+          <button
+            type="button"
+            onClick={() => onCabinConfirm("MANAGER")}
+            className="btn-primary mt-4"
+          >
+            Продовжити без номера каюти
+          </button>
         </div>
       ) : null}
 

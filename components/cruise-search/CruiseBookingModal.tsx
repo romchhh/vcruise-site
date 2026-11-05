@@ -54,6 +54,7 @@ import {
   normalizeTariffName,
   offerKeyOf,
 } from "@/lib/cruise-search/offer-key";
+import { isValidPromoid } from "@/lib/cruise-search/promoid";
 import {
   cabinPlacementLabel,
   isReferenceOffersParty,
@@ -574,7 +575,7 @@ export default function CruiseBookingModal({
 
     const loadKey = offersRequestKey(bookingUrl, guestQuery);
     const seedOffers = referenceParty ? (selectedDateEntry?.offers ?? []) : [];
-    const seedReady = seedOffers.some((offer) => offer.promoid);
+    const seedReady = seedOffers.some((offer) => isValidPromoid(offer.promoid));
 
     if (seedOffers.length > 0 && seedReady) {
       offersRequestIdRef.current += 1;
@@ -589,7 +590,7 @@ export default function CruiseBookingModal({
 
     if (
       cached &&
-      cached.offers.some((offer) => offer.promoid)
+      cached.offers.some((offer) => isValidPromoid(offer.promoid))
     ) {
       applyOffers(cached.offers, loadKey);
       setOffersLoading(false);
@@ -628,7 +629,7 @@ export default function CruiseBookingModal({
           applyOffers(payload.offers, loadKey);
           const needsPromo =
             payload.offers.length > 0 &&
-            !payload.offers.some((offer) => offer.promoid);
+            !payload.offers.some((offer) => isValidPromoid(offer.promoid));
           if (!needsPromo) {
             offersLoadKeyRef.current = loadKey;
             setOffersLoading(false);
@@ -714,7 +715,7 @@ export default function CruiseBookingModal({
     ? Boolean(form.offerKey && selectedOffer)
     : Boolean(form.cabinType);
   const cabinNumberReady =
-    !selectedOffer?.promoid || Boolean(form.cabinNumber);
+    !isValidPromoid(selectedOffer?.promoid) || Boolean(form.cabinNumber);
   const canContinueToForm =
     Boolean(form.cruiseDate) &&
     cabinSelected &&
@@ -862,7 +863,7 @@ export default function CruiseBookingModal({
     if (hasOffers && !form.offerKey) {
       return "Оберіть тариф у таблиці кают нижче.";
     }
-    if (hasOffers && selectedOffer?.promoid && !form.cabinNumber) {
+    if (hasOffers && isValidPromoid(selectedOffer?.promoid) && !form.cabinNumber) {
       return "Оберіть номер каюти на плані палуби.";
     }
     if (!form.cabinType) {

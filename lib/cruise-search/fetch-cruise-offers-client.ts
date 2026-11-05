@@ -7,6 +7,7 @@ import {
   offersRequestKey,
   type CruiseOffersGuestQuery,
 } from "./offers-request-key";
+import { isValidPromoid } from "./promoid";
 import type { CruiseCabinOffer } from "./types";
 
 export type { CruiseOffersGuestQuery };
@@ -144,7 +145,9 @@ export async function fetchCruiseOffers({
 
   if (!forceRefresh) {
     const cached = readCache(key);
-    const cachedHasPromo = cached?.offers.some((offer) => offer.promoid);
+    const cachedHasPromo = cached?.offers.some((offer) =>
+      isValidPromoid(offer.promoid),
+    );
     if (cached && (cachedHasPromo || cached.offers.length === 0)) return cached;
   }
 
@@ -155,7 +158,7 @@ export async function fetchCruiseOffers({
     .then((payload) => {
       if (
         payload.offers.length === 0 ||
-        payload.offers.some((offer) => offer.promoid)
+        payload.offers.some((offer) => isValidPromoid(offer.promoid))
       ) {
         cache.set(key, payload);
       }

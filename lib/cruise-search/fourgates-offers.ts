@@ -1,4 +1,5 @@
-import { normalizeTariffName } from "./offer-key";
+import { normalizeCruiseCabinOffer, normalizeTariffName } from "./offer-key";
+import { isValidPromoid, sanitizePromoid } from "./promoid";
 import type { CruiseCabinOffer, CurrencyCode } from "./types";
 
 const BASE = "https://4gates.cruises";
@@ -96,7 +97,36 @@ function parseCabinMeta(name: string) {
 type ParsedOffer = CruiseCabinOffer;
 
 export function offersIncludePromo(offers: CruiseCabinOffer[]) {
-  return offers.some((offer) => Boolean(offer.promoid));
+  return offers.some((offer) => isValidPromoid(offer.promoid));
+}
+
+function parseAvailabilityButtonData(rowHtml: string): URLSearchParams | null {
+  const match =
+    rowHtml.match(
+      /class=["'][^"']*cab_availability[^"']*["'][^>]*\bdata=["']([^"']*)["']/i,
+    ) ??
+    rowHtml.match(
+      /\bdata=["']([^"']*)["'][^>]*class=["'][^"']*cab_availability[^"']*["']/i,
+    );
+  if (!match?.[1]) return null;
+  try {
+    return new URLSearchParams(match[1].replace(/&amp;/g, "&"));
+  } catch {
+    return null;
+  }
+}
+
+function parsePromoidFromRowHtml(rowHtml: string): string | undefined {
+  const buttonData = parseAvailabilityButtonData(rowHtml);
+  const fromData = sanitizePromoid(buttonData?.get("promoid"));
+  if (fromData) return fromData;
+
+  for (const match of rowHtml.matchAll(/\bpromoid=["']([^"']*)["']/gi)) {
+    const candidate = sanitizePromoid(match[1]);
+    if (candidate) return candidate;
+  }
+
+  return undefined;
 }
 
 function parsePricesFromRow(rowHtml: string): Partial<Record<CurrencyCode, number>> {
@@ -205,15 +235,17 @@ function parseRowHtml(
 
   const meta = parseCabinMeta(cabinName);
   const shipId = rowHtml.match(/ship_id=["'](\d+)["']/i)?.[1];
-  const promoid = rowHtml.match(/\bpromoid=["']([^"']+)["']/i)?.[1];
+  const promoid = parsePromoidFromRowHtml(rowHtml);
+  const availabilityOffline = /cab_availability_offline/i.test(rowHtml);
 
   return {
     cabinCode,
     cabinName,
     cabinCategory: category,
     tariffName,
-    promoid: promoid?.trim() || undefined,
+    promoid,
     shipId: shipId?.trim() || undefined,
+    availabilityOffline: availabilityOffline || undefined,
     areaM2: meta.areaM2,
     decks: meta.decks,
     price,
@@ -248,7 +280,7 @@ export function parseCabinsHtml(cabinsHtml: string): ParsedOffer[] {
 
     for (const rowHtml of extractBookingRows(tabHtml)) {
       const parsed = parseRowHtml(rowHtml, category);
-      if (parsed) offers.push(parsed);
+      if (parsed) offers.push(normalizeCruiseCabinOffer(parsed));
     }
   }
 

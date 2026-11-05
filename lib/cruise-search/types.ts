@@ -14,6 +14,8 @@ export type CruiseCabinOffer = {
   tariffName: string;
   /** 4gates promo id. Needed to load deck numbers for this tariff. */
   promoid?: string;
+  /** Live cabin picker unavailable (4gates cab_availability_offline). */
+  availabilityOffline?: boolean;
   /** 4gates ship id. Needed for the cabin description popup. */
   shipId?: string;
   areaM2?: number;

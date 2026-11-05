@@ -4,11 +4,11 @@ import {
   isAllowedBookingUrl,
   mapGuestsToFourgates,
 } from "@/lib/cruise-search/fourgates-offers";
+import { isValidPromoid } from "@/lib/cruise-search/promoid";
 
 export const runtime = "nodejs";
 
 const CODE = /^[A-Za-z0-9]{1,16}$/;
-const PROMO = /^[A-Za-z0-9_-]{1,80}$/;
 
 function count(value: string | null, fallback: number, max: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
       { status: 400 },
     );
   }
-  if (!CODE.test(cabinCode) || !PROMO.test(promoid)) {
+  if (!CODE.test(cabinCode) || !isValidPromoid(promoid)) {
     return NextResponse.json(
       { error: "Некоректний тариф каюти." },
       { status: 400 },

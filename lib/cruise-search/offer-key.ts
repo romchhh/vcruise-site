@@ -1,4 +1,5 @@
 import type { CruiseCabinOffer } from "./types";
+import { sanitizePromoid } from "./promoid";
 
 export function normalizeTariffName(value: unknown): string {
   if (typeof value === "string") return value.trim();
@@ -25,6 +26,10 @@ export function normalizeCruiseCabinOffer(
   offer: CruiseCabinOffer,
 ): CruiseCabinOffer {
   const tariffName = normalizeTariffName(offer.tariffName);
-  if (tariffName === offer.tariffName) return offer;
-  return { ...offer, tariffName };
+  const promoid = sanitizePromoid(offer.promoid);
+  return {
+    ...offer,
+    tariffName,
+    promoid,
+  };
 }

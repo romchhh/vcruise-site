@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { isValidPromoid } from "@/lib/cruise-search/promoid";
 import type { CabinAvailability } from "@/lib/cruise-search/cabin-availability";
 import type { CruiseCabinOffer } from "@/lib/cruise-search/types";
 import CruiseInlineLoader from "./CruiseInlineLoader";
@@ -65,9 +66,9 @@ export default function CabinDeckPicker({
   }, [planOpen]);
 
   useEffect(() => {
-    if (!offer.promoid || !bookingUrl) {
+    if (!isValidPromoid(offer.promoid) || !bookingUrl) {
       setLoading(false);
-      setError("Номери кают для цього тарифу ще не підвантажились.");
+      setError("Номери кают для цього тарифу уточнює менеджер.");
       setData(null);
       return;
     }
