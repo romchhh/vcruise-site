@@ -154,8 +154,8 @@ export async function fetchCruiseOffers({
   const pending = inflight.get(key);
   if (pending) return pending;
 
-  const promise = requestOffers(bookingUrl, guests, forceRefresh).then(
-    async (payload) => {
+  const promise = requestOffers(bookingUrl, guests, forceRefresh)
+    .then(async (payload) => {
       let resolved = payload;
       if (
         !forceRefresh &&
@@ -173,8 +173,7 @@ export async function fetchCruiseOffers({
         cache.set(key, resolved);
       }
       return resolved;
-    },
-  );
+    })
     .finally(() => {
       inflight.delete(key);
     });
