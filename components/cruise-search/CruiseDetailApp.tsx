@@ -153,6 +153,7 @@ export default function CruiseDetailApp({
         <div className="container-px mx-auto max-w-[1180px] min-w-0">
           <Link
             href={returnHref}
+            scroll={false}
             className="text-caption inline-flex items-center gap-2 font-semibold text-[color:var(--color-brand)] hover:underline"
           >
             ← Назад до результатів пошуку

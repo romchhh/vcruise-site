@@ -1,6 +1,13 @@
 "use client";
 
-import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import {
+  startTransition,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buildCruiseDetailPath } from "@/lib/cruise-search/cruise-detail-url";
 import {
@@ -71,7 +78,13 @@ export default function CruiseSearchApp({
   );
   const [visibleCount, setVisibleCount] = useState(SEARCH_RESULTS_PAGE_SIZE);
   const pendingScrollRef = useRef<number | null>(null);
+  const pendingScrollMinCountRef = useRef(0);
+  const lastFilterQueryRef = useRef<string | null>(null);
   const listQuery = searchParams.toString();
+  const filterQueryKey = useMemo(
+    () => buildSearchParams(appliedFilters),
+    [appliedFilters],
+  );
 
   const deepLinkCruiseKey = searchParams.get("cruise");
   const deepLinkDate =
@@ -108,17 +121,6 @@ export default function CruiseSearchApp({
     router,
     searchParams,
   ]);
-
-  useEffect(() => {
-    const restored = restoreSearchListState(listQuery);
-    if (!restored) return;
-
-    if (restored.visibleCount > SEARCH_RESULTS_PAGE_SIZE) {
-      setVisibleCount(restored.visibleCount);
-    }
-    pendingScrollRef.current = restored.scrollY;
-    clearSearchListState();
-  }, [listQuery]);
 
   const companies = useMemo(() => {
     const available = new Set(
@@ -187,21 +189,74 @@ export default function CruiseSearchApp({
   }, [appliedFilters]);
 
   useEffect(() => {
+    const previousKey = lastFilterQueryRef.current;
+    if (previousKey === filterQueryKey) return;
+    lastFilterQueryRef.current = filterQueryKey;
+
+    if (previousKey === null) {
+      const restored = restoreSearchListState(listQuery);
+      if (restored) {
+        const nextVisible = Math.min(
+          Math.max(restored.visibleCount, SEARCH_RESULTS_PAGE_SIZE),
+          results.length || restored.visibleCount,
+        );
+        if (nextVisible > SEARCH_RESULTS_PAGE_SIZE) {
+          setVisibleCount(nextVisible);
+        }
+        pendingScrollMinCountRef.current = nextVisible;
+        pendingScrollRef.current = restored.scrollY;
+        return;
+      }
+    }
+
+    pendingScrollRef.current = null;
+    pendingScrollMinCountRef.current = 0;
     setVisibleCount(SEARCH_RESULTS_PAGE_SIZE);
-  }, [results]);
+  }, [filterQueryKey, listQuery, results.length]);
 
   const visibleResults = useMemo(
     () => results.slice(0, visibleCount),
     [results, visibleCount]
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (pendingScrollRef.current == null) return;
+    if (visibleCount < pendingScrollMinCountRef.current) return;
+
     const scrollY = pendingScrollRef.current;
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: scrollY, left: 0, behavior: "instant" });
+    let cancelled = false;
+    let attempts = 0;
+
+    const finish = () => {
+      if (cancelled) return;
       pendingScrollRef.current = null;
-    });
+      pendingScrollMinCountRef.current = 0;
+      clearSearchListState();
+    };
+
+    const tryScroll = () => {
+      if (cancelled) return;
+      const maxScroll = Math.max(
+        0,
+        document.documentElement.scrollHeight - window.innerHeight,
+      );
+      if (maxScroll >= scrollY - 32 || attempts >= 60) {
+        window.scrollTo({
+          top: Math.min(scrollY, maxScroll),
+          left: 0,
+          behavior: "instant",
+        });
+        finish();
+        return;
+      }
+      attempts += 1;
+      requestAnimationFrame(tryScroll);
+    };
+
+    requestAnimationFrame(tryScroll);
+    return () => {
+      cancelled = true;
+    };
   }, [visibleCount, results.length]);
 
   const hasMoreResults = visibleCount < results.length;
