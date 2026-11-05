@@ -322,11 +322,18 @@ export default function CabinOffersTable({
             onConfirm={onCabinConfirm}
           />
         </div>
+      ) : selectedOffer && (loading || refreshing) ? (
+        <CruiseInlineLoader
+          label="Завантажуємо номери кают і тарифи з оператора…"
+          variant="block"
+          className="border-t border-[color:var(--color-line)] bg-[color:var(--color-surface-muted)] min-h-40"
+        />
       ) : selectedOffer ? (
         <div className="border-t border-[color:var(--color-line)] px-4 py-4 sm:px-5">
           <p className="text-caption text-[color:var(--color-black)]">
-            Для цього тарифу номер каюти та наявність уточнює менеджер після
-            заявки.
+            {selectedOffer.availabilityOffline
+              ? "Для цього тарифу номер каюти та наявність уточнює менеджер після заявки."
+              : "Онлайн-вибір номера для цього тарифу недоступний — менеджер підбере каюту після заявки."}
           </p>
           <button
             type="button"

@@ -101,19 +101,20 @@ export function offersIncludePromo(offers: CruiseCabinOffer[]) {
 }
 
 function parseAvailabilityButtonData(rowHtml: string): URLSearchParams | null {
-  const match =
-    rowHtml.match(
-      /class=["'][^"']*cab_availability[^"']*["'][^>]*\bdata=["']([^"']*)["']/i,
-    ) ??
-    rowHtml.match(
-      /\bdata=["']([^"']*)["'][^>]*class=["'][^"']*cab_availability[^"']*["']/i,
-    );
-  if (!match?.[1]) return null;
-  try {
-    return new URLSearchParams(match[1].replace(/&amp;/g, "&"));
-  } catch {
-    return null;
+  const patterns = [
+    /class=["'][^"']*\bcab_availability(?!_offline)\b[^"']*["'][^>]*\bdata=["']([^"']*)["']/i,
+    /\bdata=["']([^"']*)["'][^>]*class=["'][^"']*\bcab_availability(?!_offline)\b[^"']*["']/i,
+  ];
+  for (const pattern of patterns) {
+    const match = rowHtml.match(pattern);
+    if (!match?.[1]) continue;
+    try {
+      return new URLSearchParams(match[1].replace(/&amp;/g, "&"));
+    } catch {
+      continue;
+    }
   }
+  return null;
 }
 
 function parsePromoidFromRowHtml(rowHtml: string): string | undefined {

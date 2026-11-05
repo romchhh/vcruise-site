@@ -154,16 +154,27 @@ export async function fetchCruiseOffers({
   const pending = inflight.get(key);
   if (pending) return pending;
 
-  const promise = requestOffers(bookingUrl, guests, forceRefresh)
-    .then((payload) => {
+  const promise = requestOffers(bookingUrl, guests, forceRefresh).then(
+    async (payload) => {
+      let resolved = payload;
       if (
-        payload.offers.length === 0 ||
-        payload.offers.some((offer) => isValidPromoid(offer.promoid))
+        !forceRefresh &&
+        payload.promoPending &&
+        payload.offers.length > 0 &&
+        !payload.offers.some((offer) => isValidPromoid(offer.promoid))
       ) {
-        cache.set(key, payload);
+        resolved = await requestOffers(bookingUrl, guests, true);
       }
-      return payload;
-    })
+
+      if (
+        resolved.offers.length === 0 ||
+        resolved.offers.some((offer) => isValidPromoid(offer.promoid))
+      ) {
+        cache.set(key, resolved);
+      }
+      return resolved;
+    },
+  );
     .finally(() => {
       inflight.delete(key);
     });

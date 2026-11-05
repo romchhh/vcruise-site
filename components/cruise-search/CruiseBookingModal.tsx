@@ -609,16 +609,23 @@ export default function CruiseBookingModal({
 
     const requestId = offersRequestIdRef.current + 1;
     offersRequestIdRef.current = requestId;
+    const seedMissingPromo =
+      referenceParty &&
+      seedOffers.length > 0 &&
+      !seedOffers.some((offer) => isValidPromoid(offer.promoid));
     const hasVisibleOffers =
       seedOffers.length > 0 || (quoted?.key === loadKey && quoted.offers.length > 0);
-    if (!hasVisibleOffers) {
+    if (!hasVisibleOffers || seedMissingPromo) {
       setOffersLoading(true);
-      setOffersResolved(false);
+      if (!hasVisibleOffers) {
+        setOffersResolved(false);
+      }
     }
 
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
+          setOffersLoading(true);
           const payload = await fetchCruiseOffers({
             bookingUrl,
             guests: guestQuery,
