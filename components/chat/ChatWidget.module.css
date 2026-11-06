@@ -1,6 +1,7 @@
 .root {
   position: fixed;
-  right: 1rem;
+  /* Leave the outer-right column for Telegram/Viber (3rem + gap). */
+  right: calc(1rem + 3rem + 0.75rem);
   bottom: calc(1.25rem + env(safe-area-inset-bottom));
   /* Above site header (z-50 / z-70) so the panel close control stays clickable. */
   z-index: 80;
@@ -14,7 +15,7 @@
 
 @media (min-width: 640px) {
   .root {
-    right: 1.5rem;
+    right: calc(1.5rem + 3rem + 0.75rem);
     bottom: calc(1.5rem + env(safe-area-inset-bottom));
   }
 }
@@ -934,16 +935,13 @@
 }
 
 @media (max-width: 480px) {
-  .rootWithMessengers:not(.rootHome) {
-    bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  /* Messengers sit beside the launcher now — no extra vertical offset needed. */
+  .rootHome {
+    bottom: calc(6.5rem + env(safe-area-inset-bottom));
   }
 
-  .rootHome.rootWithMessengers {
-    bottom: calc(8.25rem + env(safe-area-inset-bottom));
-  }
-
-  .rootHome.rootTeaserUp.rootWithMessengers {
-    bottom: calc(11rem + env(safe-area-inset-bottom));
+  .rootHome.rootTeaserUp {
+    bottom: calc(9.5rem + env(safe-area-inset-bottom));
   }
 
   .panel {

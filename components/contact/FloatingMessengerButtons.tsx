@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import BrandMessengerIcon from "@/components/icons/BrandMessengerIcon";
 import { messengerBrandHex } from "@/lib/messenger-brands";
 import { getMessengerLinks, type MessengerLink } from "@/lib/messengers";
@@ -12,6 +13,8 @@ export default function FloatingMessengerButtons({
 }: {
   links?: MessengerLink[];
 }) {
+  const pathname = usePathname();
+  const isHome = pathname === "/";
   const links = linksProp?.length ? linksProp : getMessengerLinks();
   const [visible, setVisible] = useState(false);
 
@@ -29,9 +32,14 @@ export default function FloatingMessengerButtons({
 
   if (links.length === 0) return null;
 
+  // Outer-right column, same baseline as the chat launcher (chat sits to the left).
+  const positionClass = isHome
+    ? "bottom-[calc(6.5rem+env(safe-area-inset-bottom))] right-4 sm:bottom-[calc(7.25rem+env(safe-area-inset-bottom))] sm:right-6"
+    : "bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-4 sm:bottom-[calc(1.5rem+env(safe-area-inset-bottom))] sm:right-6";
+
   return (
     <div
-      className={`fixed bottom-24 right-4 z-40 flex flex-col gap-3 pb-[env(safe-area-inset-bottom)] transition-all duration-300 ease-out sm:bottom-28 sm:right-6 ${
+      className={`fixed z-[79] flex flex-col gap-3 transition-all duration-300 ease-out ${positionClass} ${
         visible
           ? "pointer-events-auto translate-y-0 opacity-100"
           : "pointer-events-none translate-y-3 opacity-0"

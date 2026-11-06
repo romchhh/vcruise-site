@@ -765,9 +765,9 @@ export default function ChatWidget() {
 
   return (
     <div
-      className={`${styles.root} ${styles.rootWithMessengers} ${
-        isHome ? styles.rootHome : ""
-      } ${teaserVisible && !open ? styles.rootTeaserUp : ""}`}
+      className={`${styles.root} ${isHome ? styles.rootHome : ""} ${
+        teaserVisible && !open ? styles.rootTeaserUp : ""
+      }`}
       onPointerDown={unlockChatSound}
     >
       {open ? (
