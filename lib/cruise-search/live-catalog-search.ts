@@ -5,6 +5,7 @@ import {
 } from "./fourgates-search-filters";
 import { resolveFourgatesRegionIds } from "./fourgates-ids";
 import { fetchGetitemsPage } from "./fourgates-getitems";
+import { resolveFourgatesShipId } from "./fourgates-ships";
 import { loadClientCruises } from "./load-cruises";
 import { buildSearchParams } from "./params";
 import { serializeCruisesForClient } from "./serialize-cruises";
@@ -36,6 +37,7 @@ type ProgressiveSession = {
   filters: CruiseSearchFilters;
   cruiseId: string;
   regionIds: string;
+  shipId: string;
   claimedTotal: number;
   rawItems: Record<string, unknown>[];
   nextPage: number;
@@ -46,10 +48,11 @@ type ProgressiveSession = {
   fetchedAt: number;
   pump: Promise<void> | null;
   regionAppliedOnServer: boolean;
+  shipAppliedOnServer: boolean;
 };
 
 function cacheKey(filters: CruiseSearchFilters) {
-  return `v10:${buildSearchParams(filters)}`;
+  return `v14:${buildSearchParams(filters)}`;
 }
 
 function countUniqueKeys(items: Record<string, unknown>[]) {
@@ -61,9 +64,12 @@ function countUniqueKeys(items: Record<string, unknown>[]) {
   return seen.size;
 }
 
-function clientFiltersMayReduce(filters: CruiseSearchFilters) {
+function clientFiltersMayReduce(
+  filters: CruiseSearchFilters,
+  shipAppliedOnServer = false,
+) {
   return Boolean(
-    filters.liner ||
+    (filters.liner && !shipAppliedOnServer) ||
       filters.newLinersOnly ||
       (filters.duration && filters.duration !== "Будь-яка") ||
       filters.months?.length,
@@ -74,6 +80,7 @@ function rebuildSessionCruises(session: ProgressiveSession) {
   const structured = structureGetitemsRows(session.rawItems);
   const filtered = applyClientOnlyFilters(structured, session.filters, {
     regionAppliedOnServer: session.regionAppliedOnServer,
+    shipAppliedOnServer: session.shipAppliedOnServer,
   });
   session.cruises = serializeCruisesForClient(filtered, undefined, {
     includeOffers: false,
@@ -104,17 +111,11 @@ async function createSession(
 ): Promise<ProgressiveSession> {
   const cruiseId = resolveFourgatesCruiseId(filters.company);
   const regionIds = resolveFourgatesRegionIds(filters.regions);
-  const narrowed = Boolean(cruiseId || filters.liner || regionIds);
-  const maxPages = Math.min(
-    Math.max(options?.maxPages ?? (narrowed ? 80 : 40), 1),
-    250,
-  );
-  const maxItems = Math.min(
-    Math.max(options?.maxItems ?? (narrowed ? 1200 : 600), 50),
-    2500,
-  );
-
-  const fetchOptions = { cruiseId, regionIds };
+  const shipId = filters.liner
+    ? await resolveFourgatesShipId(filters.liner, filters.company)
+    : "";
+  const narrowed = Boolean(cruiseId || shipId || filters.liner || regionIds);
+  const fetchOptions = { cruiseId, regionIds, shipId };
   const first = await fetchGetitemsPage(filters, 0, fetchOptions);
   const pageSize = first.items.length || 10;
   const claimedTotal = first.total;
@@ -122,12 +123,30 @@ async function createSession(
     pageSize > 0
       ? Math.ceil(Math.max(claimedTotal, first.items.length) / pageSize)
       : 1;
+  // Never truncate below 4gates `total` — otherwise subsets drift from the widget.
+  const maxItems = Math.min(
+    Math.max(
+      options?.maxItems ?? (narrowed ? 1200 : 600),
+      claimedTotal + 50,
+      50,
+    ),
+    20_000,
+  );
+  const maxPages = Math.min(
+    Math.max(
+      options?.maxPages ?? (narrowed ? 80 : 40),
+      estimatedPages + PAGE_OVERSHOOT,
+      1,
+    ),
+    2_200,
+  );
 
   const session: ProgressiveSession = {
     key: cacheKey(filters),
     filters,
     cruiseId,
     regionIds,
+    shipId,
     claimedTotal,
     rawItems: [...first.items],
     nextPage: 1,
@@ -138,6 +157,7 @@ async function createSession(
     fetchedAt: Date.now(),
     pump: null,
     regionAppliedOnServer: Boolean(regionIds),
+    shipAppliedOnServer: Boolean(shipId),
   };
   rebuildSessionCruises(session);
 
@@ -161,6 +181,7 @@ async function pumpSession(session: ProgressiveSession, needCount: number) {
   const fetchOptions = {
     cruiseId: session.cruiseId,
     regionIds: session.regionIds,
+    shipId: session.shipId,
   };
   let emptyStreak = 0;
 
@@ -293,15 +314,16 @@ export async function searchLiveCatalogPage(
     }
 
     // Client-only filters change the real total — finish the scan before answering.
-    if (clientFiltersMayReduce(filters)) {
+    if (clientFiltersMayReduce(filters, session.shipAppliedOnServer)) {
       await enqueuePump(session, session.claimedTotal || session.maxItems);
     } else if (
       offset === 0 &&
+      limit <= DEFAULT_PAGE_SIZE &&
       session.cruises.length > 0 &&
       session.cruises.length < needCount &&
       !session.complete
     ) {
-      // First paint: return page 0 immediately with the exact total, prefetch rest.
+      // First paint only for the UI page size — larger limits wait for a full slice.
       void enqueuePump(session, needCount + limit);
     } else {
       await enqueuePump(session, needCount);

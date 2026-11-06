@@ -11,6 +11,8 @@ import type { CruiseRecord, CruiseSearchFilters } from "./types";
 export type ClientFilterOptions = {
   /** Region already narrowed via getitems `region_id` — skip name rematch. */
   regionAppliedOnServer?: boolean;
+  /** Liner already narrowed via getitems `ship_id`. */
+  shipAppliedOnServer?: boolean;
 };
 
 /** Filters 4gates getitems does not receive reliably — apply on live rows only. */
@@ -26,6 +28,7 @@ export function applyClientOnlyFilters(
     months: filters.months,
   };
   const applyRegion = !options?.regionAppliedOnServer;
+  const applyLiner = !options?.shipAppliedOnServer;
 
   return cruises.filter((cruise) => {
     if (
@@ -35,7 +38,11 @@ export function applyClientOnlyFilters(
       return false;
     }
 
-    if (filters.liner && cruise.liner_slug !== filters.liner) {
+    if (
+      applyLiner &&
+      filters.liner &&
+      cruise.liner_slug !== filters.liner
+    ) {
       return false;
     }
 

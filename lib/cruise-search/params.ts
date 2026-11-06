@@ -66,6 +66,9 @@ export function alignCompanyLinerFilters(
 ): CruiseSearchFilters {
   if (!filters.liner) return filters;
 
+  // Live search path may pass an empty catalog — keep the URL liner slug.
+  if (!cruises.length) return filters;
+
   const match = cruises.find((cruise) => cruise.liner_slug === filters.liner);
   if (!match) {
     return { ...filters, liner: "" };

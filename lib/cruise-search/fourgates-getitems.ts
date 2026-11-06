@@ -1,3 +1,4 @@
+import { loadFourgatesFilterMeta } from "./fourgates-filter-meta";
 import type { CruiseSearchFilters, CruiseSort } from "./types";
 
 const BASE = "https://4gates.cruises";
@@ -43,7 +44,16 @@ function addDaysIso(iso: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-export function buildGetitemsDateRange(filters: CruiseSearchFilters) {
+function fallbackDateRange() {
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - 14);
+  const end = new Date(today);
+  end.setMonth(end.getMonth() + 36);
+  return `${formatFourgatesDate(start)}-${formatFourgatesDate(end)}`;
+}
+
+export async function buildGetitemsDateRange(filters: CruiseSearchFilters) {
   if (filters.dateFrom && filters.dateTo) {
     return `${isoToFourgates(filters.dateFrom)}-${isoToFourgates(filters.dateTo)}`;
   }
@@ -57,12 +67,15 @@ export function buildGetitemsDateRange(filters: CruiseSearchFilters) {
     return `01.01.${filters.year}-31.12.${filters.year}`;
   }
 
-  const today = new Date();
-  const start = new Date(today);
-  start.setDate(start.getDate() - 14);
-  const end = new Date(today);
-  end.setMonth(end.getMonth() + 36);
-  return `${formatFourgatesDate(start)}-${formatFourgatesDate(end)}`;
+  try {
+    const meta = await loadFourgatesFilterMeta();
+    if (meta.dateMin && meta.dateMax) {
+      return `${meta.dateMin}-${meta.dateMax}`;
+    }
+  } catch {
+    // Fall through to local window.
+  }
+  return fallbackDateRange();
 }
 
 function mapSortToFourgates(sort: CruiseSort) {
@@ -86,9 +99,11 @@ export type GetitemsFetchOptions = {
   cruiseId?: string;
   /** Comma-joined numeric region ids from 4gates getfilter. */
   regionIds?: string;
+  /** 4gates ship_id (e.g. MA_MSC). liner_slug is ignored by getitems. */
+  shipId?: string;
 };
 
-export function buildGetitemsParams(
+export async function buildGetitemsParams(
   filters: CruiseSearchFilters,
   page: number,
   options?: GetitemsFetchOptions,
@@ -96,7 +111,7 @@ export function buildGetitemsParams(
   const params = new URLSearchParams({
     act: "getitems",
     pg_num: String(page),
-    dates: buildGetitemsDateRange(filters),
+    dates: await buildGetitemsDateRange(filters),
     pr_min: "1",
     pr_max: String(FOURGATES_MAX_PRICE),
     // p_min/p_max are not night counts. Catalog durMax (e.g. 244) zeroes real sailings.
@@ -115,6 +130,11 @@ export function buildGetitemsParams(
   const regionIds = options?.regionIds?.trim();
   if (regionIds) {
     params.set("region_id", regionIds);
+  }
+
+  const shipId = options?.shipId?.trim();
+  if (shipId) {
+    params.set("ship_id", shipId);
   }
 
   return params;
@@ -153,7 +173,7 @@ async function fetchGetitemsPageOnce(
   page: number,
   options?: GetitemsFetchOptions,
 ) {
-  const params = buildGetitemsParams(filters, page, options);
+  const params = await buildGetitemsParams(filters, page, options);
   const response = await fetch(`${AJAX}?${params}`, {
     headers: HEADERS,
     cache: "no-store",
