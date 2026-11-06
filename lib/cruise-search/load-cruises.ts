@@ -6,6 +6,7 @@ import {
   loadOffersBySlugMap,
   offersCacheMtimeMs,
 } from "./load-offers-cache";
+import { invalidateLiveCatalogCache } from "./live-catalog-search";
 import { findSimilarCruises } from "./similar-cruises";
 import { serializeCruisesForClient } from "./serialize-cruises";
 import type { CruiseRecord } from "./types";
@@ -38,6 +39,7 @@ export function invalidateCruiseCache() {
   cachedClientFull = null;
   cachedMtimeMs = 0;
   cachedOffersMtimeMs = 0;
+  invalidateLiveCatalogCache();
   invalidateOffersCache();
 }
 
@@ -126,7 +128,9 @@ export function loadCruisePage(key: number) {
   if (!raw) return null;
 
   const offersBySlug = loadOffersBySlugMap();
-  const [cruise] = serializeCruisesForClient([raw], offersBySlug);
+  const [cruise] = serializeCruisesForClient([raw], offersBySlug, {
+    includeOffers: false,
+  });
   const similar = serializeCruisesForClient(
     findSimilarCruises(raw, all, 3),
     offersBySlug,

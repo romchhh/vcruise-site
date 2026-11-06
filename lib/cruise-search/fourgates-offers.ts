@@ -347,26 +347,72 @@ async function loadOffersFromFourgates(
     childs1: String(guests.childrenTeen),
   });
 
-  // The public widget calls get_cabins with credentials omitted.
-  // A shared PHPSESSID serializes these requests (PHP session lock), so a
-  // second sailing waits out the first and a ~7s quote becomes ~20s.
-  const res = await fetch(`${AJAX}?${params.toString()}`, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      Accept: "application/json, text/javascript, */*; q=0.01",
-      "X-Requested-With": "XMLHttpRequest",
-      Referer: referer,
-    },
-    cache: "no-store",
-  });
+  const requestHeaders = {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    Accept: "application/json, text/javascript, */*; q=0.01",
+    "X-Requested-With": "XMLHttpRequest",
+    Referer: referer,
+  };
 
-  if (!res.ok) {
-    throw new Error(`4gates повернув ${res.status}`);
+  let lastHtml = "";
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const res = await fetch(`${AJAX}?${params.toString()}`, {
+      headers: requestHeaders,
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      if (attempt < 2) {
+        await sleep(Math.min(800 * 2 ** attempt, 4000));
+        continue;
+      }
+      throw new Error(`4gates повернув ${res.status}`);
+    }
+
+    const raw = (await res.text()).trim();
+    if (!raw) {
+      if (attempt < 2) {
+        await sleep(Math.min(800 * 2 ** attempt, 4000));
+        continue;
+      }
+      return [];
+    }
+
+    let data: { cabins?: string };
+    try {
+      data = JSON.parse(raw) as { cabins?: string };
+    } catch {
+      if (attempt < 2) {
+        await sleep(Math.min(800 * 2 ** attempt, 4000));
+        continue;
+      }
+      return [];
+    }
+
+    lastHtml = data.cabins ?? "";
+    const offers = parseCabinsHtml(lastHtml);
+    if (offers.length || !cabinsHtmlEmpty(lastHtml)) {
+      return offers;
+    }
+
+    if (attempt < 2) {
+      await sleep(Math.min(800 * 2 ** attempt, 4000));
+    }
   }
 
-  const data = (await res.json()) as { cabins?: string };
-  return parseCabinsHtml(data.cabins ?? "");
+  return parseCabinsHtml(lastHtml);
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function cabinsHtmlEmpty(html: string) {
+  if (!html.trim()) return true;
+  return html.includes("notify") || !/booking-table__row/i.test(html);
 }
 
 export async function warmFourgatesSession(): Promise<void> {
@@ -393,10 +439,12 @@ export async function fetchFourgatesOffers(
 
   const promise = loadOffersFromFourgates(bookingUrl, guests)
     .then((offers) => {
-      offerCache.set(key, {
-        offers,
-        expiresAt: Date.now() + CACHE_TTL_MS,
-      });
+      if (offers.length) {
+        offerCache.set(key, {
+          offers,
+          expiresAt: Date.now() + CACHE_TTL_MS,
+        });
+      }
       return offers;
     })
     .finally(() => {

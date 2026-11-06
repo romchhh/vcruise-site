@@ -36,17 +36,26 @@ function cheapestFromCabins(
   cabins: CruiseRecord["from_price"] | undefined,
   currency: CurrencyCode,
 ) {
+  return cheapestCabinQuote(cabins, currency)?.[currency] ?? null;
+}
+
+/** The 4gates «Від» row: one cabin, all of its currency spans. */
+export function cheapestCabinQuote(
+  cabins: CruiseRecord["from_price"] | undefined,
+  currency: CurrencyCode,
+) {
   if (!cabins) return null;
-  let min: number | null = null;
+  let best: Partial<Record<CurrencyCode, number>> | null = null;
+  let bestValue = Number.POSITIVE_INFINITY;
 
   for (const cabin of Object.values(cabins)) {
     const value = cabin?.[currency];
-    if (value != null && (min === null || value < min)) {
-      min = value;
-    }
+    if (value == null || value >= bestValue) continue;
+    bestValue = value;
+    best = cabin;
   }
 
-  return min;
+  return best;
 }
 
 export function cheapestPrice(
@@ -54,6 +63,17 @@ export function cheapestPrice(
   currency: CurrencyCode = DEFAULT_CURRENCY
 ) {
   return cheapestFromCabins(cruise.from_price, currency);
+}
+
+export function cabinQuoteOnDate(
+  cruise: CruiseRecord,
+  date: string | null | undefined,
+  currency: CurrencyCode = DEFAULT_CURRENCY,
+) {
+  if (date && cruise.base_date_start && date !== cruise.base_date_start) {
+    return null;
+  }
+  return cheapestCabinQuote(cruise.from_price, currency);
 }
 
 /**

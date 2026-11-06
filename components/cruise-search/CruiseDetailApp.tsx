@@ -125,7 +125,8 @@ export default function CruiseDetailApp({
   const [quotedFrom, setQuotedFrom] = useState<number | null | undefined>(
     undefined,
   );
-  const highlightPrice = quotedFrom === undefined ? catalogPrice : quotedFrom;
+  const highlightPrice =
+    quotedFrom === undefined ? null : (quotedFrom ?? catalogPrice);
   const fromPort = embarkationPort(cruise);
   const stops = useMemo(() => routeStops(cruise.route ?? []), [cruise.route]);
   const routeSummary = useMemo(() => formatRouteSummary(stops), [stops]);

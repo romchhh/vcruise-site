@@ -8,7 +8,7 @@ import {
   CURRENCY_SYMBOL,
 } from "@/lib/cruise-search/constants";
 import {
-  cheapestPriceOnDate,
+  cabinQuoteOnDate,
   embarkationPort,
   formatDate,
   formatMoney,
@@ -68,20 +68,18 @@ export default function CruiseSearchResultCard({
     [sailings],
   );
   const highlightDate = headline.base_date_start ?? null;
-  const price = cheapestPriceOnDate(headline, highlightDate, currency);
+  const quote = useMemo(
+    () => cabinQuoteOnDate(headline, highlightDate, currency),
+    [headline, highlightDate, currency],
+  );
+  const price = quote?.[currency] ?? null;
   const symbol = CURRENCY_SYMBOL[currency];
-  const allCurrencyPrices = useMemo(
-    () =>
-      CURRENCY_OPTIONS.map(({ code }) => ({
-        code,
-        amount: cheapestPriceOnDate(headline, highlightDate, code),
-      })),
-    [headline, highlightDate],
-  );
-  const secondaryPrices = allCurrencyPrices.filter(
-    (item) =>
-      item.code !== currency && item.amount != null && item.amount > 0,
-  );
+  const secondaryPrices = CURRENCY_OPTIONS.flatMap(({ code }) => {
+    if (code === currency) return [];
+    const amount = quote?.[code];
+    if (amount == null || amount <= 0) return [];
+    return [{ code, amount }];
+  });
   const fromPort = embarkationPort(headline);
   const route = headline.route ?? [];
   const routePreview = route.slice(0, 3).join(" · ");
@@ -222,7 +220,7 @@ export default function CruiseSearchResultCard({
           <div className="space-y-3">
             {datesInOrder.map((item) => {
               const date = item.base_date_start ?? "";
-              const amount = cheapestPriceOnDate(item, date, currency);
+              const amount = cabinQuoteOnDate(item, date, currency)?.[currency];
 
               return (
                 <button

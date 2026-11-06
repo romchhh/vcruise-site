@@ -145,10 +145,19 @@ export async function fetchCruiseOffers({
 
   if (!forceRefresh) {
     const cached = readCache(key);
+    // Never trust an empty cache — prefetch/races can store a transient miss
+    // and then the detail page shows category prices without cabin rows until reload.
     const cachedHasPromo = cached?.offers.some((offer) =>
       isValidPromoid(offer.promoid),
     );
-    if (cached && (cachedHasPromo || cached.offers.length === 0)) return cached;
+    if (
+      cached &&
+      cached.source !== "disk" &&
+      cached.offers.length > 0 &&
+      cachedHasPromo
+    ) {
+      return cached;
+    }
   }
 
   const pending = inflight.get(key);
@@ -166,11 +175,14 @@ export async function fetchCruiseOffers({
         resolved = await requestOffers(bookingUrl, guests, true);
       }
 
+      // Only cache successful live quotes. Empty results must be retried.
       if (
-        resolved.offers.length === 0 ||
+        resolved.offers.length > 0 &&
         resolved.offers.some((offer) => isValidPromoid(offer.promoid))
       ) {
         cache.set(key, resolved);
+      } else if (resolved.offers.length === 0) {
+        cache.delete(key);
       }
       return resolved;
     })

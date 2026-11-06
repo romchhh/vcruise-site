@@ -21,6 +21,9 @@ export function buildCruiseDetailPath(
   options: {
     listQuery?: string;
     sailing?: string;
+    /** Liner slug of the clicked sailing. Live keys do not match the disk catalog. */
+    ship?: string;
+    nights?: number;
     currency?: CurrencyCode;
     adults?: number;
     children?: number;
@@ -31,6 +34,10 @@ export function buildCruiseDetailPath(
   const from = options.listQuery?.trim();
   if (from) params.set("from", from);
   if (options.sailing) params.set("sailing", options.sailing);
+  if (options.ship) params.set("ship", options.ship);
+  if (options.nights && options.nights > 0) {
+    params.set("nights", String(options.nights));
+  }
   if (options.currency && options.currency !== DEFAULT_CURRENCY) {
     params.set("currency", options.currency);
   }

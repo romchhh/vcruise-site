@@ -12,6 +12,7 @@ import { effectiveMonthYear, isMonthSelectable } from "@/lib/cruise-search/month
 import { todayIso } from "@/lib/cruise-search/utils";
 import BudgetRangeSlider from "./BudgetRangeSlider";
 import CruiseCurrencyToggle from "./CruiseCurrencyToggle";
+import CruiseDateRangePicker from "./CruiseDateRangePicker";
 import NewLinersToggle from "./NewLinersToggle";
 
 type Props = {
@@ -159,43 +160,17 @@ export default function CruiseSearchFilters({
           </select>
         </label>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:col-span-2 xl:col-span-2">
-          <label className="flex flex-col gap-2">
-            <span className="text-caption font-semibold text-[color:var(--color-black)]">
-              Дата від
-            </span>
-            <input
-              type="date"
-              min={minDate}
-              value={filters.dateFrom}
-              onChange={(event) =>
-                onChange({
-                  dateFrom: event.target.value,
-                  year: "Будь-коли",
-                })
-              }
-              className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
-            />
-          </label>
-
-          <label className="flex flex-col gap-2">
-            <span className="text-caption font-semibold text-[color:var(--color-black)]">
-              Дата до
-            </span>
-            <input
-              type="date"
-              min={filters.dateFrom || minDate}
-              value={filters.dateTo}
-              onChange={(event) =>
-                onChange({
-                  dateTo: event.target.value,
-                  year: "Будь-коли",
-                })
-              }
-              className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
-            />
-          </label>
-        </div>
+        <CruiseDateRangePicker
+          dateFrom={filters.dateFrom}
+          dateTo={filters.dateTo}
+          minDate={minDate}
+          onChange={(patch) =>
+            onChange({
+              ...patch,
+              year: "Будь-коли",
+            })
+          }
+        />
 
         <BudgetRangeSlider
           minBound={priceBoundMin}

@@ -3,7 +3,6 @@ import {
   fetchFourgatesOffers,
   isAllowedBookingUrl,
   mapGuestsToFourgates,
-  offersIncludePromo,
   warmFourgatesSession,
 } from "@/lib/cruise-search/fourgates-offers";
 import {
@@ -14,8 +13,6 @@ import { normalizeCruiseCabinOffer } from "@/lib/cruise-search/offer-key";
 import type { CruiseCabinOffer } from "@/lib/cruise-search/types";
 
 export const runtime = "nodejs";
-
-const CACHE_SEC = 900;
 
 function normalizeOffers(offers: CruiseCabinOffer[]) {
   return offers.map(normalizeCruiseCabinOffer);
@@ -55,51 +52,45 @@ export async function GET(request: Request) {
     : 0;
   const referenceParty =
     safeAdults === 2 && safeChildren === 0 && safeTeens === 0;
+  const diskOffers = offersForBookingUrl(bookingUrl);
 
   try {
-    const skipDisk = searchParams.get("refresh") === "1";
-    if (!skipDisk && referenceParty) {
-      const diskOffers = offersForBookingUrl(bookingUrl);
-      if (diskOffers?.length) {
-        const offers = normalizeOffers(diskOffers);
-        const promoPending = !offersIncludePromo(offers);
-        if (promoPending) {
-          const guests = mapGuestsToFourgates(safeAdults, safeChildren, 0, 0);
-          void fetchFourgatesOffers(bookingUrl, guests)
-            .then((live) => {
-              if (live.length) rememberDiskOffers(bookingUrl, live);
-            })
-            .catch(() => {
-              // The page already has disk prices. Live promo ids arrive on refresh.
-            });
-        }
-        return NextResponse.json(
-          {
-            offers,
-            guestSpecific: false,
-            source: "disk",
-            promoPending,
-          },
-          {
-            headers: {
-              "Cache-Control": promoPending
-                ? "private, max-age=30"
-                : `private, max-age=${CACHE_SEC}, stale-while-revalidate=1800`,
-            },
-          },
-        );
-      }
-    }
-
     const guests = mapGuestsToFourgates(
       safeAdults,
       safeChildren,
       0,
       safeTeens,
     );
-    const offers = normalizeOffers(await fetchFourgatesOffers(bookingUrl, guests));
+    let offers: CruiseCabinOffer[] = [];
+    let source: "live" | "disk" = "live";
+    try {
+      offers = normalizeOffers(await fetchFourgatesOffers(bookingUrl, guests));
+    } catch {
+      offers = [];
+    }
 
-    if (referenceParty && offers.length) {
+    if (!offers.length && diskOffers?.length) {
+      offers = normalizeOffers(diskOffers);
+      source = "disk";
+    }
+
+    if (!offers.length) {
+      return NextResponse.json(
+        {
+          offers: [],
+          guestSpecific: false,
+          source,
+          unavailable: true,
+          error: "Тарифи тимчасово недоступні. Спробуйте пізніше.",
+        },
+        {
+          status: 200,
+          headers: { "Cache-Control": "private, max-age=60" },
+        },
+      );
+    }
+
+    if (referenceParty && source === "live") {
       try {
         rememberDiskOffers(bookingUrl, offers);
       } catch {
@@ -108,10 +99,18 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(
-      { offers, guestSpecific: !referenceParty && offers.length > 0, source: "live" },
+      {
+        offers,
+        guestSpecific: !referenceParty && offers.length > 0,
+        source,
+        stale: source === "disk",
+      },
       {
         headers: {
-          "Cache-Control": `private, max-age=${CACHE_SEC}, stale-while-revalidate=1800`,
+          "Cache-Control":
+            source === "live"
+              ? "private, max-age=120, stale-while-revalidate=300"
+              : "private, max-age=30",
         },
       },
     );

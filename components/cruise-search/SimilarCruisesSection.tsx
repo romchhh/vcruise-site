@@ -21,7 +21,9 @@ export default function SimilarCruisesSection({
     router.push(
       buildCruiseDetailPath(next.key, {
         listQuery: detailQuery.from,
-        sailing: preferredDate,
+        sailing: preferredDate || next.base_date_start,
+        ship: next.liner_slug,
+        nights: next.nights,
         currency: detailQuery.currency,
         adults: detailQuery.adults,
         children: detailQuery.children,

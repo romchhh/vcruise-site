@@ -4,7 +4,7 @@
 #   macOS  -> launchd
 #   Linux  -> systemd timer
 #
-# Встановити (кожні 3 дні):
+# Встановити (щоденно):
 #   ./scripts/cruise-scheduler.sh install
 #
 # Статус / зупинити / запустити зараз:
@@ -16,7 +16,7 @@ set -euo pipefail
 
 LABEL="com.vcruise.update-cruises"
 SYSTEMD_UNIT="vcruise-update-cruises"
-INTERVAL_SECONDS=$((3 * 24 * 60 * 60)) # 3 дні
+INTERVAL_SECONDS=$((1 * 24 * 60 * 60)) # щодня
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -29,7 +29,7 @@ usage() {
 Usage: $0 <command>
 
 Commands:
-  install     встановити планувальник (кожні 3 дні)
+  install     встановити планувальник (щоденно)
   uninstall   вимкнути і видалити планувальник
   status      показати стан планувальника
   run         запустити оновлення зараз (додай --background для фону)
@@ -138,7 +138,7 @@ launchd_install() {
 
   echo "Планувальник launchd встановлено."
   echo "  Label:    ${LABEL}"
-  echo "  Інтервал: кожні 3 дні (${INTERVAL_SECONDS} сек)"
+  echo "  Інтервал: щоденно (${INTERVAL_SECONDS} сек)"
   echo "  Plist:    ${PLIST_PATH}"
   echo "  Логи:     ${LOG_DIR}/scheduler.{out,err}.log"
   echo ""
@@ -235,7 +235,7 @@ Description=Run VCRUISE cruise update every 3 days
 
 [Timer]
 OnBootSec=15min
-OnUnitActiveSec=3d
+OnUnitActiveSec=1d
 Persistent=true
 Unit=${SYSTEMD_UNIT}.service
 
@@ -259,7 +259,7 @@ systemd_install() {
   echo "Планувальник systemd встановлено."
   echo "  Unit:     ${SYSTEMD_UNIT}.timer"
   echo "  Scope:    $(systemd_scope)"
-  echo "  Інтервал: кожні 3 дні після останнього запуску"
+  echo "  Інтервал: щоденно після останнього запуску"
   echo "  Service:  ${SYSTEMD_SERVICE_PATH}"
   echo "  Timer:    ${SYSTEMD_TIMER_PATH}"
   echo "  Логи:     ${LOG_DIR}/scheduler.{out,err}.log"

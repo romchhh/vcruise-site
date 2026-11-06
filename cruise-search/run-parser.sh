@@ -3,7 +3,7 @@
 # Запуск парсера круїзів 4gates.cruises → data/cruise-search/cruises_output.json
 #
 # Приклади:
-#   ./cruise-search/run-parser.sh              # оновити, якщо минуло ≥3 дні
+#   ./cruise-search/run-parser.sh              # оновити, якщо минуло ≥1 доба
 #   ./cruise-search/run-parser.sh --force      # завжди зараз
 #   ./cruise-search/run-parser.sh --force -b   # у фоні (лог у data/cruise-search/logs/)
 #   ./cruise-search/run-parser.sh --force --limit 500
@@ -12,7 +12,7 @@ set -euo pipefail
 
 export PYTHONUNBUFFERED=1
 
-INTERVAL_DAYS=3
+INTERVAL_DAYS=1
 FORCE=0
 BACKGROUND=0
 LIMIT=""

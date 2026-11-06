@@ -7,7 +7,7 @@ import { ChevronDown, Minus, Plus } from "lucide-react";
 import FinderDatePanel, {
   type FinderDateState,
 } from "@/components/cruise-finder/FinderDatePanel";
-import { formatShortDate } from "@/lib/cruise-finder/calendar";
+import { formatDateRangeLabel } from "@/components/shared/DateRangeCalendar";
 import { buildSearchParams } from "@/lib/cruise-search/params";
 import { isMonthSelectable } from "@/lib/cruise-search/month-helpers";
 import type { ContentBlock } from "@/lib/cms/store";
@@ -93,10 +93,8 @@ function getMonthFieldLabel(state: FinderDateState) {
 }
 
 function getDatesFieldLabel(state: FinderDateState) {
-  const { dateFrom, dateTo } = state;
-  if (!dateFrom) return "Оберіть дати";
-  if (!dateTo) return `${formatShortDate(dateFrom)} – …`;
-  return `${formatShortDate(dateFrom)} – ${formatShortDate(dateTo)}`;
+  const label = formatDateRangeLabel(state.dateFrom, state.dateTo);
+  return label || "Оберіть дати";
 }
 
 export default function CruiseFinder({ section }: CruiseFinderProps) {
@@ -108,17 +106,12 @@ export default function CruiseFinder({ section }: CruiseFinderProps) {
   const [budget, setBudget] = useState<string | null>(null);
   const [counts, setCounts] = useState({ adults: 0, children: 0, infants: 0 });
   const [datePanelOpen, setDatePanelOpen] = useState(false);
-  const [dateState, setDateState] = useState<FinderDateState>(() => {
-    const now = new Date();
-    return {
+  const [dateState, setDateState] = useState<FinderDateState>(() => ({
       selectedYear: "Будь-коли",
       selectedMonths: [],
-      calendarYear: now.getFullYear(),
-      calendarMonth: now.getMonth(),
       dateFrom: "",
       dateTo: "",
-    };
-  });
+    }));
 
   useEffect(() => {
     if (!datePanelOpen) return;

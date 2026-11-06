@@ -574,22 +574,12 @@ export default function CruiseBookingModal({
     }
 
     const loadKey = offersRequestKey(bookingUrl, guestQuery);
-    const seedOffers = referenceParty ? (selectedDateEntry?.offers ?? []) : [];
-    const seedReady = seedOffers.some((offer) => isValidPromoid(offer.promoid));
-
-    if (seedOffers.length > 0 && seedReady) {
-      offersRequestIdRef.current += 1;
-      setQuoted(null);
-      setOffersResolved(true);
-      setOffersLoading(false);
-      offersLoadKeyRef.current = loadKey;
-      return;
-    }
 
     const cached = getCachedCruiseOffers(bookingUrl, guestQuery);
 
     if (
       cached &&
+      cached.offers.length > 0 &&
       cached.offers.some((offer) => isValidPromoid(offer.promoid))
     ) {
       applyOffers(cached.offers, loadKey);
@@ -598,7 +588,12 @@ export default function CruiseBookingModal({
       return;
     }
 
-    if (offersLoadKeyRef.current === loadKey) {
+    // Skip only when this key already resolved with real cabin rows.
+    if (
+      offersLoadKeyRef.current === loadKey &&
+      quoted?.key === loadKey &&
+      quoted.offers.length > 0
+    ) {
       return;
     }
 
@@ -609,36 +604,42 @@ export default function CruiseBookingModal({
 
     const requestId = offersRequestIdRef.current + 1;
     offersRequestIdRef.current = requestId;
-    const seedMissingPromo =
-      referenceParty &&
-      seedOffers.length > 0 &&
-      !seedOffers.some((offer) => isValidPromoid(offer.promoid));
     const hasVisibleOffers =
-      seedOffers.length > 0 || (quoted?.key === loadKey && quoted.offers.length > 0);
-    if (!hasVisibleOffers || seedMissingPromo) {
+      quoted?.key === loadKey && quoted.offers.length > 0;
+    if (!hasVisibleOffers) {
       setOffersLoading(true);
-      if (!hasVisibleOffers) {
-        setOffersResolved(false);
-      }
+      setOffersResolved(false);
     }
 
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
           setOffersLoading(true);
-          const payload = await fetchCruiseOffers({
+          let payload = await fetchCruiseOffers({
             bookingUrl,
             guests: guestQuery,
           });
 
           if (requestId !== offersRequestIdRef.current) return;
 
+          // One forced retry if the first pass came back empty (prefetch race).
+          if (!payload.offers.length) {
+            payload = await fetchCruiseOffers({
+              bookingUrl,
+              guests: guestQuery,
+              forceRefresh: true,
+            });
+            if (requestId !== offersRequestIdRef.current) return;
+          }
+
           applyOffers(payload.offers, loadKey);
           const needsPromo =
             payload.offers.length > 0 &&
             !payload.offers.some((offer) => isValidPromoid(offer.promoid));
           if (!needsPromo) {
-            offersLoadKeyRef.current = loadKey;
+            if (payload.offers.length) {
+              offersLoadKeyRef.current = loadKey;
+            }
             setOffersLoading(false);
             return;
           }
@@ -650,8 +651,10 @@ export default function CruiseBookingModal({
             forceRefresh: true,
           });
           if (requestId !== offersRequestIdRef.current) return;
-          if (fresh.offers.length) applyOffers(fresh.offers, loadKey);
-          offersLoadKeyRef.current = loadKey;
+          if (fresh.offers.length) {
+            applyOffers(fresh.offers, loadKey);
+            offersLoadKeyRef.current = loadKey;
+          }
         } catch {
           if (requestId !== offersRequestIdRef.current) return;
 
@@ -659,7 +662,7 @@ export default function CruiseBookingModal({
             setQuoted({ key: loadKey, offers: [] });
           }
           setOffersResolved(true);
-          offersLoadKeyRef.current = loadKey;
+          // Do not lock loadKey on failure — next focus/navigation can retry.
         } finally {
           if (requestId === offersRequestIdRef.current) {
             setOffersLoading(false);
@@ -677,7 +680,9 @@ export default function CruiseBookingModal({
     form.adults,
     form.children,
     form.childrenTeen,
-    referenceParty,
+    form.infants,
+    quoted?.key,
+    quoted?.offers.length,
     selectedDateEntry?.offers,
   ]);
 
@@ -1176,7 +1181,9 @@ export default function CruiseBookingModal({
                       const amount =
                         fromOffers.length > 0
                           ? Math.min(...fromOffers)
-                          : datePrice;
+                          : offersLoading
+                            ? null
+                            : datePrice;
                       const selected =
                         (categoryFilter || form.cabinType) === cabin;
                       return (

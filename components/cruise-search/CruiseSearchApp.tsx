@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { fetchCruiseSearch } from "@/lib/cruise-search/fetch-cruise-search-client";
 import { buildCruiseDetailPath } from "@/lib/cruise-search/cruise-detail-url";
 import {
   clearSearchListState,
@@ -19,9 +20,10 @@ import {
   DEFAULT_CURRENCY,
   SEARCH_RESULTS_PAGE_SIZE,
 } from "@/lib/cruise-search/constants";
+
+const CATALOG_FETCH_DEBOUNCE_MS = 320;
 import { FEATURED_CRUISE_COMPANIES } from "@/lib/cruise-search/companies";
 import {
-  filterCruises,
   groupCruisesByItinerary,
   itineraryGroupKey,
   sortCruises,
@@ -39,6 +41,7 @@ import type {
   CruiseSearchFilters as CruiseSearchFiltersState,
 } from "@/lib/cruise-search/types";
 import CruiseCurrencyToggle from "./CruiseCurrencyToggle";
+import CruiseInlineLoader from "./CruiseInlineLoader";
 import CruiseSearchFilters from "./CruiseSearchFilters";
 import CruiseSearchResultCard from "./CruiseSearchResultCard";
 import CruiseSortControls from "./CruiseSortControls";
@@ -51,9 +54,9 @@ export default function CruiseSearchApp({
   const router = useRouter();
   const searchParams = useSearchParams();
   const resultsAnchorRef = useRef<HTMLDivElement>(null);
-  const bookableCruises = useMemo(
+  const bookableBaseline = useMemo(
     () => cruises.filter((cruise) => hasBookableDates(cruise)),
-    [cruises]
+    [cruises],
   );
 
   const appliedFilters = useMemo(() => {
@@ -61,11 +64,27 @@ export default function CruiseSearchApp({
     searchParams.forEach((value, key) => {
       params[key] = value;
     });
-    return parseSearchParams(params, bookableCruises);
-  }, [bookableCruises, searchParams]);
+    return parseSearchParams(params, bookableBaseline);
+  }, [bookableBaseline, searchParams]);
 
   const [draftFilters, setDraftFilters] =
     useState<CruiseSearchFiltersState>(appliedFilters);
+
+  const [liveCatalog, setLiveCatalog] = useState<CruiseRecord[] | null>(null);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogLoadingMore, setCatalogLoadingMore] = useState(false);
+  const [catalogError, setCatalogError] = useState("");
+  const [catalogSource, setCatalogSource] = useState<"live" | "disk" | null>(
+    null,
+  );
+  const [catalogTotal, setCatalogTotal] = useState<number | null>(null);
+  const [catalogNextOffset, setCatalogNextOffset] = useState<number | null>(
+    null,
+  );
+  const catalogRequestRef = useRef(0);
+  const restoreVisibleRef = useRef(0);
+
+  const bookableCruises = bookableBaseline;
 
   const priceBounds = useMemo(
     () => getSearchBounds(bookableCruises, appliedFilters.currency),
@@ -76,7 +95,6 @@ export default function CruiseSearchApp({
     () => createDefaultFilters(bookableCruises, appliedFilters.currency),
     [bookableCruises, appliedFilters.currency],
   );
-  const [visibleCount, setVisibleCount] = useState(SEARCH_RESULTS_PAGE_SIZE);
   const pendingScrollRef = useRef<number | null>(null);
   const pendingScrollMinCountRef = useRef(0);
   const lastFilterQueryRef = useRef<string | null>(null);
@@ -100,10 +118,13 @@ export default function CruiseSearchApp({
     params.delete("cruise");
     const nextListQuery = params.toString();
 
+    const linked = bookableCruises.find((cruise) => cruise.key === key);
     router.replace(
       buildCruiseDetailPath(key, {
         listQuery: nextListQuery,
-        sailing: deepLinkDate,
+        sailing: linked?.base_date_start || deepLinkDate,
+        ship: linked?.liner_slug,
+        nights: linked?.nights,
         currency: appliedFilters.currency,
         adults: appliedFilters.adults > 0 ? appliedFilters.adults : 2,
         children: appliedFilters.children,
@@ -168,10 +189,94 @@ export default function CruiseSearchApp({
       .sort((left, right) => left.name.localeCompare(right.name, "uk"));
   }, [bookableCruises, draftFilters.company, draftFilters.liner]);
 
+  useEffect(() => {
+    const previousKey = lastFilterQueryRef.current;
+    if (previousKey === filterQueryKey) return;
+    lastFilterQueryRef.current = filterQueryKey;
+
+    if (previousKey === null) {
+      const restored = restoreSearchListState(listQuery);
+      if (restored) {
+        restoreVisibleRef.current = Math.max(
+          restored.visibleCount,
+          SEARCH_RESULTS_PAGE_SIZE,
+        );
+        pendingScrollMinCountRef.current = restoreVisibleRef.current;
+        pendingScrollRef.current = restored.scrollY;
+        return;
+      }
+    }
+
+    restoreVisibleRef.current = 0;
+    pendingScrollRef.current = null;
+    pendingScrollMinCountRef.current = 0;
+  }, [filterQueryKey, listQuery]);
+
+  useEffect(() => {
+    const requestId = catalogRequestRef.current + 1;
+    catalogRequestRef.current = requestId;
+    setCatalogLoading(true);
+    setCatalogLoadingMore(false);
+    setCatalogError("");
+    setLiveCatalog(null);
+    setCatalogSource(null);
+    setCatalogTotal(null);
+    setCatalogNextOffset(null);
+
+    const initialLimit = Math.max(
+      SEARCH_RESULTS_PAGE_SIZE,
+      restoreVisibleRef.current || SEARCH_RESULTS_PAGE_SIZE,
+    );
+
+    const debounceTimer = window.setTimeout(() => {
+      void fetchCruiseSearch(listQuery, { offset: 0, limit: initialLimit })
+        .then((payload) => {
+          if (requestId !== catalogRequestRef.current) return;
+          setCatalogLoading(false);
+          setCatalogSource(payload.source);
+          setCatalogTotal(payload.total ?? payload.cruises.length);
+          setLiveCatalog(payload.cruises);
+          setCatalogNextOffset(payload.nextOffset ?? null);
+          restoreVisibleRef.current = 0;
+          if (payload.source === "disk" && payload.stale) {
+            setCatalogError(
+              "Не вдалося оновити дані з 4gates. Показано резервну копію каталогу.",
+            );
+          }
+        })
+        .catch((error) => {
+          if (requestId !== catalogRequestRef.current) return;
+          setCatalogLoading(false);
+          setLiveCatalog([]);
+          setCatalogSource(null);
+          setCatalogNextOffset(null);
+          setCatalogError(
+            error instanceof Error
+              ? error.message
+              : "Не вдалося завантажити круїзи з 4gates.",
+          );
+        });
+    }, CATALOG_FETCH_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(debounceTimer);
+    };
+  }, [listQuery]);
+
+  const showCatalogLoader = catalogLoading;
+
+  const filteredCruises = useMemo(() => {
+    if (showCatalogLoader) return [];
+    if (liveCatalog) return liveCatalog;
+    return [];
+  }, [liveCatalog, showCatalogLoader]);
+
   const results = useMemo(() => {
-    const filtered = filterCruises(bookableCruises, appliedFilters);
+    if (catalogSource === "live") {
+      return filteredCruises.map((cruise) => [cruise]);
+    }
     const sorted = sortCruises(
-      filtered,
+      filteredCruises,
       appliedFilters.sort,
       appliedFilters.currency,
       {
@@ -182,46 +287,17 @@ export default function CruiseSearchApp({
       },
     );
     return groupCruisesByItinerary(sorted);
-  }, [bookableCruises, appliedFilters]);
+  }, [filteredCruises, appliedFilters, catalogSource]);
 
   useEffect(() => {
     setDraftFilters(appliedFilters);
   }, [appliedFilters]);
 
-  useEffect(() => {
-    const previousKey = lastFilterQueryRef.current;
-    if (previousKey === filterQueryKey) return;
-    lastFilterQueryRef.current = filterQueryKey;
-
-    if (previousKey === null) {
-      const restored = restoreSearchListState(listQuery);
-      if (restored) {
-        const nextVisible = Math.min(
-          Math.max(restored.visibleCount, SEARCH_RESULTS_PAGE_SIZE),
-          results.length || restored.visibleCount,
-        );
-        if (nextVisible > SEARCH_RESULTS_PAGE_SIZE) {
-          setVisibleCount(nextVisible);
-        }
-        pendingScrollMinCountRef.current = nextVisible;
-        pendingScrollRef.current = restored.scrollY;
-        return;
-      }
-    }
-
-    pendingScrollRef.current = null;
-    pendingScrollMinCountRef.current = 0;
-    setVisibleCount(SEARCH_RESULTS_PAGE_SIZE);
-  }, [filterQueryKey, listQuery, results.length]);
-
-  const visibleResults = useMemo(
-    () => results.slice(0, visibleCount),
-    [results, visibleCount]
-  );
+  const visibleResults = results;
 
   useLayoutEffect(() => {
     if (pendingScrollRef.current == null) return;
-    if (visibleCount < pendingScrollMinCountRef.current) return;
+    if (results.length < pendingScrollMinCountRef.current) return;
 
     const scrollY = pendingScrollRef.current;
     let cancelled = false;
@@ -257,21 +333,62 @@ export default function CruiseSearchApp({
     return () => {
       cancelled = true;
     };
-  }, [visibleCount, results.length]);
+  }, [results.length]);
 
-  const hasMoreResults = visibleCount < results.length;
+  const hasMoreResults =
+    catalogNextOffset != null &&
+    (catalogTotal == null || results.length < catalogTotal);
+
+  const loadMoreResults = () => {
+    if (catalogNextOffset == null || catalogLoadingMore) return;
+    const requestId = catalogRequestRef.current;
+    const offset = catalogNextOffset;
+    setCatalogLoadingMore(true);
+    void fetchCruiseSearch(listQuery, {
+      offset,
+      limit: SEARCH_RESULTS_PAGE_SIZE,
+    })
+      .then((payload) => {
+        if (requestId !== catalogRequestRef.current) return;
+        setLiveCatalog((current) => {
+          const seen = new Set((current ?? []).map((cruise) => cruise.key));
+          const merged = [...(current ?? [])];
+          for (const cruise of payload.cruises) {
+            if (seen.has(cruise.key)) continue;
+            seen.add(cruise.key);
+            merged.push(cruise);
+          }
+          return merged;
+        });
+        setCatalogTotal(payload.total ?? catalogTotal);
+        setCatalogNextOffset(payload.nextOffset ?? null);
+        setCatalogSource(payload.source);
+        setCatalogLoadingMore(false);
+      })
+      .catch((error) => {
+        if (requestId !== catalogRequestRef.current) return;
+        setCatalogLoadingMore(false);
+        setCatalogError(
+          error instanceof Error
+            ? error.message
+            : "Не вдалося підвантажити наступні круїзи.",
+        );
+      });
+  };
 
   const openCruise = (cruise: CruiseRecord, preferredDate?: string) => {
     saveSearchListState({
       listQuery,
       scrollY: window.scrollY,
-      visibleCount,
+      visibleCount: results.length,
     });
 
     router.push(
       buildCruiseDetailPath(cruise.key, {
         listQuery,
-        sailing: preferredDate,
+        sailing: preferredDate || cruise.base_date_start,
+        ship: cruise.liner_slug,
+        nights: cruise.nights,
         currency: appliedFilters.currency,
         adults: appliedFilters.adults > 0 ? appliedFilters.adults : 2,
         children: appliedFilters.children,
@@ -492,35 +609,64 @@ export default function CruiseSearchApp({
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-body text-subtitle">
-              {results.length > visibleResults.length ? (
+              {catalogError ? (
+                <span className="text-[color:var(--color-brand)]">
+                  {catalogError}
+                </span>
+              ) : catalogTotal != null && results.length < catalogTotal ? (
                 <>
                   Показано{" "}
                   <span className="font-semibold text-[color:var(--color-black)]">
-                    {visibleResults.length.toLocaleString("uk-UA")}
+                    {results.length.toLocaleString("uk-UA")}
                   </span>{" "}
                   з{" "}
                   <span className="font-semibold text-[color:var(--color-black)]">
-                    {results.length.toLocaleString("uk-UA")}
+                    {catalogTotal.toLocaleString("uk-UA")}
                   </span>{" "}
                   круїзів
+                  {catalogSource === "live" ? (
+                    <span className="text-caption"> · дані 4gates</span>
+                  ) : null}
+                </>
+              ) : hasActiveFilters ? (
+                <>
+                  За вашим запитом знайдено{" "}
+                  <span className="font-semibold text-[color:var(--color-black)]">
+                    {(catalogTotal ?? results.length).toLocaleString("uk-UA")}
+                  </span>{" "}
+                  {(catalogTotal ?? results.length) === 1
+                    ? "круїз"
+                    : (catalogTotal ?? results.length) >= 2 &&
+                        (catalogTotal ?? results.length) <= 4
+                      ? "круїзи"
+                      : "круїзів"}
+                  {catalogSource === "live" ? (
+                    <span className="text-caption"> · дані 4gates</span>
+                  ) : null}
                 </>
               ) : (
                 <>
                   Знайдено{" "}
                   <span className="font-semibold text-[color:var(--color-black)]">
-                    {results.length.toLocaleString("uk-UA")}
+                    {(catalogTotal ?? results.length).toLocaleString("uk-UA")}
                   </span>{" "}
-                  круїзів із {bookableCruises.length.toLocaleString("uk-UA")}
+                  круїзів
                 </>
               )}
             </p>
             </div>
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
-            {results.length ? (
+            {showCatalogLoader ? (
+              <CruiseInlineLoader
+                label="Завантажуємо актуальні круїзи з оператора…"
+                variant="block"
+                className="col-span-full min-h-72 rounded-card bg-white"
+              />
+            ) : results.length ? (
               visibleResults.map((group) => (
                 <CruiseSearchResultCard
-                  key={itineraryGroupKey(group[0])}
+                  key={group[0].key || itineraryGroupKey(group[0])}
                   cruise={group[0]}
                   departures={group}
                   currency={appliedFilters.currency}
@@ -551,14 +697,11 @@ export default function CruiseSearchApp({
               <div className="flex justify-center pt-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    setVisibleCount((count) =>
-                      Math.min(count + SEARCH_RESULTS_PAGE_SIZE, results.length)
-                    )
-                  }
+                  onClick={loadMoreResults}
+                  disabled={catalogLoadingMore}
                   className="btn-secondary"
                 >
-                  Показати ще
+                  {catalogLoadingMore ? "Завантаження…" : "Показати ще"}
                 </button>
               </div>
             ) : null}

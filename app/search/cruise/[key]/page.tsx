@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
@@ -10,8 +10,8 @@ import {
   fetchFourgatesOffers,
   mapGuestsToFourgates,
 } from "@/lib/cruise-search/fourgates-offers";
-import { loadCruisePage, loadCruises } from "@/lib/cruise-search/load-cruises";
-import { findItineraryForSailing, ownCruiseBookingUrl } from "@/lib/cruise-search/utils";
+import { resolveDetailCruise } from "@/lib/cruise-search/resolve-detail-cruise";
+import { ownCruiseBookingUrl } from "@/lib/cruise-search/utils";
 import { createMetadata } from "@/lib/seo";
 import { breadcrumbSchema, webPageSchema } from "@/lib/schema";
 
@@ -20,29 +20,9 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function pickParam(value: string | string[] | undefined) {
-  if (Array.isArray(value)) return value[0] ?? "";
-  return value ?? "";
-}
-
-function detailHref(
-  key: number,
-  query: Record<string, string | string[] | undefined>,
-  sailing?: string,
-) {
-  const params = new URLSearchParams();
-  for (const [name, value] of Object.entries(query)) {
-    const text = pickParam(value);
-    if (text) params.set(name, text);
-  }
-  if (sailing) params.set("sailing", sailing);
-  else params.delete("sailing");
-  const search = params.toString();
-  return search ? `/search/cruise/${key}?${search}` : `/search/cruise/${key}`;
-}
-
 export async function generateMetadata({
   params,
+  searchParams,
 }: PageProps): Promise<Metadata> {
   const { key: keyRaw } = await params;
   const key = Number.parseInt(keyRaw, 10);
@@ -53,7 +33,7 @@ export async function generateMetadata({
     });
   }
 
-  const cruise = loadCruises().find((item) => item.key === key);
+  const cruise = (await resolveDetailCruise(key, await searchParams))?.cruise;
   const title = cruise?.liner_name
     ? `${cruise.liner_name} — бронювання`
     : "Круїз";
@@ -76,23 +56,9 @@ export default async function CruiseDetailPage({
   if (!Number.isFinite(key)) notFound();
 
   const query = await searchParams;
-  const sailing = pickParam(query.sailing);
-  const pageData = loadCruisePage(key);
+  const pageData = await resolveDetailCruise(key, query);
   if (!pageData) notFound();
   const { cruise, similar } = pageData;
-
-  if (sailing && sailing !== cruise.base_date_start) {
-    const owner = findItineraryForSailing(
-      loadCruises(),
-      cruise.liner_slug,
-      sailing,
-      cruise.nights,
-    );
-    if (owner && owner.key !== cruise.key) {
-      redirect(detailHref(owner.key, query, owner.base_date_start));
-    }
-    redirect(detailHref(cruise.key, query));
-  }
 
   const bookingUrl = ownCruiseBookingUrl(cruise);
   if (bookingUrl) {

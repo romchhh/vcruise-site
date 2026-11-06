@@ -3,8 +3,8 @@
 import { Fragment, useMemo, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import {
+  offerAreaLabel,
   offerCabinSubtitle,
-  offerMetaLine,
 } from "@/lib/cruise-search/offer-display";
 import {
   normalizeTariffName,
@@ -36,10 +36,7 @@ type Props = {
 };
 
 function offerArea(offer: CruiseCabinOffer) {
-  if (offer.areaM2 != null && Number.isFinite(offer.areaM2)) {
-    return `${offer.areaM2} м²`;
-  }
-  return offerMetaLine(offer).match(/[\d.+-\s]+м²/)?.[0] ?? "—";
+  return offerAreaLabel(offer) || "—";
 }
 
 export default function CabinOffersTable({
@@ -188,7 +185,6 @@ export default function CabinOffersTable({
                           : ""
                       }`}
                     >
-                      {offer.cabinCategory ? `${offer.cabinCategory} · ` : ""}
                       {offerCabinSubtitle(offer)}
                     </button>
                     <p className="text-caption mt-0.5 text-[color:var(--color-silver)]">
