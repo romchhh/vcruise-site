@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 import { usePathname } from "next/navigation";
 import {
@@ -259,7 +260,9 @@ export default function ChatWidget() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup on unmount
   }, []);
 
-  const dismissTeaser = useCallback(() => {
+  const dismissTeaser = useCallback((event?: ReactMouseEvent) => {
+    event?.preventDefault();
+    event?.stopPropagation();
     setTeaserVisible(false);
     try {
       sessionStorage.setItem(TEASER_STORAGE_KEY, "1");
@@ -268,24 +271,48 @@ export default function ChatWidget() {
     }
   }, []);
 
-  const ensureSession = useCallback(async () => {
+  const ensureSession = useCallback(async (forceNew = false) => {
     setBooting(true);
     try {
       const response = await fetch("/api/chat/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ page: window.location.pathname }),
+        body: JSON.stringify({
+          page: window.location.pathname,
+          ...(forceNew ? { forceNew: true } : {}),
+        }),
       });
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error("session_failed");
       applyConversation(data.conversation);
       setMessages(data.messages || []);
+      setText("");
+      setPendingFiles([]);
+      setRatingValue(0);
+      setRatingComment("");
+      setRatingThanks(false);
+      setContactError("");
+      setQuickHidden(false);
+      if (forceNew) {
+        setContactSaved(
+          Boolean(
+            data.conversation?.visitorName && data.conversation?.visitorPhone,
+          ),
+        );
+      }
       primed.current = true;
       return data.conversation as ChatConversation;
     } finally {
       setBooting(false);
     }
   }, [applyConversation]);
+
+  const startNewChat = useCallback(async () => {
+    dismissTeaser();
+    setOpen(true);
+    setUnread(0);
+    await ensureSession(true);
+  }, [dismissTeaser, ensureSession]);
 
   const mergeMessages = useCallback((incoming: ChatMessage[]) => {
     if (incoming.length === 0) return;
@@ -732,9 +759,15 @@ export default function ChatWidget() {
 
   if (isAdmin || !config?.enabled) return null;
 
+  // After the dialog is closed: offer a fresh start in the panel and near the launcher.
+  const showNewChatInPanel = Boolean(conversation && chatClosed && !askRating);
+  const showNewChatChip = Boolean(!open && conversation && chatClosed && !askRating);
+
   return (
     <div
-      className={`${styles.root} ${styles.rootWithMessengers}`}
+      className={`${styles.root} ${styles.rootWithMessengers} ${
+        isHome ? styles.rootHome : ""
+      } ${teaserVisible && !open ? styles.rootTeaserUp : ""}`}
       onPointerDown={unlockChatSound}
     >
       {open ? (
@@ -758,9 +791,14 @@ export default function ChatWidget() {
               type="button"
               className={styles.closeBtn}
               aria-label="Закрити чат"
-              onClick={() => setOpen(false)}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setOpen(false);
+              }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>
@@ -1077,13 +1115,36 @@ export default function ChatWidget() {
             </>
           ) : null}
 
-          {chatClosed && !askRating && !ratingThanks && conversation?.rating == null ? (
+          {showNewChatInPanel ? (
             <div className={styles.composerClosed}>
-              Діалог завершено. Якщо потрібна допомога — напишіть нам знову.
+              <p className={styles.composerClosedText}>
+                {conversation?.rating == null && !ratingThanks
+                  ? "Діалог завершено. Можете почати нову розмову."
+                  : "Діалог завершено. Якщо потрібна допомога — почніть новий чат."}
+              </p>
+              <button
+                type="button"
+                className={styles.newChatBtn}
+                disabled={booting}
+                onClick={() => void startNewChat()}
+              >
+                {booting ? "…" : "Почати новий чат"}
+              </button>
             </div>
           ) : null}
           </div>
         </div>
+      ) : null}
+
+      {showNewChatChip ? (
+        <button
+          type="button"
+          className={styles.newChatChip}
+          disabled={booting}
+          onClick={() => void startNewChat()}
+        >
+          Почати новий чат
+        </button>
       ) : null}
 
       {!open && teaserVisible ? (
@@ -1109,9 +1170,15 @@ export default function ChatWidget() {
             type="button"
             className={styles.teaserClose}
             aria-label="Закрити підказку"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
             onClick={dismissTeaser}
           >
-            ×
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
           </button>
         </div>
       ) : null}
@@ -1120,7 +1187,8 @@ export default function ChatWidget() {
         type="button"
         className={`${styles.launcher} ${open ? styles.launcherOpen : ""}`}
         aria-label={open ? "Закрити чат" : "Відкрити онлайн-чат"}
-        onClick={() => {
+        onClick={(event) => {
+          event.stopPropagation();
           if (open) setOpen(false);
           else void handleOpen();
         }}

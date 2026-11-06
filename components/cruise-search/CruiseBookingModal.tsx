@@ -1101,14 +1101,14 @@ export default function CruiseBookingModal({
               </button>
             </div>
           ) : isPage || step === "cabins" ? (
-            <div
-              className={
-                isPage
-                  ? "mt-3 lg:grid lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] lg:items-start lg:gap-8"
-                  : "mt-3 space-y-3.5"
-              }
-            >
-              <div className={isPage ? "space-y-3.5 lg:sticky lg:top-24" : "contents"}>
+            <div className="mt-3 space-y-3.5">
+              <div
+                className={
+                  isPage
+                    ? "grid gap-3.5 sm:grid-cols-2 sm:items-start"
+                    : "space-y-3.5"
+                }
+              >
               <Field label="Дата *">
                 <select
                   required
@@ -1143,6 +1143,7 @@ export default function CruiseBookingModal({
                   ))}
                 </div>
               </div>
+              </div>
 
               {!isPage && noCabins ? (
                 <p className="rounded-card bg-amber-50 px-3 py-2 text-caption text-amber-800">
@@ -1169,7 +1170,7 @@ export default function CruiseBookingModal({
                     залиште заявку — менеджер уточнить варіанти.
                   </p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {cabinOptions.map((cabin) => {
                       const fromOffers = offers
                         .filter((offer) => offer.cabinCategory === cabin)
@@ -1191,7 +1192,7 @@ export default function CruiseBookingModal({
                           key={cabin}
                           type="button"
                           onClick={() => selectCategory(cabin)}
-                          className={`min-w-0 rounded-card border px-3 py-2.5 text-left transition-colors sm:min-w-[7.5rem] sm:flex-none ${
+                          className={`min-w-0 rounded-card border px-3 py-2.5 text-left transition-colors ${
                             selected
                               ? "border-[color:var(--color-brand)] bg-[color:var(--color-brand-light)]"
                               : "border-[color:var(--color-line)] bg-white hover:border-[color:var(--color-brand)]/40"
@@ -1213,6 +1214,27 @@ export default function CruiseBookingModal({
                   </div>
                 )}
               </div>
+
+              {isPage ? (
+                <CabinOffersTable
+                  offers={filteredOffers}
+                  currency={currency}
+                  selectedKey={form.offerKey}
+                  onSelect={selectOffer}
+                  bookingUrl={bookingUrl}
+                  adults={form.adults}
+                  children={form.children}
+                  teens={form.childrenTeen}
+                  onCabinConfirm={confirmCabin}
+                  loading={offersLoading && !hasOffers}
+                  refreshing={offersLoading && hasOffers}
+                  emptyMessage={
+                    noCabins
+                      ? `На жаль, немає вільних кают при розміщенні на ${cabinPlacementLabel(form.adults, form.children, form.infants, form.childrenTeen)}. Спробуйте вибрати меншу кількість.`
+                      : null
+                  }
+                />
+              ) : null}
 
               {!isPage && offersLoading && !hasOffers ? (
                 <BookingSpinner label="Підбираємо каюти та тарифи…" />
@@ -1315,30 +1337,8 @@ export default function CruiseBookingModal({
               ) : null}
               </>
               )}
-              </div>
 
-              {isPage ? (
-                <CabinOffersTable
-                  offers={filteredOffers}
-                  currency={currency}
-                  selectedKey={form.offerKey}
-                  onSelect={selectOffer}
-                  bookingUrl={bookingUrl}
-                  adults={form.adults}
-                  children={form.children}
-                  teens={form.childrenTeen}
-                  onCabinConfirm={confirmCabin}
-                  loading={offersLoading && !hasOffers}
-                  refreshing={offersLoading && hasOffers}
-                  emptyMessage={
-                    noCabins
-                      ? `На жаль, немає вільних кают при розміщенні на ${cabinPlacementLabel(form.adults, form.children, form.infants, form.childrenTeen)}. Спробуйте вибрати меншу кількість.`
-                      : null
-                  }
-                />
-              ) : null}
-
-              <div className={isPage ? "mt-3.5 space-y-3 lg:col-start-1" : "contents"}>
+              <div className="space-y-3">
               {isPage && pageContinueHint ? (
                 <p
                   id="cruise-booking-hint"

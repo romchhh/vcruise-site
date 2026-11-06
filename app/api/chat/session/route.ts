@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import {
   VISITOR_COOKIE,
   ackVisitorContact,
+  closeConversation,
   createConversation,
   getChatSettings,
   getConversation,
@@ -69,6 +70,8 @@ export async function POST(request: Request) {
     visitorName?: string;
     visitorPhone?: string;
     conversationId?: string;
+    /** Start a fresh dialog even if this visitor already has one. */
+    forceNew?: boolean;
   } | null;
 
   const jar = await cookies();
@@ -87,6 +90,20 @@ export async function POST(request: Request) {
     conversation = null;
   }
 
+  if (body?.forceNew) {
+    if (conversation?.status === "open") {
+      closeConversation(conversation.id);
+    }
+    conversation = createConversation({
+      visitorId,
+      page: body?.page,
+      visitorName: body?.visitorName || conversation?.visitorName,
+      visitorPhone: body?.visitorPhone?.trim()
+        ? normalizeChatPhone(body.visitorPhone)
+        : conversation?.visitorPhone || undefined,
+    });
+  }
+
   const previousPhone = conversation?.visitorPhone?.trim() || "";
 
   if (!conversation) {
@@ -98,7 +115,7 @@ export async function POST(request: Request) {
         ? normalizeChatPhone(body.visitorPhone)
         : undefined,
     });
-  } else if (body?.visitorName || body?.visitorPhone) {
+  } else if (!body?.forceNew && (body?.visitorName || body?.visitorPhone)) {
     const nextPhone = body.visitorPhone?.trim()
       ? normalizeChatPhone(body.visitorPhone)
       : conversation.visitorPhone;
