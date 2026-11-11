@@ -84,23 +84,25 @@ export default function FinderDatePanel({ state, onChange }: FinderDatePanelProp
 
   return (
     <div className="finder-date-panel mt-3 rounded-panel border border-[color:var(--color-line)] bg-white p-4 sm:p-5">
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="space-y-6">
         <div>
-          {YEARS.map((year) => (
-            <FinderCheckbox
-              key={year}
-              label={year}
-              checked={selectedYear === year}
-              onChange={() => {
-                onChange({
-                  selectedYear: year,
-                  selectedMonths: selectedMonths.filter((month) =>
-                    isMonthSelectable(month, year),
-                  ),
-                });
-              }}
-            />
-          ))}
+          <div className="grid grid-cols-2 gap-x-4 sm:grid-cols-4">
+            {YEARS.map((year) => (
+              <FinderCheckbox
+                key={year}
+                label={year}
+                checked={selectedYear === year}
+                onChange={() => {
+                  onChange({
+                    selectedYear: year,
+                    selectedMonths: selectedMonths.filter((month) =>
+                      isMonthSelectable(month, year),
+                    ),
+                  });
+                }}
+              />
+            ))}
+          </div>
 
           <div className="mt-4 grid grid-cols-4 gap-2">
             {MONTH_LABELS.map((month) => {
@@ -112,7 +114,8 @@ export default function FinderDatePanel({ state, onChange }: FinderDatePanelProp
                   type="button"
                   disabled={!selectable}
                   onClick={() => toggleMonth(month)}
-                  className={`text-small normal-case rounded-full border px-1.5 py-2 font-medium transition-colors ${
+                  title={month}
+                  className={`text-small min-w-0 truncate normal-case rounded-full border px-2 py-2 font-medium transition-colors ${
                     !selectable
                       ? "cursor-not-allowed border-[color:var(--color-line)] bg-[color:var(--color-surface-muted)] text-subtitle opacity-60"
                       : selected
@@ -127,7 +130,7 @@ export default function FinderDatePanel({ state, onChange }: FinderDatePanelProp
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 md:border-l md:border-[color:var(--color-line)] md:pl-6">
+        <div className="flex flex-col gap-2 border-t border-[color:var(--color-line)] pt-6">
           <p className="text-caption font-semibold text-[color:var(--color-black)]">
             Точні дати відправлення
           </p>

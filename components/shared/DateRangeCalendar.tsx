@@ -49,12 +49,12 @@ function MonthPane({
 
   return (
     <div className="min-w-0 flex-1">
-      <p className="text-body mb-3 text-center font-semibold text-[color:var(--color-black)]">
+      <p className="text-body mb-3 truncate text-center font-semibold text-[color:var(--color-black)]">
         {monthTitle(year, month)}
       </p>
-      <div className="grid grid-cols-7 gap-0.5 text-center text-caption font-semibold text-[color:var(--color-black)]">
+      <div className="grid grid-cols-7 gap-0.5 text-center text-small font-semibold text-[color:var(--color-black)]">
         {WEEKDAY_LABELS_SUN.map((label) => (
-          <span key={label} className="py-1">
+          <span key={label} className="min-w-0 truncate py-1">
             {label}
           </span>
         ))}
@@ -77,7 +77,7 @@ function MonthPane({
               type="button"
               disabled={disabled}
               onClick={() => onPick(cell.iso)}
-              className={`flex h-9 w-full items-center justify-center text-caption font-medium transition-colors ${
+              className={`flex h-9 w-full min-w-0 items-center justify-center text-small font-medium tabular-nums transition-colors ${
                 disabled
                   ? "cursor-not-allowed text-[color:var(--color-silver)] opacity-40"
                   : endpoint
@@ -233,7 +233,7 @@ export default function DateRangeCalendar({
           <ChevronLeft className="h-4 w-4" strokeWidth={2} />
         </button>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-6 sm:flex-row sm:gap-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-4">
           <MonthPane
             year={viewMonth.getFullYear()}
             month={viewMonth.getMonth()}
