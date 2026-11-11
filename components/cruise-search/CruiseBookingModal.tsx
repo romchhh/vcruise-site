@@ -129,7 +129,7 @@ function pickFormAfterOffers(
   current: FormState,
 ): Pick<FormState, "cabinType" | "offerKey"> {
   if (!nextOffers.length) {
-    return { cabinType: current.cabinType, offerKey: "" };
+    return { cabinType: "", offerKey: "" };
   }
 
   if (
@@ -443,8 +443,7 @@ export default function CruiseBookingModal({
     Boolean(bookingUrl) &&
     offersResolved &&
     !offersLoading &&
-    offers.length === 0 &&
-    offersLoadKeyRef.current === offersRequestKey(bookingUrl, guestQuery);
+    offers.length === 0;
 
   const applyOffers = (nextOffers: CruiseCabinOffer[], key: string) => {
     setQuoted({
@@ -588,12 +587,8 @@ export default function CruiseBookingModal({
       return;
     }
 
-    // Skip only when this key already resolved with real cabin rows.
-    if (
-      offersLoadKeyRef.current === loadKey &&
-      quoted?.key === loadKey &&
-      quoted.offers.length > 0
-    ) {
+    // Skip when this guest/date key already resolved (including confirmed empty).
+    if (offersLoadKeyRef.current === loadKey && quoted?.key === loadKey) {
       return;
     }
 
@@ -637,9 +632,9 @@ export default function CruiseBookingModal({
             payload.offers.length > 0 &&
             !payload.offers.some((offer) => isValidPromoid(offer.promoid));
           if (!needsPromo) {
-            if (payload.offers.length) {
-              offersLoadKeyRef.current = loadKey;
-            }
+            // Lock even on empty — otherwise noCabins never fires and catalog
+            // cabinType keeps «Забронювати» enabled for sold-out sailings.
+            offersLoadKeyRef.current = loadKey;
             setOffersLoading(false);
             return;
           }
@@ -653,15 +648,16 @@ export default function CruiseBookingModal({
           if (requestId !== offersRequestIdRef.current) return;
           if (fresh.offers.length) {
             applyOffers(fresh.offers, loadKey);
-            offersLoadKeyRef.current = loadKey;
           }
+          offersLoadKeyRef.current = loadKey;
         } catch {
           if (requestId !== offersRequestIdRef.current) return;
 
           if (!hasVisibleOffers) {
-            setQuoted({ key: loadKey, offers: [] });
+            applyOffers([], loadKey);
+          } else {
+            setOffersResolved(true);
           }
-          setOffersResolved(true);
           // Do not lock loadKey on failure — next focus/navigation can retry.
         } finally {
           if (requestId === offersRequestIdRef.current) {
@@ -723,8 +719,8 @@ export default function CruiseBookingModal({
   );
 
   const phoneValid = isValidUaPhone(form.phone);
-  const cabinSelected = hasOffers
-    ? Boolean(form.offerKey && selectedOffer)
+  const cabinSelected = bookingUrl
+    ? Boolean(hasOffers && form.offerKey && selectedOffer)
     : Boolean(form.cabinType);
   const cabinNumberReady =
     !isValidPromoid(selectedOffer?.promoid) || Boolean(form.cabinNumber);
@@ -733,6 +729,7 @@ export default function CruiseBookingModal({
     cabinSelected &&
     cabinNumberReady &&
     form.adults >= 1 &&
+    !noCabins &&
     !(bookingUrl && offersLoading);
   const canSubmit =
     passengersComplete(form.passengers) &&
@@ -872,6 +869,9 @@ export default function CruiseBookingModal({
     if (bookingUrl && offersLoading) {
       return "Зачекайте, завантажуємо актуальні тарифи…";
     }
+    if (noCabins) {
+      return "На цю дату немає вільних кают — заявку залишити неможливо. Спробуйте іншу дату або меншу кількість гостей.";
+    }
     if (hasOffers && !form.offerKey) {
       return "Оберіть тариф у таблиці кают нижче.";
     }
@@ -894,6 +894,7 @@ export default function CruiseBookingModal({
     form.offerKey,
     hasOffers,
     isPage,
+    noCabins,
     offersLoading,
     selectedOffer,
   ]);
@@ -907,13 +908,12 @@ export default function CruiseBookingModal({
     }
 
     const emptyMessage = noCabins
-      ? `На жаль, немає вільних кают при розміщенні на ${cabinPlacementLabel(form.adults, form.children, form.infants)}. Спробуйте вибрати меншу кількість.`
+      ? `На жаль, немає вільних кают при розміщенні на ${cabinPlacementLabel(form.adults, form.children, form.infants, form.childrenTeen)}. Спробуйте вибрати меншу кількість або іншу дату.`
       : null;
 
     const showOffersTable =
       (offersLoading && !hasOffers) || hasOffers || Boolean(emptyMessage);
-    const showContactUnderOffers =
-      hasOffers || offersLoading || Boolean(emptyMessage);
+    const showContactUnderOffers = hasOffers || offersLoading;
 
     if (!showOffersTable && !showContactUnderOffers) {
       onOffersPanel(null);
@@ -1145,11 +1145,16 @@ export default function CruiseBookingModal({
               </div>
               </div>
 
-              {!isPage && noCabins ? (
+              {noCabins ? (
                 <p className="rounded-card bg-amber-50 px-3 py-2 text-caption text-amber-800">
                   На жаль, немає вільних кают при розміщенні на{" "}
-                  {cabinPlacementLabel(form.adults, form.children, form.infants)}
-                  . Спробуйте вибрати меншу кількість.
+                  {cabinPlacementLabel(
+                    form.adults,
+                    form.children,
+                    form.infants,
+                    form.childrenTeen,
+                  )}
+                  . Спробуйте вибрати меншу кількість або іншу дату.
                 </p>
               ) : (
               <>
@@ -1166,8 +1171,7 @@ export default function CruiseBookingModal({
 
                 {cabinOptions.length === 0 ? (
                   <p className="rounded-card bg-amber-50 px-3 py-2 text-caption text-amber-800">
-                    Для цієї дати немає цін по каютах. Оберіть іншу дату або
-                    залиште заявку — менеджер уточнить варіанти.
+                    Для цієї дати немає цін по каютах. Оберіть іншу дату.
                   </p>
                 ) : (
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
