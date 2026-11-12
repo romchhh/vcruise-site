@@ -24,6 +24,8 @@ export type CruiseBookingDetails = {
     firstName: string;
     lastName: string;
     birthDate?: string;
+    gender?: string;
+    citizenship?: string;
   }[];
   shipBuiltYear?: number;
   shipRenovatedYear?: number;
@@ -58,7 +60,7 @@ export function formatContactTelegramMessage(payload: ContactFormPayload) {
         : formatIsoDateLabel(booking.cruiseDate);
 
     const lines = [
-      "🛳 Заявка на бронювання VCRUISE",
+      "🛳 Заявка на передбронювання VCRUISE",
       "",
       `🚢 Лайнер: ${booking.linerName}`,
       `🏢 Компанія: ${booking.company}`,
@@ -134,11 +136,15 @@ export function formatContactTelegramMessage(payload: ContactFormPayload) {
     if (booking.passengers?.length) {
       lines.push("", "👤 Пасажири:");
       booking.passengers.forEach((passenger, index) => {
-        const birth = passenger.birthDate
-          ? formatIsoDateLabel(passenger.birthDate)
-          : "";
+        const details = [
+          passenger.role,
+          passenger.gender || "",
+          passenger.birthDate ? formatIsoDateLabel(passenger.birthDate) : "",
+          passenger.citizenship || "",
+        ].filter(Boolean);
         lines.push(
-          `${index + 1}. ${passenger.lastName} ${passenger.firstName} (${passenger.role}${birth ? `, ${birth}` : ""})`,
+          `${index + 1}. ${passenger.lastName} ${passenger.firstName}` +
+            (details.length ? ` (${details.join(", ")})` : ""),
         );
       });
     }

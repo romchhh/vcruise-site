@@ -14,8 +14,8 @@ import { prefetchCruiseOffers } from "@/lib/cruise-search/fetch-cruise-offers-cl
 import { resolveBookingUrl } from "@/lib/cruise-search/booking-url";
 import {
   addDaysIso,
+  cabinPriceLadder,
   cheapestPriceOnDate,
-  embarkationPort,
   formatDate,
   formatMoney,
   getUpcomingDates,
@@ -83,6 +83,32 @@ function formatRouteSummary(stops: RouteStop[]) {
   return `${ports[0].name} → … → ${ports[ports.length - 1].name}`;
 }
 
+/** Full itinerary in one line (ports + sea days), no ellipsis. */
+function formatFullRouteLine(route: string[]) {
+  return route
+    .map((stop) => {
+      const name = stop.split(",")[0]?.trim() ?? "";
+      if (!name) return "";
+      if (name.startsWith("...") || name.startsWith("…")) return "В морі";
+      return name;
+    })
+    .filter(Boolean)
+    .join(" → ");
+}
+
+function routeCountryCodes(stops: RouteStop[]) {
+  const codes: string[] = [];
+  const seen = new Set<string>();
+  for (const stop of stops) {
+    if (stop.kind !== "port") continue;
+    const code = countryCodeFromPlace(stop.place || stop.name);
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    codes.push(code);
+  }
+  return codes;
+}
+
 const ROUTE_COLLAPSE_THRESHOLD = 5;
 
 export default function CruiseDetailApp({
@@ -109,6 +135,10 @@ export default function CruiseDetailApp({
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
   const [routeExpanded, setRouteExpanded] = useState(false);
+  const [selectedCabin, setSelectedCabin] = useState("");
+  const [liveCabinPrices, setLiveCabinPrices] = useState<
+    Array<{ cabin: string; price: number | null }> | null
+  >(null);
 
   const upcomingDates = useMemo(() => getUpcomingDates(cruise), [cruise]);
   const preferredDate = useMemo(() => {
@@ -125,11 +155,49 @@ export default function CruiseDetailApp({
   const [quotedFrom, setQuotedFrom] = useState<number | null | undefined>(
     undefined,
   );
+  const catalogLadder = useMemo(
+    () => cabinPriceLadder(cruise, currency),
+    [cruise, currency],
+  );
+  const tariffLadder = useMemo(() => {
+    if (liveCabinPrices?.length) {
+      return liveCabinPrices.filter(
+        (item): item is { cabin: string; price: number } => item.price != null,
+      );
+    }
+    return catalogLadder;
+  }, [catalogLadder, liveCabinPrices]);
+
+  useEffect(() => {
+    setLiveCabinPrices(null);
+    setSelectedCabin("");
+  }, [cruise.key, preferredDate, currency]);
+
+  useEffect(() => {
+    if (!tariffLadder.length) {
+      setSelectedCabin("");
+      return;
+    }
+    if (!selectedCabin || !tariffLadder.some((item) => item.cabin === selectedCabin)) {
+      setSelectedCabin(tariffLadder[0].cabin);
+    }
+  }, [selectedCabin, tariffLadder]);
+
+  const selectedCabinPrice =
+    tariffLadder.find((item) => item.cabin === selectedCabin)?.price ?? null;
   const highlightPrice =
-    quotedFrom === undefined ? null : (quotedFrom ?? catalogPrice);
-  const fromPort = embarkationPort(cruise);
+    selectedCabinPrice != null
+      ? selectedCabinPrice
+      : quotedFrom === undefined
+        ? null
+        : (quotedFrom ?? catalogPrice);
   const stops = useMemo(() => routeStops(cruise.route ?? []), [cruise.route]);
   const routeSummary = useMemo(() => formatRouteSummary(stops), [stops]);
+  const fullRouteLine = useMemo(
+    () => formatFullRouteLine(cruise.route ?? []),
+    [cruise.route],
+  );
+  const routeFlags = useMemo(() => routeCountryCodes(stops), [stops]);
   const routeIsLong = stops.length >= ROUTE_COLLAPSE_THRESHOLD;
   const showCompactRoute = routeIsLong && !routeExpanded;
   const nightsLabel =
@@ -177,8 +245,29 @@ export default function CruiseDetailApp({
                   />
                 )}
               </div>
-              <div className="flex min-w-0 flex-col p-4 sm:p-5 lg:p-6">
-                <div className="min-w-0">
+              <div className="relative flex min-w-0 flex-col p-4 sm:p-5 lg:p-6">
+                {cruise.ship_built_year || cruise.ship_renovated_year ? (
+                  <div className="absolute right-4 top-4 z-10 text-right text-caption sm:right-5 sm:top-5 lg:right-6 lg:top-6">
+                    {cruise.ship_built_year ? (
+                      <p className="leading-snug text-[color:var(--color-silver)]">
+                        Збудовано{" "}
+                        <span className="font-semibold text-[color:var(--color-black)]">
+                          {cruise.ship_built_year}
+                        </span>
+                      </p>
+                    ) : null}
+                    {cruise.ship_renovated_year ? (
+                      <p className="mt-0.5 leading-snug text-[color:var(--color-silver)]">
+                        Реновація{" "}
+                        <span className="font-semibold text-[color:var(--color-black)]">
+                          {cruise.ship_renovated_year}
+                        </span>
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className="min-w-0 pr-24 sm:pr-28">
                   <span className="chip chip-muted-brand">{cruise.region_name}</span>
                   <h1 className="text-h3 mt-2 font-bold text-[color:var(--color-black)]">
                     {cruise.liner_name}
@@ -186,10 +275,20 @@ export default function CruiseDetailApp({
                   <p className="text-caption mt-1 text-subtitle">
                     {cruise.cruise_title}
                   </p>
-                  {routeSummary ? (
-                    <p className="text-caption mt-2 line-clamp-2 font-semibold leading-snug text-[color:var(--color-black)]">
-                      {routeSummary}
+                  {fullRouteLine ? (
+                    <p className="text-caption mt-2 font-semibold leading-snug text-[color:var(--color-black)]">
+                      {fullRouteLine}
                     </p>
+                  ) : null}
+                  {routeFlags.length ? (
+                    <div
+                      className="mt-2 flex flex-wrap items-center gap-1.5"
+                      aria-label="Країни маршруту"
+                    >
+                      {routeFlags.map((code) => (
+                        <CountryFlag key={code} code={code} />
+                      ))}
+                    </div>
                   ) : null}
                 </div>
 
@@ -211,32 +310,65 @@ export default function CruiseDetailApp({
                       </dd>
                     </div>
                   ) : null}
-                  {fromPort ? (
-                    <div className="grid grid-cols-[minmax(6.5rem,auto)_minmax(0,1fr)] gap-x-3">
-                      <dt className="text-[color:var(--color-silver)]">Порт</dt>
-                      <dd className="font-semibold text-[color:var(--color-black)]">
-                        {fromPort}
-                      </dd>
-                    </div>
-                  ) : null}
                 </dl>
 
                 <div className="mt-4 rounded-card-inner bg-[color:var(--color-surface-muted)] p-3.5 sm:p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                    <CruiseCurrencyToggle
-                      compact
-                      value={currency}
-                      onChange={setCurrency}
-                    />
-                    <div className="min-w-0 sm:text-right">
+                  <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+                    <div className="min-w-0">
                       <p className="text-h3 font-bold tabular-nums leading-none text-[color:var(--color-brand)]">
                         {highlightPrice == null
                           ? "…"
-                          : `${formatMoney(highlightPrice)} ${symbol}`}
+                          : `від ${formatMoney(highlightPrice)} ${symbol}`}
                       </p>
-                      <p className="text-caption mt-1.5 text-subtitle">від · за каюту</p>
+                      <p className="text-caption mt-1.5 text-subtitle">
+                        за каюту
+                      </p>
                     </div>
+                    <CruiseCurrencyToggle
+                      compact
+                      variant="select"
+                      value={currency}
+                      onChange={setCurrency}
+                    />
                   </div>
+                  {tariffLadder.length ? (
+                    <div
+                      className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-card-inner border border-[color:var(--color-line)] bg-[color:var(--color-line)] sm:grid-cols-4"
+                      role="radiogroup"
+                      aria-label="Тариф каюти"
+                    >
+                      {tariffLadder.map((item) => {
+                        const selected = selectedCabin === item.cabin;
+                        return (
+                          <button
+                            key={item.cabin}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => setSelectedCabin(item.cabin)}
+                            className={`min-w-0 px-3 py-2.5 text-left transition-colors ${
+                              selected
+                                ? "bg-[color:var(--color-brand-light)]"
+                                : "bg-white hover:bg-[color:var(--color-surface-muted)]"
+                            }`}
+                          >
+                            <p
+                              className={`text-caption truncate ${
+                                selected
+                                  ? "font-semibold text-[color:var(--color-black)]"
+                                  : "text-subtitle"
+                              }`}
+                            >
+                              {item.cabin}
+                            </p>
+                            <p className="text-caption mt-1 font-semibold tabular-nums leading-none text-[color:var(--color-brand)]">
+                              від {formatMoney(item.price)} {symbol}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -253,6 +385,10 @@ export default function CruiseDetailApp({
                 children: detailQuery.children,
                 infants: detailQuery.infants,
               }}
+              cabinCategory={selectedCabin}
+              onCabinCategoryChange={setSelectedCabin}
+              hideCabinTypePicker
+              onCabinTypePrices={setLiveCabinPrices}
               onFromPrice={setQuotedFrom}
               onClose={() => {
                 // Page variant uses the contact modal.
@@ -278,8 +414,8 @@ export default function CruiseDetailApp({
                       ) : null}
                     </div>
                     {showCompactRoute ? (
-                      <p className="text-body mt-2 line-clamp-2 font-semibold leading-snug text-[color:var(--color-black)]">
-                        {routeSummary}
+                      <p className="text-body mt-2 font-semibold leading-snug text-[color:var(--color-black)]">
+                        {fullRouteLine || routeSummary}
                       </p>
                     ) : (
                     <ol className="mt-3">

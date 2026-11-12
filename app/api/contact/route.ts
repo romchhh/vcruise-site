@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     name: payload.name,
     phone: payload.phone,
     email: "",
-    source: payload.booking ? "Бронювання круїзу" : "Форма зв'язку",
+    source: payload.booking ? "Передбронювання круїзу" : "Форма зв'язку",
     cruise: cruiseSummary,
     status: "new",
     notes: "",

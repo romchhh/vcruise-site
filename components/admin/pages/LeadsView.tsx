@@ -392,7 +392,7 @@ export default function LeadsView() {
             <DetailRow label="Сторінка" value={detail.page} />
             <DetailRow label="Створено" value={formatKyivDateTime(detail.createdAt)} />
             <DetailRow label="Оновлено" value={formatKyivDateTime(detail.updatedAt)} />
-            <MetaRows title="Бронювання" data={detail.booking} />
+            <MetaRows title="Передбронювання" data={detail.booking} />
             <MetaRows title="Мета" data={detail.meta} />
           </div>
 

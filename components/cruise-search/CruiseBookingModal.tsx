@@ -78,6 +78,15 @@ type CruiseBookingModalProps = {
   onOffersPanel?: (node: ReactNode) => void;
   /** Cheapest official cabin price for the current party, or null while it loads. */
   onFromPrice?: (price: number | null) => void;
+  /** Controlled cabin category (e.g. from detail-page tariff cards). */
+  cabinCategory?: string;
+  onCabinCategoryChange?: (category: string) => void;
+  /** Hide in-form cabin-type picker when tariffs live in the page header. */
+  hideCabinTypePicker?: boolean;
+  /** Per-category «від» prices for the current party (live offers or catalog). */
+  onCabinTypePrices?: (
+    rows: Array<{ cabin: string; price: number | null }>,
+  ) => void;
 };
 
 type Step = "cabins" | "form";
@@ -210,6 +219,7 @@ function GuestStepper({
   min,
   onChange,
   withDivider,
+  compact,
 }: {
   label: string;
   hint: string;
@@ -217,9 +227,44 @@ function GuestStepper({
   min: number;
   onChange: (next: number) => void;
   withDivider?: boolean;
+  compact?: boolean;
 }) {
   const stepBtn =
     "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-[color:var(--color-brand)] bg-white text-[color:var(--color-brand)] transition-colors hover:bg-[color:var(--color-brand-light)] disabled:cursor-not-allowed disabled:border-[color:var(--color-line)] disabled:text-[color:var(--color-silver)] disabled:hover:bg-white";
+
+  if (compact) {
+    return (
+      <div className="min-w-0 rounded-card border border-[color:var(--color-line)] bg-white px-2.5 py-2.5">
+        <p className="text-caption truncate font-semibold text-[color:var(--color-black)]">
+          {label}
+        </p>
+        <p className="text-small mt-0.5 truncate text-subtitle">{hint}</p>
+        <div className="mt-2 flex items-center justify-between gap-1">
+          <button
+            type="button"
+            aria-label={`Менше: ${label}`}
+            disabled={value <= min}
+            onClick={() => onChange(Math.max(min, value - 1))}
+            className={stepBtn}
+          >
+            <Minus className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </button>
+          <span className="min-w-[1.25rem] text-center text-body font-semibold tabular-nums text-[color:var(--color-black)]">
+            {value}
+          </span>
+          <button
+            type="button"
+            aria-label={`Більше: ${label}`}
+            disabled={value >= 12}
+            onClick={() => onChange(Math.min(12, value + 1))}
+            className={stepBtn}
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -269,6 +314,10 @@ export default function CruiseBookingModal({
   variant = "modal",
   onOffersPanel,
   onFromPrice,
+  cabinCategory,
+  onCabinCategoryChange,
+  hideCabinTypePicker = false,
+  onCabinTypePrices,
 }: CruiseBookingModalProps) {
   const honeypotId = useId();
   const formOpenedAtRef = useRef(0);
@@ -689,25 +738,84 @@ export default function CruiseBookingModal({
     setForm((current) => ({ ...current, [key]: value }));
   };
 
-  const selectCategory = (category: string) => {
-    setCategoryFilter(category);
-    const firstInCat = offers.find((offer) => offer.cabinCategory === category);
-    setForm((current) => ({
-      ...current,
-      cabinType: category,
-      offerKey: firstInCat ? offerKeyOf(firstInCat) : "",
-      cabinNumber: "",
-    }));
-  };
+  const selectCategory = useCallback(
+    (category: string) => {
+      setCategoryFilter(category);
+      setForm((current) => {
+        const firstInCat = offers.find(
+          (offer) => offer.cabinCategory === category,
+        );
+        return {
+          ...current,
+          cabinType: category,
+          offerKey: firstInCat ? offerKeyOf(firstInCat) : "",
+          cabinNumber: "",
+        };
+      });
+      onCabinCategoryChange?.(category);
+    },
+    [offers, onCabinCategoryChange],
+  );
 
-  const selectOffer = useCallback((offer: CruiseCabinOffer) => {
-    setForm((current) => ({
-      ...current,
-      cabinType: offer.cabinCategory || current.cabinType,
-      offerKey: offerKeyOf(offer),
-      cabinNumber: "",
-    }));
-  }, []);
+  useEffect(() => {
+    if (!cabinCategory) return;
+    const active = categoryFilter || form.cabinType;
+    if (cabinCategory === active) return;
+    selectCategory(cabinCategory);
+  }, [
+    cabinCategory,
+    categoryFilter,
+    form.cabinType,
+    selectCategory,
+  ]);
+
+  useEffect(() => {
+    if (!onCabinTypePrices) return;
+    if (!cabinOptions.length) {
+      onCabinTypePrices([]);
+      return;
+    }
+    const rows = cabinOptions.map((cabin) => {
+      const fromOffers = offers
+        .filter((offer) => offer.cabinCategory === cabin)
+        .map((offer) => offer.price?.[currency])
+        .filter((value): value is number => value != null);
+      const datePrice = referenceParty
+        ? cabinPrice(selectedDateEntry?.cabins, cabin, currency)
+        : null;
+      const price =
+        fromOffers.length > 0
+          ? Math.min(...fromOffers)
+          : offersLoading
+            ? null
+            : datePrice;
+      return { cabin, price };
+    });
+    onCabinTypePrices(rows);
+  }, [
+    cabinOptions,
+    currency,
+    offers,
+    offersLoading,
+    onCabinTypePrices,
+    referenceParty,
+    selectedDateEntry?.cabins,
+  ]);
+
+  const selectOffer = useCallback(
+    (offer: CruiseCabinOffer) => {
+      const nextCategory = offer.cabinCategory || "";
+      if (nextCategory) setCategoryFilter(nextCategory);
+      setForm((current) => ({
+        ...current,
+        cabinType: nextCategory || current.cabinType,
+        offerKey: offerKeyOf(offer),
+        cabinNumber: "",
+      }));
+      if (nextCategory) onCabinCategoryChange?.(nextCategory);
+    },
+    [onCabinCategoryChange],
+  );
 
   const confirmCabin = useCallback(
     (cabinNumber: string) => {
@@ -846,7 +954,9 @@ export default function CruiseBookingModal({
             item.role === current.passengers[index]?.role &&
             item.firstName === current.passengers[index]?.firstName &&
             item.lastName === current.passengers[index]?.lastName &&
-            item.birthDate === current.passengers[index]?.birthDate,
+            item.birthDate === current.passengers[index]?.birthDate &&
+            item.gender === current.passengers[index]?.gender &&
+            item.citizenship === current.passengers[index]?.citizenship,
         );
       if (same) return current;
       return { ...current, passengers: merged };
@@ -879,7 +989,7 @@ export default function CruiseBookingModal({
       return "Оберіть номер каюти на плані палуби.";
     }
     if (!form.cabinType) {
-      return "Оберіть тип каюти, щоб активувати кнопку «Забронювати».";
+      return "Оберіть тариф, щоб активувати кнопку «Забронювати».";
     }
     if (!form.cruiseDate) {
       return "Оберіть дату відправлення.";
@@ -1090,7 +1200,7 @@ export default function CruiseBookingModal({
             <div className="py-6 text-center">
               <p className="text-body font-semibold text-[color:var(--color-black)]">
                 Дякуємо! Менеджер зв&apos;яжеться з вами для підтвердження
-                бронювання та уточнення деталей.
+                передбронювання та уточнення деталей.
               </p>
               <button
                 type="button"
@@ -1102,13 +1212,6 @@ export default function CruiseBookingModal({
             </div>
           ) : isPage || step === "cabins" ? (
             <div className="mt-3 space-y-3.5">
-              <div
-                className={
-                  isPage
-                    ? "grid gap-3.5 sm:grid-cols-2 sm:items-start"
-                    : "space-y-3.5"
-                }
-              >
               <Field label="Дата *">
                 <select
                   required
@@ -1128,21 +1231,38 @@ export default function CruiseBookingModal({
               </Field>
 
               <div>
-                <p className="text-caption mb-1.5 text-subtitle">Гості *</p>
-                <div className="rounded-card border border-[color:var(--color-line)] bg-white px-4">
-                  {GUEST_FIELDS.map((field, index) => (
-                    <GuestStepper
-                      key={field.key}
-                      label={field.label}
-                      hint={field.hint}
-                      value={form[field.key]}
-                      min={field.key === "adults" ? 1 : 0}
-                      withDivider={index > 0}
-                      onChange={(next) => updateField(field.key, next)}
-                    />
-                  ))}
-                </div>
-              </div>
+                <p className="text-caption mb-1.5 text-subtitle">
+                  Кількість туристів *
+                </p>
+                {isPage ? (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {GUEST_FIELDS.map((field) => (
+                      <GuestStepper
+                        key={field.key}
+                        label={field.label}
+                        hint={field.hint}
+                        value={form[field.key]}
+                        min={field.key === "adults" ? 1 : 0}
+                        compact
+                        onChange={(next) => updateField(field.key, next)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-card border border-[color:var(--color-line)] bg-white px-4">
+                    {GUEST_FIELDS.map((field, index) => (
+                      <GuestStepper
+                        key={field.key}
+                        label={field.label}
+                        hint={field.hint}
+                        value={form[field.key]}
+                        min={field.key === "adults" ? 1 : 0}
+                        withDivider={index > 0}
+                        onChange={(next) => updateField(field.key, next)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
 
               {noCabins ? (
@@ -1158,6 +1278,7 @@ export default function CruiseBookingModal({
                 </p>
               ) : (
               <>
+              {!hideCabinTypePicker ? (
               <div
                 className={
                   isPage && !form.cabinType && cabinOptions.length > 0
@@ -1166,7 +1287,7 @@ export default function CruiseBookingModal({
                 }
               >
                 <p className="text-caption mb-2 font-medium text-[color:var(--color-black)]">
-                  Оберіть тип каюти *
+                  {isPage ? "Тариф *" : "Оберіть тип каюти *"}
                 </p>
 
                 {cabinOptions.length === 0 ? (
@@ -1218,6 +1339,11 @@ export default function CruiseBookingModal({
                   </div>
                 )}
               </div>
+              ) : isPage && !form.cabinType && cabinOptions.length > 0 ? (
+                <p className="text-caption text-amber-900" role="status">
+                  Оберіть тариф у картці вище, щоб продовжити.
+                </p>
+              ) : null}
 
               {isPage ? (
                 <CabinOffersTable
@@ -1468,7 +1594,7 @@ export default function CruiseBookingModal({
                     id="cruise-contact-modal-title"
                     className="text-h4 font-bold text-[color:var(--color-black)]"
                   >
-                    {success ? "Заявку надіслано" : "Заявка на бронювання"}
+                    {success ? "Заявку надіслано" : "Заявка на передбронювання"}
                   </h2>
                   <p className="text-caption mt-1 text-subtitle">
                     Менеджер підтвердить каюту і звʼяжеться з вами.
@@ -1520,7 +1646,7 @@ export default function CruiseBookingModal({
                   <div className="py-6 text-center">
                     <p className="text-body font-semibold text-[color:var(--color-black)]">
                       Дякуємо! Менеджер зв&apos;яжеться з вами для підтвердження
-                      бронювання.
+                      передбронювання.
                     </p>
                     <button
                       type="button"

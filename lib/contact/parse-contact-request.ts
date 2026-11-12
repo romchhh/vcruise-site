@@ -1,6 +1,12 @@
 import type { ContactFormPayload, CruiseBookingDetails } from "./format-message";
 import { isValidUaPhone, normalizeUaPhone } from "./phone";
 
+const LATIN_NAME_RE = /^[A-Za-z]+(?:[ '\-][A-Za-z]+)*$/;
+
+function isLatinPassportName(value: string) {
+  return value.length >= 2 && LATIN_NAME_RE.test(value);
+}
+
 function optionalPositiveInt(value: unknown, max = 20) {
   const raw = Number(value);
   if (!Number.isFinite(raw) || raw <= 0) return undefined;
@@ -72,28 +78,48 @@ function parseBooking(value: unknown): CruiseBookingDetails | null | undefined {
       ? bookingUrl.slice(0, 500)
       : undefined;
 
-  const passengers = Array.isArray(booking.passengers)
-    ? booking.passengers
-        .slice(0, 12)
-        .flatMap((item) => {
-          if (!item || typeof item !== "object") return [];
-          const row = item as Record<string, unknown>;
-          const firstName = String(row.firstName ?? "").trim().slice(0, 80);
-          const lastName = String(row.lastName ?? "").trim().slice(0, 80);
-          const role = String(row.role ?? "").trim().slice(0, 40);
-          const birthDate = String(row.birthDate ?? "").trim();
-          if (firstName.length < 2 || lastName.length < 2) return [];
-          if (birthDate && !/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return [];
-          return [
-            {
-              firstName,
-              lastName,
-              role: role || "Пасажир",
-              birthDate: birthDate || undefined,
-            },
-          ];
-        })
+  const rawPassengers = Array.isArray(booking.passengers)
+    ? booking.passengers.slice(0, 12)
+    : null;
+  const passengers = rawPassengers
+    ? rawPassengers.flatMap((item) => {
+        if (!item || typeof item !== "object") return [];
+        const row = item as Record<string, unknown>;
+        const firstName = String(row.firstName ?? "").trim().slice(0, 80);
+        const lastName = String(row.lastName ?? "").trim().slice(0, 80);
+        const role = String(row.role ?? "").trim().slice(0, 40);
+        const birthDate = String(row.birthDate ?? "").trim();
+        const genderRaw = String(row.gender ?? "").trim().toLowerCase();
+        const gender =
+          genderRaw === "male" || genderRaw === "female" ? genderRaw : "";
+        const genderLabel =
+          gender === "male"
+            ? "Чоловіча"
+            : gender === "female"
+              ? "Жіноча"
+              : undefined;
+        const citizenship = String(row.citizenship ?? "").trim().slice(0, 80);
+        if (!isLatinPassportName(firstName) || !isLatinPassportName(lastName)) {
+          return [];
+        }
+        if (!birthDate || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return [];
+        if (!genderLabel || citizenship.length < 2) return [];
+        return [
+          {
+            firstName,
+            lastName,
+            role: role || "Пасажир",
+            birthDate,
+            gender: genderLabel,
+            citizenship,
+          },
+        ];
+      })
     : undefined;
+
+  if (rawPassengers && rawPassengers.length > 0 && !passengers?.length) {
+    return null;
+  }
 
   return {
     linerName: (linerName || company).slice(0, 120),
