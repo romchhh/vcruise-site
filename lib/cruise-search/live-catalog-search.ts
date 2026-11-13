@@ -255,6 +255,10 @@ function enqueuePump(session: ProgressiveSession, needCount: number) {
 
 function resolveTotal(session: ProgressiveSession) {
   if (session.complete) return session.cruises.length;
+  if (clientFiltersMayReduce(session.filters, session.shipAppliedOnServer)) {
+    // Months/new-liner filters still running — claimed 4gates total is an upper bound.
+    return Math.max(session.cruises.length, session.claimedTotal);
+  }
   // Region/company already applied on 4gates: claimed total is exact.
   return session.claimedTotal;
 }
@@ -313,9 +317,14 @@ export async function searchLiveCatalogPage(
       sessions.set(session.key, session);
     }
 
-    // Client-only filters change the real total — finish the scan before answering.
+    // Client-only filters (months residual, new liners, …) can shrink the page.
+    // Fill the requested slice first; finish the scan in the background so nginx
+    // does not 504 before the first JSON response.
     if (clientFiltersMayReduce(filters, session.shipAppliedOnServer)) {
-      await enqueuePump(session, session.claimedTotal || session.maxItems);
+      await enqueuePump(session, needCount);
+      if (!session.complete) {
+        void enqueuePump(session, session.claimedTotal || session.maxItems);
+      }
     } else if (
       offset === 0 &&
       limit <= DEFAULT_PAGE_SIZE &&

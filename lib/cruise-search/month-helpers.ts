@@ -4,6 +4,37 @@ export function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+/**
+ * ISO date window for selected year + month chips.
+ * Used to push month filters to 4gates `dates` so live search does not scan a whole year.
+ */
+export function dateRangeFromYearMonths(
+  year: string,
+  months: string[],
+  referenceDate = new Date(),
+): { from: string; to: string } | null {
+  if (!months.length) return null;
+
+  const indices = months
+    .map((label) => MONTH_INDEX[label])
+    .filter((index): index is number => index !== undefined)
+    .sort((left, right) => left - right);
+  if (!indices.length) return null;
+
+  const selectedYear =
+    year && year !== "Будь-коли"
+      ? Number(year)
+      : referenceDate.getFullYear();
+  if (!Number.isFinite(selectedYear)) return null;
+
+  const startMonth = indices[0];
+  const endMonth = indices[indices.length - 1];
+  const from = `${selectedYear}-${String(startMonth + 1).padStart(2, "0")}-01`;
+  const lastDay = new Date(Date.UTC(selectedYear, endMonth + 1, 0)).getUTCDate();
+  const to = `${selectedYear}-${String(endMonth + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { from, to };
+}
+
 export function isMonthSelectable(
   monthLabel: string,
   year: string,

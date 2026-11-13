@@ -29,6 +29,13 @@ type FetchJsonOptions = {
   init?: RequestInit;
 };
 
+function gatewayTimeoutMessage(status: number) {
+  if (status === 504 || status === 502 || status === 503) {
+    return "Сервер відповідає занадто довго. Спробуйте ще раз за кілька секунд.";
+  }
+  return `Помилка сервера (${status}). Спробуйте ще раз.`;
+}
+
 export async function fetchJsonWithRetry<T>(
   url: string,
   { retries = 3, timeoutMs = 120_000, init }: FetchJsonOptions = {},
@@ -49,13 +56,23 @@ export async function fetchJsonWithRetry<T>(
         },
       });
 
-      const data = (await response.json()) as T & { error?: string };
+      const raw = await response.text();
+      let data: T & { error?: string };
+      try {
+        data = JSON.parse(raw) as T & { error?: string };
+      } catch {
+        throw new Error(
+          response.ok
+            ? "Некоректна відповідь сервера."
+            : gatewayTimeoutMessage(response.status),
+        );
+      }
 
       if (!response.ok) {
         throw new Error(
           typeof data.error === "string"
             ? data.error
-            : "Не вдалося завантажити дані.",
+            : gatewayTimeoutMessage(response.status),
         );
       }
 

@@ -1,4 +1,5 @@
 import { loadFourgatesFilterMeta } from "./fourgates-filter-meta";
+import { dateRangeFromYearMonths } from "./month-helpers";
 import type { CruiseSearchFilters, CruiseSort } from "./types";
 
 const BASE = "https://4gates.cruises";
@@ -62,6 +63,17 @@ export async function buildGetitemsDateRange(filters: CruiseSearchFilters) {
   }
   if (filters.dateTo) {
     return `${isoToFourgates(addDaysIso(filters.dateTo, -540))}-${isoToFourgates(filters.dateTo)}`;
+  }
+  // Push month chips into 4gates dates — otherwise live search scans the whole year
+  // and nginx returns 504 HTML before JSON reaches the browser.
+  if (filters.months?.length) {
+    const monthRange = dateRangeFromYearMonths(
+      filters.year || "Будь-коли",
+      filters.months,
+    );
+    if (monthRange) {
+      return `${isoToFourgates(monthRange.from)}-${isoToFourgates(monthRange.to)}`;
+    }
   }
   if (filters.year && filters.year !== "Будь-коли") {
     return `01.01.${filters.year}-31.12.${filters.year}`;
