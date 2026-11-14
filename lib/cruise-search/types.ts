@@ -49,7 +49,10 @@ export type CruiseRecord = {
   region_name: string;
   region_id: string;
   route: string[];
+  /** Countries marked with 4gates `<sup>V</sup>` (visa required for UA). */
   visa_countries?: string[];
+  /** True when 4gates flags a visa requirement on the route. */
+  has_visa_required?: boolean;
   port_from_id?: number;
   duration_days?: number;
   duration_days_str?: string;
@@ -75,8 +78,10 @@ export type CruiseSort =
 
 export type CruiseSearchFilters = {
   regions: string[];
-  company: string;
-  liner: string;
+  /** Selected cruise company titles (multi). Empty = any. */
+  company: string[];
+  /** Selected liner slugs (multi). Empty = any. */
+  liner: string[];
   year: string;
   months: string[];
   duration: string;

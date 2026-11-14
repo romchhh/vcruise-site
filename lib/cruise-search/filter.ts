@@ -91,21 +91,29 @@ export function filterCruises(
   return cruises.filter((cruise) => {
     if (!hasBookableDates(cruise)) return false;
 
-    if (filters.company && cruise.cruise_title !== filters.company) {
+    if (
+      filters.company.length > 0 &&
+      !filters.company.includes(cruise.cruise_title)
+    ) {
       return false;
     }
 
-    if (filters.liner && cruise.liner_slug !== filters.liner) {
+    if (
+      filters.liner.length > 0 &&
+      !filters.liner.includes(cruise.liner_slug)
+    ) {
       return false;
     }
 
     const sailings = matchingSailingDates(cruise, filters).filter((iso) =>
-      filters.liner
-        ? bookingUrlMatchesLiner(cruise, iso, filters.liner)
+      filters.liner.length > 0
+        ? filters.liner.some((slug) =>
+            bookingUrlMatchesLiner(cruise, iso, slug),
+          )
         : true,
     );
 
-    if (filters.liner && sailings.length === 0) return false;
+    if (filters.liner.length > 0 && sailings.length === 0) return false;
     if (hasSailingWindow(filters) && sailings.length === 0) return false;
 
     if (!matchesCruiseRegions(cruise, filters.regions)) return false;

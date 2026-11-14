@@ -22,6 +22,7 @@ import {
 } from "@/lib/cruise-search/utils";
 import { countryCodeFromPlace } from "@/lib/cruise-search/country-flag";
 import type { CruiseRecord, CurrencyCode } from "@/lib/cruise-search/types";
+import { placeNeedsVisa } from "@/lib/cruise-search/visa";
 import CountryFlag from "./CountryFlag";
 import CruiseBookingModal from "./CruiseBookingModal";
 import CruiseCurrencyToggle from "./CruiseCurrencyToggle";
@@ -55,12 +56,26 @@ function routeStops(route: string[]): RouteStop[] {
   return stops;
 }
 
-function CountryPlace({ place }: { place: string }) {
+function CountryPlace({
+  place,
+  needsVisa = false,
+}: {
+  place: string;
+  needsVisa?: boolean;
+}) {
   const code = countryCodeFromPlace(place);
   return (
     <p className="text-caption flex items-center gap-1.5 text-subtitle">
       {code ? <CountryFlag code={code} /> : null}
       <span>{place}</span>
+      {needsVisa ? (
+        <span
+          className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-[color:var(--color-brand)] px-1 text-[10px] font-bold leading-none text-white"
+          title="Потрібна віза"
+        >
+          V
+        </span>
+      ) : null}
     </p>
   );
 }
@@ -200,6 +215,14 @@ export default function CruiseDetailApp({
   const routeFlags = useMemo(() => routeCountryCodes(stops), [stops]);
   const routeIsLong = stops.length >= ROUTE_COLLAPSE_THRESHOLD;
   const showCompactRoute = routeIsLong && !routeExpanded;
+  const needsVisa = Boolean(cruise.has_visa_required);
+  const visaCountries = cruise.visa_countries ?? [];
+  const visaLabel =
+    needsVisa && visaCountries.length
+      ? `Потрібна віза: ${visaCountries.join(", ")}`
+      : needsVisa
+        ? "У маршруті є візові країни"
+        : "";
   const nightsLabel =
     cruise.nights_str ?? (cruise.nights ? `${cruise.nights} ночей` : "");
 
@@ -268,7 +291,18 @@ export default function CruiseDetailApp({
                 ) : null}
 
                 <div className="min-w-0 pr-24 sm:pr-28">
-                  <span className="chip chip-muted-brand">{cruise.region_name}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="chip chip-muted-brand">{cruise.region_name}</span>
+                    {needsVisa ? (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full border border-[color:var(--color-brand)]/25 bg-[color:var(--color-brand-light)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--color-brand)]"
+                        title={visaLabel}
+                      >
+                        <span aria-hidden>V</span>
+                        Віза
+                      </span>
+                    ) : null}
+                  </div>
                   <h1 className="text-h3 mt-2 font-bold text-[color:var(--color-black)]">
                     {cruise.liner_name}
                   </h1>
@@ -289,6 +323,11 @@ export default function CruiseDetailApp({
                         <CountryFlag key={code} code={code} />
                       ))}
                     </div>
+                  ) : null}
+                  {needsVisa ? (
+                    <p className="text-caption mt-2 font-medium text-[color:var(--color-brand)]">
+                      {visaLabel}
+                    </p>
                   ) : null}
                 </div>
 
@@ -452,7 +491,23 @@ export default function CruiseDetailApp({
                                   {stop.name}
                                 </p>
                                 {stop.place ? (
-                                  <CountryPlace place={stop.place} />
+                                  <CountryPlace
+                                    place={stop.place}
+                                    needsVisa={
+                                      needsVisa &&
+                                      placeNeedsVisa(stop.place, visaCountries)
+                                    }
+                                  />
+                                ) : needsVisa &&
+                                  placeNeedsVisa(stop.name, visaCountries) ? (
+                                  <p className="text-caption mt-0.5">
+                                    <span
+                                      className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-[color:var(--color-brand)] px-1 text-[10px] font-bold leading-none text-white"
+                                      title="Потрібна віза"
+                                    >
+                                      V
+                                    </span>
+                                  </p>
                                 ) : null}
                               </>
                             )}

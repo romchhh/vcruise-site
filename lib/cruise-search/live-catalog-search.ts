@@ -69,7 +69,8 @@ function clientFiltersMayReduce(
   shipAppliedOnServer = false,
 ) {
   return Boolean(
-    (filters.liner && !shipAppliedOnServer) ||
+    (filters.liner.length > 0 && !shipAppliedOnServer) ||
+      (filters.company.length > 1) ||
       filters.newLinersOnly ||
       (filters.duration && filters.duration !== "Будь-яка") ||
       filters.months?.length,
@@ -109,12 +110,25 @@ async function createSession(
   filters: CruiseSearchFilters,
   options?: { maxPages?: number; maxItems?: number },
 ): Promise<ProgressiveSession> {
-  const cruiseId = resolveFourgatesCruiseId(filters.company);
+  // getitems accepts a single cruise_id / ship_id — multi-select stays client-side.
+  const singleCompany =
+    filters.company.length === 1 ? filters.company[0] : "";
+  const singleLiner = filters.liner.length === 1 ? filters.liner[0] : "";
+  const cruiseId =
+    filters.liner.length <= 1 && singleCompany
+      ? resolveFourgatesCruiseId(singleCompany)
+      : "";
   const regionIds = resolveFourgatesRegionIds(filters.regions);
-  const shipId = filters.liner
-    ? await resolveFourgatesShipId(filters.liner, filters.company)
+  const shipId = singleLiner
+    ? await resolveFourgatesShipId(singleLiner, singleCompany)
     : "";
-  const narrowed = Boolean(cruiseId || shipId || filters.liner || regionIds);
+  const narrowed = Boolean(
+    cruiseId ||
+      shipId ||
+      filters.liner.length > 0 ||
+      filters.company.length > 0 ||
+      regionIds,
+  );
   const fetchOptions = { cruiseId, regionIds, shipId };
   const first = await fetchGetitemsPage(filters, 0, fetchOptions);
   const pageSize = first.items.length || 10;

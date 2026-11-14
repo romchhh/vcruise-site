@@ -18,8 +18,8 @@ function buildClassSearchHref(linerClass: LinerClass) {
   if (!firstWithSlug?.linerSlug) return "/search";
 
   const query = buildSearchParams({
-    company: firstWithSlug.company ?? "",
-    liner: firstWithSlug.linerSlug,
+    company: firstWithSlug.company ? [firstWithSlug.company] : [],
+    liner: [firstWithSlug.linerSlug],
     newLinersOnly: false,
   });
 
@@ -57,8 +57,8 @@ function buildLinerSearchHref(linerClass: LinerClass, linerName: string) {
   if (!match) return null;
 
   const query = buildSearchParams({
-    company: match.company,
-    liner: match.liner,
+    company: match.company ? [match.company] : [],
+    liner: [match.liner],
     newLinersOnly: false,
   });
   return `/search?${query}`;

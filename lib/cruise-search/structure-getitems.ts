@@ -91,16 +91,37 @@ function parseRoute(html: string | undefined) {
     .filter(Boolean);
 }
 
-function parseFlags(html: string | undefined) {
-  if (!html) return [] as string[];
-  const countries: string[] = [];
-  const re = /class="[^"]*flag[^"]*"[^>]*title="([^"]+)"/gi;
+/**
+ * 4gates `flag` HTML:
+ * - country flags as `<span|a class="flag" title="…">`
+ * - visa-required countries include `<sup>V</sup>` inside the flag tag
+ * - when any visa country exists, a summary chip with visa.svg + «У маршруті є візові країни»
+ */
+function parseVisaFromFlags(html: string | undefined) {
+  if (!html) {
+    return { visa_countries: [] as string[], has_visa_required: false };
+  }
+
+  const visa_countries: string[] = [];
+  const seen = new Set<string>();
+  // <a class='flag' … title='США' …><sup>V</sup></a>
+  const re =
+    /<(?:a|span)\b(?=[^>]*\bclass=['"][^'"]*\bflag\b)(?=[^>]*\btitle=['"]([^'"]+)['"])[^>]*>\s*<sup>\s*V\s*<\/sup>/gi;
+
   let match: RegExpExecArray | null;
   while ((match = re.exec(html)) !== null) {
     const title = match[1]?.trim();
-    if (title) countries.push(title);
+    if (!title || seen.has(title)) continue;
+    seen.add(title);
+    visa_countries.push(title);
   }
-  return countries;
+
+  const has_visa_required =
+    visa_countries.length > 0 ||
+    /visa\.svg/i.test(html) ||
+    /У маршруті є візов/i.test(html);
+
+  return { visa_countries, has_visa_required };
 }
 
 function parseClassField(html: string | undefined) {
@@ -163,7 +184,7 @@ export function structureGetitemsRow(item: RawGetitemsRow): CruiseRecord {
     region_name: String(item.region_name ?? "").trim() || "",
     region_id: String(item.region_id ?? ""),
     route: parseRoute(typeof iteraty === "string" ? iteraty : undefined),
-    visa_countries: parseFlags(typeof flag === "string" ? flag : undefined),
+    ...parseVisaFromFlags(typeof flag === "string" ? flag : undefined),
     port_from_id: toNumber(item.port_from_id),
     duration_days: toNumber(item.durations),
     duration_days_str:

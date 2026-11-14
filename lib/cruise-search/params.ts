@@ -22,6 +22,17 @@ function parseList(value: string | string[] | undefined) {
     .filter(Boolean);
 }
 
+function uniquePreserveOrder(items: string[]) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of items) {
+    if (seen.has(item)) continue;
+    seen.add(item);
+    out.push(item);
+  }
+  return out;
+}
+
 function parseNumber(
   value: string | string[] | undefined,
   fallback: number
@@ -39,8 +50,8 @@ export function createDefaultFilters(
 
   return {
     regions: [],
-    company: "",
-    liner: "",
+    company: [],
+    liner: [],
     year: "Будь-коли",
     months: [],
     duration: "Будь-яка",
@@ -64,21 +75,72 @@ export function alignCompanyLinerFilters(
   filters: CruiseSearchFilters,
   cruises: CruiseRecord[],
 ): CruiseSearchFilters {
-  if (!filters.liner) return filters;
+  const companies = uniquePreserveOrder(filters.company.filter(Boolean));
+  const liners = uniquePreserveOrder(filters.liner.filter(Boolean));
 
-  // Live search path may pass an empty catalog — keep the URL liner slug.
+  if (!liners.length) {
+    return { ...filters, company: companies, liner: [] };
+  }
+
+  // Live search path may pass an empty catalog — keep the URL liner slugs.
+  if (!cruises.length) {
+    return { ...filters, company: companies, liner: liners };
+  }
+
+  const bySlug = new Map(
+    cruises
+      .filter((cruise) => cruise.liner_slug)
+      .map((cruise) => [cruise.liner_slug, cruise] as const),
+  );
+
+  const validLiners: string[] = [];
+  const companySet = new Set(companies);
+
+  for (const slug of liners) {
+    const match = bySlug.get(slug);
+    if (!match) continue;
+    validLiners.push(slug);
+    if (match.cruise_title) companySet.add(match.cruise_title);
+  }
+
+  // Drop companies that no longer own any selected liner when liners are set.
+  // Keep explicitly selected companies that still appear in the catalog.
+  if (validLiners.length) {
+    const linerCompanies = new Set(
+      validLiners
+        .map((slug) => bySlug.get(slug)?.cruise_title)
+        .filter((title): title is string => Boolean(title)),
+    );
+    for (const title of [...companySet]) {
+      if (!linerCompanies.has(title) && !companies.includes(title)) {
+        companySet.delete(title);
+      }
+    }
+  }
+
+  return {
+    ...filters,
+    company: uniquePreserveOrder([...companySet]),
+    liner: validLiners,
+  };
+}
+
+/** Prune liners that no longer belong to any selected company. */
+export function pruneLinersForCompanies(
+  filters: CruiseSearchFilters,
+  cruises: CruiseRecord[],
+): CruiseSearchFilters {
+  if (!filters.company.length || !filters.liner.length) return filters;
   if (!cruises.length) return filters;
 
-  const match = cruises.find((cruise) => cruise.liner_slug === filters.liner);
-  if (!match) {
-    return { ...filters, liner: "" };
-  }
+  const allowed = new Set(filters.company);
+  const nextLiners = filters.liner.filter((slug) => {
+    const match = cruises.find((cruise) => cruise.liner_slug === slug);
+    return match ? allowed.has(match.cruise_title) : false;
+  });
 
-  if (!filters.company || filters.company !== match.cruise_title) {
-    return { ...filters, company: match.cruise_title };
-  }
-
-  return filters;
+  if (nextLiners.length === filters.liner.length) return filters;
+  return { ...filters, liner: nextLiners };
 }
 
 export function parseSearchParams(
@@ -134,12 +196,8 @@ export function parseSearchParams(
     {
       ...defaults,
       regions,
-      company: Array.isArray(params.company)
-        ? params.company[0] ?? ""
-        : params.company ?? "",
-      liner: Array.isArray(params.liner)
-        ? params.liner[0] ?? ""
-        : params.liner ?? "",
+      company: uniquePreserveOrder(parseList(params.company)),
+      liner: uniquePreserveOrder(parseList(params.liner)),
       year,
       months,
       duration,
@@ -185,8 +243,12 @@ export function buildSearchParams(filters: Partial<CruiseSearchFilters>) {
     params.set("duration", filters.duration);
   }
 
-  if (filters.company) params.set("company", filters.company);
-  if (filters.liner) params.set("liner", filters.liner);
+  if (filters.company?.length) {
+    params.set("company", filters.company.join(","));
+  }
+  if (filters.liner?.length) {
+    params.set("liner", filters.liner.join(","));
+  }
   if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
   if (filters.dateTo) params.set("dateTo", filters.dateTo);
   if (filters.adults) params.set("adults", String(filters.adults));

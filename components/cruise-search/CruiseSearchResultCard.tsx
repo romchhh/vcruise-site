@@ -85,6 +85,13 @@ export default function CruiseSearchResultCard({
   const routePreview = route.slice(0, 3).join(" · ");
   const routeExtra = route.length > 3 ? ` +${route.length - 3}` : "";
   const nightsLabel = headline.nights_str ?? `${headline.nights} ночей`;
+  const needsVisa = Boolean(headline.has_visa_required);
+  const visaLabel =
+    needsVisa && headline.visa_countries?.length
+      ? `Потрібна віза: ${headline.visa_countries.join(", ")}`
+      : needsVisa
+        ? "У маршруті є візові країни"
+        : "";
 
   const prefetchOffers = useCallback(() => {
     const bookingUrl = resolveBookingUrl(headline, highlightDate ?? undefined);
@@ -125,7 +132,18 @@ export default function CruiseSearchResultCard({
         onClick={openDetail}
         className="flex flex-1 flex-col text-left"
       >
-        <span className="chip chip-muted-brand w-fit">{headline.region_name}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="chip chip-muted-brand w-fit">{headline.region_name}</span>
+          {needsVisa ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-[color:var(--color-brand)]/25 bg-[color:var(--color-brand-light)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--color-brand)]"
+              title={visaLabel}
+            >
+              <span aria-hidden>V</span>
+              Віза
+            </span>
+          ) : null}
+        </div>
 
         <h3 className="text-h4 mt-3 font-bold text-[color:var(--color-black)]">
           {headline.liner_name}
@@ -164,6 +182,13 @@ export default function CruiseSearchResultCard({
           label="Маршрут"
           value={`${routePreview}${routeExtra}`}
         />
+        {needsVisa ? (
+          <div className="divider pt-3">
+            <p className="text-caption font-medium text-[color:var(--color-brand)]">
+              {visaLabel}
+            </p>
+          </div>
+        ) : null}
         <div className="divider pt-3">
           <div className="flex items-end justify-between gap-3">
             <span className="text-caption max-w-[120px] leading-snug text-[color:var(--color-silver)]">

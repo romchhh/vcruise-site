@@ -107,7 +107,7 @@ async function findLiveMatch(key: number, identity: DetailCruiseIdentity) {
     filters.months = [];
   }
   // The card's ship is the sailing, not the catalog liner dropdown.
-  if (identity.ship) filters.liner = "";
+  if (identity.ship) filters.liner = [];
 
   const result = await searchLiveCatalog(filters, {
     maxPages: 30,

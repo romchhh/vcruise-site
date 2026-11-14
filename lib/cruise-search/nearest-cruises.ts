@@ -139,8 +139,8 @@ function mapToCard(
 
   const searchUrl = `/search?${buildSearchParams({
     regions: [slot.region],
-    company: slot.company,
-    liner: cruise.liner_slug,
+    company: slot.company ? [slot.company] : [],
+    liner: cruise.liner_slug ? [cruise.liner_slug] : [],
     dateFrom: startDate,
     sort: "date_asc",
     currency: DEFAULT_CURRENCY,

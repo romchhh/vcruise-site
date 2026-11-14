@@ -122,8 +122,8 @@ function mapToUniqueRoute(
 
   const query = buildSearchParams({
     regions: [region],
-    company: cruise.cruise_title,
-    liner: cruise.liner_slug,
+    company: cruise.cruise_title ? [cruise.cruise_title] : [],
+    liner: cruise.liner_slug ? [cruise.liner_slug] : [],
     dateFrom: startDate,
     dateTo: startDate,
     sort: "date_asc",

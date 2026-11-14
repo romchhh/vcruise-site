@@ -92,6 +92,8 @@ export function serializeCruisesForClient(
       region_name: cruise.region_name,
       region_id: cruise.region_id,
       route: cruise.route,
+      visa_countries: cruise.visa_countries,
+      has_visa_required: cruise.has_visa_required,
       nights: cruise.nights,
       nights_str: cruise.nights_str,
       ship_built_year: cruise.ship_built_year,

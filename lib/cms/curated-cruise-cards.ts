@@ -35,8 +35,8 @@ function cruiseDeepLink(input: {
   const region = cruise.region_name || "Середземномор'я";
   const query = buildSearchParams({
     regions: [region],
-    company: cruise.cruise_title,
-    liner: cruise.liner_slug,
+    company: cruise.cruise_title ? [cruise.cruise_title] : [],
+    liner: cruise.liner_slug ? [cruise.liner_slug] : [],
     dateFrom: date,
     dateTo: date,
     sort,

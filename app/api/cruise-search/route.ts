@@ -64,7 +64,9 @@ export async function GET(request: Request) {
     : SEARCH_RESULTS_PAGE_SIZE;
 
   const narrowed = Boolean(
-    filters.company || filters.liner || filters.regions.length,
+    filters.company.length ||
+      filters.liner.length ||
+      filters.regions.length,
   );
 
   try {

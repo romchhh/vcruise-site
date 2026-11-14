@@ -33,6 +33,7 @@ import {
   buildSearchParams,
   createDefaultFilters,
   parseSearchParams,
+  pruneLinersForCompanies,
 } from "@/lib/cruise-search/params";
 import { effectiveMonthYear, sanitizeSelectedMonths } from "@/lib/cruise-search/month-helpers";
 import { getSearchBounds, hasBookableDates } from "@/lib/cruise-search/utils";
@@ -150,23 +151,23 @@ export default function CruiseSearchApp({
     const list: string[] = FEATURED_CRUISE_COMPANIES.filter((company) =>
       available.has(company),
     );
-    // Keep a company from deep-links even if it's outside the featured list.
-    if (
-      appliedFilters.company &&
-      !list.includes(appliedFilters.company) &&
-      available.has(appliedFilters.company)
-    ) {
-      list.push(appliedFilters.company);
+    // Keep companies from deep-links even if outside the featured list.
+    for (const company of appliedFilters.company) {
+      if (!list.includes(company) && available.has(company)) {
+        list.push(company);
+      }
     }
     return list.sort((a, b) => a.localeCompare(b, "uk"));
   }, [bookableCruises, appliedFilters.company]);
 
   const liners = useMemo(() => {
-    const pool = draftFilters.company
-      ? bookableCruises.filter(
-          (cruise) => cruise.cruise_title === draftFilters.company
-        )
-      : bookableCruises;
+    const selectedCompanies = new Set(draftFilters.company);
+    const pool =
+      selectedCompanies.size > 0
+        ? bookableCruises.filter((cruise) =>
+            selectedCompanies.has(cruise.cruise_title),
+          )
+        : bookableCruises;
 
     const map = new Map(
       pool
@@ -174,13 +175,14 @@ export default function CruiseSearchApp({
         .map((cruise) => [cruise.liner_slug, cruise.liner_name!]),
     );
 
-    // Ensure the selected liner from URL is always visible in the dropdown.
-    if (draftFilters.liner && !map.has(draftFilters.liner)) {
+    // Ensure selected liners from URL stay visible in the dropdown.
+    for (const slug of draftFilters.liner) {
+      if (map.has(slug)) continue;
       const match = bookableCruises.find(
-        (cruise) => cruise.liner_slug === draftFilters.liner,
+        (cruise) => cruise.liner_slug === slug,
       );
       if (match?.liner_name) {
-        map.set(draftFilters.liner, match.liner_name);
+        map.set(slug, match.liner_name);
       }
     }
 
@@ -407,19 +409,21 @@ export default function CruiseSearchApp({
     current: CruiseSearchFiltersState,
     patch: Partial<CruiseSearchFiltersState>,
   ): CruiseSearchFiltersState => {
-    const next = { ...current, ...patch };
+    let next = { ...current, ...patch };
 
     if ("liner" in patch && patch.liner) {
-      const match = bookableCruises.find(
-        (cruise) => cruise.liner_slug === patch.liner,
-      );
-      if (match?.cruise_title) {
-        next.company = match.cruise_title;
+      const companySet = new Set(next.company);
+      for (const slug of patch.liner) {
+        const match = bookableCruises.find(
+          (cruise) => cruise.liner_slug === slug,
+        );
+        if (match?.cruise_title) companySet.add(match.cruise_title);
       }
+      next.company = [...companySet];
     }
 
-    if ("company" in patch && patch.company !== current.company) {
-      next.liner = "";
+    if ("company" in patch && patch.company) {
+      next = pruneLinersForCompanies(next, bookableCruises);
     }
 
     if ("year" in patch) {
@@ -503,8 +507,8 @@ export default function CruiseSearchApp({
 
   const hasActiveFilters =
     appliedFilters.regions.length > 0 ||
-    appliedFilters.company ||
-    appliedFilters.liner ||
+    appliedFilters.company.length > 0 ||
+    appliedFilters.liner.length > 0 ||
     (appliedFilters.year !== "Будь-коли" &&
       !appliedFilters.dateFrom &&
       !appliedFilters.dateTo) ||
@@ -517,11 +521,25 @@ export default function CruiseSearchApp({
     appliedFilters.newLinersOnly;
 
   const activeRegionLabel = appliedFilters.regions[0] || "";
+  const activeCompanyLabel =
+    appliedFilters.company.length === 0
+      ? ""
+      : appliedFilters.company.length === 1
+        ? appliedFilters.company[0]
+        : `${appliedFilters.company[0]} +${appliedFilters.company.length - 1}`;
+  const activeLinerNames = appliedFilters.liner.map(
+    (slug) =>
+      liners.find((item) => item.slug === slug)?.name ||
+      bookableCruises.find((cruise) => cruise.liner_slug === slug)
+        ?.liner_name ||
+      slug,
+  );
   const activeLinerLabel =
-    liners.find((item) => item.slug === appliedFilters.liner)?.name ||
-    bookableCruises.find((c) => c.liner_slug === appliedFilters.liner)
-      ?.liner_name ||
-    "";
+    activeLinerNames.length === 0
+      ? ""
+      : activeLinerNames.length === 1
+        ? activeLinerNames[0]
+        : `${activeLinerNames[0]} +${activeLinerNames.length - 1}`;
 
   const filtersDirty = useMemo(
     () =>
@@ -542,16 +560,16 @@ export default function CruiseSearchApp({
               Актуальні пропозиції від провідних круїзних компаній. Оберіть
               напрямок, дати та тривалість — ми покажемо найкращі варіанти.
             </p>
-            {activeRegionLabel || activeLinerLabel || appliedFilters.company ? (
+            {activeRegionLabel || activeLinerLabel || activeCompanyLabel ? (
               <div className="mt-3 flex flex-col gap-1">
                 {activeRegionLabel ? (
                   <p className="text-caption font-semibold text-[color:var(--color-brand)]">
                     Обраний напрямок: {activeRegionLabel}
                   </p>
                 ) : null}
-                {appliedFilters.company ? (
+                {activeCompanyLabel ? (
                   <p className="text-caption font-semibold text-[color:var(--color-brand)]">
-                    Компанія: {appliedFilters.company}
+                    Компанія: {activeCompanyLabel}
                   </p>
                 ) : null}
                 {activeLinerLabel ? (

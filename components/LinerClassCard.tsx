@@ -7,8 +7,8 @@ function buildShipSearchHref(ship: LinerClass["ships"][number]) {
   if (!ship.linerSlug) return null;
 
   const query = buildSearchParams({
-    company: ship.company ?? "",
-    liner: ship.linerSlug,
+    company: ship.company ? [ship.company] : [],
+    liner: [ship.linerSlug],
     newLinersOnly: false,
   });
 

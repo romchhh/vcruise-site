@@ -40,13 +40,16 @@ export function applyClientOnlyFilters(
 
     if (
       applyLiner &&
-      filters.liner &&
-      cruise.liner_slug !== filters.liner
+      filters.liner.length > 0 &&
+      !filters.liner.includes(cruise.liner_slug)
     ) {
       return false;
     }
 
-    if (filters.company && cruise.cruise_title !== filters.company) {
+    if (
+      filters.company.length > 0 &&
+      !filters.company.includes(cruise.cruise_title)
+    ) {
       return false;
     }
 

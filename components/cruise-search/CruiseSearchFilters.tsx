@@ -13,6 +13,7 @@ import { todayIso } from "@/lib/cruise-search/utils";
 import BudgetRangeSlider from "./BudgetRangeSlider";
 import CruiseCurrencyToggle from "./CruiseCurrencyToggle";
 import CruiseDateRangePicker from "./CruiseDateRangePicker";
+import FilterMultiSelect from "./FilterMultiSelect";
 import NewLinersToggle from "./NewLinersToggle";
 
 type Props = {
@@ -105,43 +106,27 @@ export default function CruiseSearchFilters({
           </select>
         </label>
 
-        <label className="flex flex-col gap-2">
-          <span className="text-caption font-semibold text-[color:var(--color-black)]">
-            Круїзна компанія
-          </span>
-          <select
-            value={filters.company}
-            onChange={(event) =>
-              onChange({ company: event.target.value, liner: "" })
-            }
-            className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
-          >
-            <option value="">Усі компанії</option>
-            {companies.map((company) => (
-              <option key={company} value={company}>
-                {company}
-              </option>
-            ))}
-          </select>
-        </label>
+        <FilterMultiSelect
+          label="Круїзна компанія"
+          allLabel="Усі компанії"
+          options={companies.map((company) => ({
+            value: company,
+            label: company,
+          }))}
+          value={filters.company}
+          onChange={(company) => onChange({ company })}
+        />
 
-        <label className="flex flex-col gap-2">
-          <span className="text-caption font-semibold text-[color:var(--color-black)]">
-            Лайнер
-          </span>
-          <select
-            value={filters.liner}
-            onChange={(event) => onChange({ liner: event.target.value })}
-            className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
-          >
-            <option value="">Усі лайнери</option>
-            {liners.map((liner) => (
-              <option key={liner.slug} value={liner.slug}>
-                {liner.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <FilterMultiSelect
+          label="Лайнер"
+          allLabel="Усі лайнери"
+          options={liners.map((liner) => ({
+            value: liner.slug,
+            label: liner.name,
+          }))}
+          value={filters.liner}
+          onChange={(liner) => onChange({ liner })}
+        />
 
         <label className="flex flex-col gap-2">
           <span className="text-caption font-semibold text-[color:var(--color-black)]">
