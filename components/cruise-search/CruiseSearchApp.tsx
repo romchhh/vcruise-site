@@ -145,42 +145,56 @@ export default function CruiseSearchApp({
   ]);
 
   const companies = useMemo(() => {
-    const available = new Set(
-      bookableCruises.map((cruise) => cruise.cruise_title),
-    );
-    const list: string[] = FEATURED_CRUISE_COMPANIES.filter((company) =>
-      available.has(company),
-    );
-    // Keep companies from deep-links even if outside the featured list.
-    for (const company of appliedFilters.company) {
-      if (!list.includes(company) && available.has(company)) {
-        list.push(company);
-      }
-    }
+    // Always offer curated companies — live 4gates search resolves cruise_id
+    // even when the disk baseline is incomplete / stale.
+    const list: string[] = [...FEATURED_CRUISE_COMPANIES];
+    const seen = new Set<string>(list);
+
+    const addTitle = (title: string | undefined) => {
+      const value = title?.trim();
+      if (!value || seen.has(value)) return;
+      seen.add(value);
+      list.push(value);
+    };
+
+    for (const cruise of bookableCruises) addTitle(cruise.cruise_title);
+    for (const cruise of liveCatalog ?? []) addTitle(cruise.cruise_title);
+    for (const company of appliedFilters.company) addTitle(company);
+    for (const company of draftFilters.company) addTitle(company);
+
     return list.sort((a, b) => a.localeCompare(b, "uk"));
-  }, [bookableCruises, appliedFilters.company]);
+  }, [
+    bookableCruises,
+    liveCatalog,
+    appliedFilters.company,
+    draftFilters.company,
+  ]);
 
   const liners = useMemo(() => {
     const selectedCompanies = new Set(draftFilters.company);
+    const poolSource = [
+      ...bookableCruises,
+      ...(liveCatalog ?? []),
+    ];
     const pool =
       selectedCompanies.size > 0
-        ? bookableCruises.filter((cruise) =>
+        ? poolSource.filter((cruise) =>
             selectedCompanies.has(cruise.cruise_title),
           )
-        : bookableCruises;
+        : poolSource;
 
-    const map = new Map(
-      pool
-        .filter((cruise) => cruise.liner_slug && cruise.liner_name)
-        .map((cruise) => [cruise.liner_slug, cruise.liner_name!]),
-    );
+    const map = new Map<string, string>();
+    for (const cruise of pool) {
+      if (!cruise.liner_slug || !cruise.liner_name) continue;
+      if (!map.has(cruise.liner_slug)) {
+        map.set(cruise.liner_slug, cruise.liner_name);
+      }
+    }
 
     // Ensure selected liners from URL stay visible in the dropdown.
     for (const slug of draftFilters.liner) {
       if (map.has(slug)) continue;
-      const match = bookableCruises.find(
-        (cruise) => cruise.liner_slug === slug,
-      );
+      const match = poolSource.find((cruise) => cruise.liner_slug === slug);
       if (match?.liner_name) {
         map.set(slug, match.liner_name);
       }
@@ -189,7 +203,7 @@ export default function CruiseSearchApp({
     return [...map.entries()]
       .map(([slug, name]) => ({ slug, name }))
       .sort((left, right) => left.name.localeCompare(right.name, "uk"));
-  }, [bookableCruises, draftFilters.company, draftFilters.liner]);
+  }, [bookableCruises, liveCatalog, draftFilters.company, draftFilters.liner]);
 
   useEffect(() => {
     const previousKey = lastFilterQueryRef.current;

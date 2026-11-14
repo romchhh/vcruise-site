@@ -43,8 +43,10 @@ export default function FilterMultiSelect({
   className = "relative flex flex-col gap-2",
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const listboxId = useId();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   const selectedOptions = useMemo(() => {
     const byValue = new Map(options.map((option) => [option.value, option]));
@@ -55,8 +57,24 @@ export default function FilterMultiSelect({
 
   const selectedSet = useMemo(() => new Set(value), [value]);
 
+  const filteredOptions = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return options;
+    return options.filter(
+      (option) =>
+        option.label.toLowerCase().includes(needle) ||
+        option.value.toLowerCase().includes(needle),
+    );
+  }, [options, query]);
+
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setQuery("");
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      searchRef.current?.focus();
+    });
     const onPointerDown = (event: MouseEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false);
@@ -68,6 +86,7 @@ export default function FilterMultiSelect({
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
     return () => {
+      window.cancelAnimationFrame(frame);
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
@@ -152,34 +171,53 @@ export default function FilterMultiSelect({
           aria-multiselectable="true"
           className="absolute left-0 right-0 top-full z-40 mt-2 max-h-72 overflow-auto rounded-card border border-[color:var(--color-line)] bg-white py-2 shadow-[0_12px_40px_rgba(15,23,42,0.12)]"
         >
-          <button
-            type="button"
-            role="option"
-            aria-selected={selectedOptions.length === 0}
-            onClick={() => {
-              clear();
-              setOpen(false);
-            }}
-            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-body text-[color:var(--color-black)] hover:bg-[color:var(--color-surface-hover)]"
-          >
-            <span
-              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                selectedOptions.length === 0
-                  ? "border-[color:var(--color-brand)] bg-[color:var(--color-brand)] text-white"
-                  : "border-[color:var(--color-line)] bg-white"
-              }`}
-            >
-              {selectedOptions.length === 0 ? (
-                <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden />
-              ) : null}
-            </span>
-            {allLabel}
-          </button>
+          {options.length > 8 ? (
+            <div className="sticky top-0 z-10 border-b border-[color:var(--color-line)] bg-white px-3 pb-2 pt-1">
+              <input
+                ref={searchRef}
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Пошук…"
+                className="field-control h-9 w-full bg-white px-3 text-caption text-[color:var(--color-black)]"
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              />
+            </div>
+          ) : null}
 
-          {options.length === 0 ? (
-            <p className="px-4 py-3 text-caption text-subtitle">{emptyLabel}</p>
+          {!query.trim() ? (
+            <button
+              type="button"
+              role="option"
+              aria-selected={selectedOptions.length === 0}
+              onClick={() => {
+                clear();
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-body text-[color:var(--color-black)] hover:bg-[color:var(--color-surface-hover)]"
+            >
+              <span
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                  selectedOptions.length === 0
+                    ? "border-[color:var(--color-brand)] bg-[color:var(--color-brand)] text-white"
+                    : "border-[color:var(--color-line)] bg-white"
+                }`}
+              >
+                {selectedOptions.length === 0 ? (
+                  <Check className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+                ) : null}
+              </span>
+              {allLabel}
+            </button>
+          ) : null}
+
+          {filteredOptions.length === 0 ? (
+            <p className="px-4 py-3 text-caption text-subtitle">
+              {options.length === 0 ? emptyLabel : "Нічого не знайдено"}
+            </p>
           ) : (
-            options.map((option) => {
+            filteredOptions.map((option) => {
               const selected = selectedSet.has(option.value);
               return (
                 <button
