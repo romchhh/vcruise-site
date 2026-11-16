@@ -2,19 +2,20 @@
 
 import {
   CURRENCY_SYMBOL,
-  HERO_DESTINATIONS,
   HERO_DURATION_OPTIONS,
   MONTH_LABELS,
-  REGION_TREE,
 } from "@/lib/cruise-search/constants";
 import type { CruiseSearchFilters } from "@/lib/cruise-search/types";
 import { effectiveMonthYear, isMonthSelectable } from "@/lib/cruise-search/month-helpers";
+import { buildRegionFilterOptions } from "@/lib/cruise-search/region-options";
 import { todayIso } from "@/lib/cruise-search/utils";
 import BudgetRangeSlider from "./BudgetRangeSlider";
 import CruiseCurrencyToggle from "./CruiseCurrencyToggle";
 import CruiseDateRangePicker from "./CruiseDateRangePicker";
 import FilterMultiSelect from "./FilterMultiSelect";
 import NewLinersToggle from "./NewLinersToggle";
+
+const REGION_OPTIONS = buildRegionFilterOptions();
 
 type Props = {
   filters: CruiseSearchFilters;
@@ -37,8 +38,6 @@ export default function CruiseSearchFilters({
   onApply,
   onReset,
 }: Props) {
-  const selectedRegion = filters.regions[0] ?? "";
-
   const minDate = todayIso();
   const monthYear = effectiveMonthYear(
     filters.year,
@@ -64,47 +63,13 @@ export default function CruiseSearchFilters({
 
       <div className="rounded-card bg-white p-5 sm:p-6 lg:p-8">
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        <label className="flex flex-col gap-2">
-          <span className="text-caption font-semibold text-[color:var(--color-black)]">
-            Регіон
-          </span>
-          <select
-            value={selectedRegion}
-            onChange={(event) => {
-              const value = event.target.value;
-              onChange({ regions: value ? [value] : [] });
-            }}
-            className="field-control h-12 cursor-pointer bg-white px-4 text-body text-[color:var(--color-black)]"
-          >
-            <option value="">Усі регіони</option>
-            <optgroup label="Популярні напрямки">
-              {HERO_DESTINATIONS.filter((item) => item !== "Будь-який").map(
-                (label) => (
-                  <option key={label} value={label}>
-                    {label}
-                  </option>
-                ),
-              )}
-            </optgroup>
-            {REGION_TREE.map((group) =>
-              group.group ? (
-                <optgroup key={group.group} label={group.group}>
-                  {group.items.map(([id, label]) => (
-                    <option key={id} value={id}>
-                      {label}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : (
-                group.items.map(([id, label]) => (
-                  <option key={id} value={id}>
-                    {label}
-                  </option>
-                ))
-              ),
-            )}
-          </select>
-        </label>
+        <FilterMultiSelect
+          label="Регіон"
+          allLabel="Усі регіони"
+          options={REGION_OPTIONS}
+          value={filters.regions}
+          onChange={(regions) => onChange({ regions })}
+        />
 
         <FilterMultiSelect
           label="Круїзна компанія"

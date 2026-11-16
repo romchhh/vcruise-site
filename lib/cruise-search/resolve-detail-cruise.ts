@@ -1,9 +1,28 @@
+import { fetchFourgatesFullRoute } from "./fourgates-itinerary";
 import { findSimilarCruises } from "./similar-cruises";
 import { searchLiveCatalog } from "./live-catalog-search";
 import { loadCruisePage, loadCruises } from "./load-cruises";
 import { parseSearchParams } from "./params";
 import { serializeCruisesForClient } from "./serialize-cruises";
+import { ownCruiseBookingUrl } from "./utils";
 import type { CruiseRecord } from "./types";
+
+async function withFullItinerary(cruise: CruiseRecord): Promise<CruiseRecord> {
+  const bookingUrl = ownCruiseBookingUrl(cruise);
+  if (!bookingUrl) return cruise;
+
+  const fullRoute = await fetchFourgatesFullRoute(bookingUrl);
+  if (!fullRoute?.length) return cruise;
+  if (fullRoute.length <= (cruise.route?.length ?? 0)) {
+    // Prefer normalized stops even when length matches (strip "… Port").
+    const hasEllipsis = (cruise.route ?? []).some((stop) =>
+      /^[.…]/u.test(stop.trim()),
+    );
+    if (!hasEllipsis) return cruise;
+  }
+
+  return { ...cruise, route: fullRoute };
+}
 
 export type DetailCruiseIdentity = {
   ship: string;
@@ -54,7 +73,7 @@ export function cruiseMatchesIdentity(
   return true;
 }
 
-function pageFromDisk(cruise: CruiseRecord): DetailCruisePage {
+async function pageFromDisk(cruise: CruiseRecord): Promise<DetailCruisePage> {
   const loaded = loadCruisePage(cruise.key);
   if (
     loaded &&
@@ -65,15 +84,19 @@ function pageFromDisk(cruise: CruiseRecord): DetailCruisePage {
       listQuery: "",
     })
   ) {
-    return loaded;
+    return {
+      cruise: await withFullItinerary(loaded.cruise),
+      similar: loaded.similar,
+    };
   }
 
   const all = loadCruises();
-  const [serialized] = serializeCruisesForClient([cruise], undefined, {
+  const enriched = await withFullItinerary(cruise);
+  const [serialized] = serializeCruisesForClient([enriched], undefined, {
     includeOffers: false,
   });
   const similar = serializeCruisesForClient(
-    findSimilarCruises(cruise, all, 3),
+    findSimilarCruises(enriched, all, 3),
     undefined,
     { includeOffers: false },
   );
@@ -132,22 +155,32 @@ export async function resolveDetailCruise(
   const hinted = loadCruisePage(key);
 
   if (hinted && cruiseMatchesIdentity(hinted.cruise, identity)) {
-    return hinted;
+    return {
+      cruise: await withFullItinerary(hinted.cruise),
+      similar: hinted.similar,
+    };
   }
 
   const diskMatch = findDiskMatch(identity);
   if (diskMatch) return pageFromDisk(diskMatch);
 
-  if (!hasIdentity(identity)) return hinted;
+  if (!hasIdentity(identity)) {
+    if (!hinted) return null;
+    return {
+      cruise: await withFullItinerary(hinted.cruise),
+      similar: hinted.similar,
+    };
+  }
 
   const live = await findLiveMatch(key, identity);
   if (!live) return null;
 
+  const enriched = await withFullItinerary(live);
   const all = loadCruises();
   const similar = serializeCruisesForClient(
-    findSimilarCruises(live, all, 3),
+    findSimilarCruises(enriched, all, 3),
     undefined,
     { includeOffers: false },
   );
-  return { cruise: live, similar };
+  return { cruise: enriched, similar };
 }

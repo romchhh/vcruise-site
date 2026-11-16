@@ -116,14 +116,13 @@ export function findItineraryForSailing(
 
 export function embarkationPort(cruise: CruiseRecord) {
   const ports = (cruise.route ?? [])
-    .map((port) => port.split(",")[0]?.trim())
-    .filter(
-      (port) =>
-        port &&
-        port !== "В морі" &&
-        !port.startsWith("...") &&
-        !port.startsWith("…"),
-    );
+    .map((port) =>
+      port
+        .replace(/^[.…]+\s*/u, "")
+        .split(",")[0]
+        ?.trim(),
+    )
+    .filter((port) => port && port !== "В морі");
   return ports[0] || "";
 }
 

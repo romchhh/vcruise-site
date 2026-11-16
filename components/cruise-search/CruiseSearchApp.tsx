@@ -36,6 +36,7 @@ import {
   pruneLinersForCompanies,
 } from "@/lib/cruise-search/params";
 import { effectiveMonthYear, sanitizeSelectedMonths } from "@/lib/cruise-search/month-helpers";
+import { formatSelectedRegionsLabel } from "@/lib/cruise-search/region-options";
 import { getSearchBounds, hasBookableDates } from "@/lib/cruise-search/utils";
 import type {
   CruiseRecord,
@@ -244,24 +245,74 @@ export default function CruiseSearchApp({
       restoreVisibleRef.current || SEARCH_RESULTS_PAGE_SIZE,
     );
 
+    let cancelled = false;
+    let retryTimer = 0;
+
     const debounceTimer = window.setTimeout(() => {
-      void fetchCruiseSearch(listQuery, { offset: 0, limit: initialLimit })
-        .then((payload) => {
-          if (requestId !== catalogRequestRef.current) return;
-          setCatalogLoading(false);
-          setCatalogSource(payload.source);
-          setCatalogTotal(payload.total ?? payload.cruises.length);
-          setLiveCatalog(payload.cruises);
-          setCatalogNextOffset(payload.nextOffset ?? null);
-          restoreVisibleRef.current = 0;
-          if (payload.source === "disk" && payload.stale) {
-            setCatalogError(
-              "Не вдалося оновити дані з 4gates. Показано резервну копію каталогу.",
-            );
+      void (async () => {
+        let offset = 0;
+        let attempts = 0;
+
+        try {
+          while (!cancelled && attempts < 24) {
+            attempts += 1;
+            if (requestId !== catalogRequestRef.current) return;
+
+            const payload = await fetchCruiseSearch(listQuery, {
+              offset,
+              limit: initialLimit,
+            });
+            if (cancelled || requestId !== catalogRequestRef.current) return;
+
+            setCatalogSource(payload.source);
+            setCatalogTotal(payload.total ?? payload.cruises.length);
+            setCatalogNextOffset(payload.nextOffset ?? null);
+
+            if (offset === 0) {
+              setLiveCatalog(payload.cruises);
+            } else {
+              setLiveCatalog((current) => {
+                const seen = new Set((current ?? []).map((cruise) => cruise.key));
+                const merged = [...(current ?? [])];
+                for (const cruise of payload.cruises) {
+                  if (seen.has(cruise.key)) continue;
+                  seen.add(cruise.key);
+                  merged.push(cruise);
+                }
+                return merged;
+              });
+            }
+
+            if (payload.source === "disk" && payload.stale) {
+              setCatalogError(
+                "Не вдалося оновити дані з 4gates. Показано резервну копію каталогу.",
+              );
+            }
+
+            const stillPumping =
+              payload.cruises.length === 0 &&
+              payload.complete === false &&
+              ((payload.total ?? 0) > 0 || payload.nextOffset != null);
+
+            if (!stillPumping) {
+              setCatalogLoading(false);
+              restoreVisibleRef.current = 0;
+              return;
+            }
+
+            // 4gates still scanning — keep the loader, then ask again.
+            offset = payload.nextOffset ?? 0;
+            await new Promise<void>((resolve) => {
+              retryTimer = window.setTimeout(resolve, 450);
+            });
           }
-        })
-        .catch((error) => {
-          if (requestId !== catalogRequestRef.current) return;
+
+          if (!cancelled && requestId === catalogRequestRef.current) {
+            setCatalogLoading(false);
+            restoreVisibleRef.current = 0;
+          }
+        } catch (error) {
+          if (cancelled || requestId !== catalogRequestRef.current) return;
           setCatalogLoading(false);
           setLiveCatalog([]);
           setCatalogSource(null);
@@ -271,11 +322,14 @@ export default function CruiseSearchApp({
               ? error.message
               : "Не вдалося завантажити круїзи з 4gates.",
           );
-        });
+        }
+      })();
     }, CATALOG_FETCH_DEBOUNCE_MS);
 
     return () => {
+      cancelled = true;
       window.clearTimeout(debounceTimer);
+      window.clearTimeout(retryTimer);
     };
   }, [listQuery]);
 
@@ -534,7 +588,7 @@ export default function CruiseSearchApp({
     appliedFilters.priceMax < priceBounds.priceMax ||
     appliedFilters.newLinersOnly;
 
-  const activeRegionLabel = appliedFilters.regions[0] || "";
+  const activeRegionLabel = formatSelectedRegionsLabel(appliedFilters.regions);
   const activeCompanyLabel =
     appliedFilters.company.length === 0
       ? ""
@@ -645,6 +699,10 @@ export default function CruiseSearchApp({
                 <span className="text-[color:var(--color-brand)]">
                   {catalogError}
                 </span>
+              ) : showCatalogLoader ? (
+                <span className="font-medium text-[color:var(--color-brand)]">
+                  Шукаємо круїзи за вашим запитом…
+                </span>
               ) : catalogTotal != null && results.length < catalogTotal ? (
                 <>
                   Показано{" "}
@@ -691,7 +749,7 @@ export default function CruiseSearchApp({
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
             {showCatalogLoader ? (
               <CruiseInlineLoader
-                label="Завантажуємо актуальні круїзи з оператора…"
+                label="Обробляємо запит і підвантажуємо круїзи з 4gates… Це може зайняти кілька секунд."
                 variant="block"
                 className="col-span-full min-h-72 rounded-card bg-white"
               />

@@ -5,6 +5,7 @@ import {
 } from "./constants";
 import { parseCurrencyCode } from "./currency";
 import { sanitizeSelectedMonths } from "./month-helpers";
+import { expandRegions } from "./region-options";
 import { getSearchBounds } from "./utils";
 import type {
   CruiseRecord,
@@ -148,7 +149,9 @@ export function parseSearchParams(
   cruises: CruiseRecord[]
 ): CruiseSearchFilters {
   const defaults = createDefaultFilters(cruises);
-  const regions = parseList(params.where).filter((item) => item !== "Будь-який");
+  const regions = expandRegions(
+    parseList(params.where).filter((item) => item !== "Будь-який"),
+  );
   const yearRaw = Array.isArray(params.year) ? params.year[0] : params.year;
   const dateFrom = Array.isArray(params.dateFrom)
     ? params.dateFrom[0] ?? ""

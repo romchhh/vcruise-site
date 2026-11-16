@@ -44,14 +44,8 @@ function formatDateRange(startIso: string, nights: number) {
 
 function routePorts(route: string[]) {
   return route
-    .map((port) => port.split(",")[0]?.trim())
-    .filter(
-      (port) =>
-        port &&
-        port !== "В морі" &&
-        !port.startsWith("...") &&
-        !port.startsWith("…")
-    );
+    .map((port) => port.replace(/^[.…]+\s*/u, "").split(",")[0]?.trim())
+    .filter((port) => port && port !== "В морі");
 }
 
 function formatRoute(route: string[]) {

@@ -6,6 +6,10 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 export type FilterMultiSelectOption = {
   value: string;
   label: string;
+  /** Selecting this row toggles all of these leaf values instead of `value`. */
+  expandsTo?: string[];
+  /** Visual indent for child rows under a group. */
+  nested?: boolean;
 };
 
 type Props = {
@@ -48,14 +52,34 @@ export default function FilterMultiSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
-  const selectedOptions = useMemo(() => {
-    const byValue = new Map(options.map((option) => [option.value, option]));
-    return value
-      .map((item) => byValue.get(item) ?? { value: item, label: item })
-      .filter(Boolean);
-  }, [options, value]);
-
   const selectedSet = useMemo(() => new Set(value), [value]);
+
+  const isOptionSelected = (option: FilterMultiSelectOption) => {
+    if (option.expandsTo?.length) {
+      return option.expandsTo.every((item) => selectedSet.has(item));
+    }
+    return selectedSet.has(option.value);
+  };
+
+  const selectedOptions = useMemo(() => {
+    const covered = new Set<string>();
+    const selected: FilterMultiSelectOption[] = [];
+
+    for (const option of options) {
+      if (!option.expandsTo?.length) continue;
+      if (!option.expandsTo.every((item) => selectedSet.has(item))) continue;
+      selected.push(option);
+      for (const item of option.expandsTo) covered.add(item);
+    }
+
+    for (const item of value) {
+      if (covered.has(item)) continue;
+      const match = options.find((option) => option.value === item);
+      selected.push(match ?? { value: item, label: item });
+    }
+
+    return selected;
+  }, [options, value, selectedSet]);
 
   const filteredOptions = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -63,7 +87,8 @@ export default function FilterMultiSelect({
     return options.filter(
       (option) =>
         option.label.toLowerCase().includes(needle) ||
-        option.value.toLowerCase().includes(needle),
+        option.value.toLowerCase().includes(needle) ||
+        option.expandsTo?.some((item) => item.toLowerCase().includes(needle)),
     );
   }, [options, query]);
 
@@ -92,12 +117,26 @@ export default function FilterMultiSelect({
     };
   }, [open]);
 
-  const toggle = (optionValue: string) => {
-    if (selectedSet.has(optionValue)) {
-      onChange(value.filter((item) => item !== optionValue));
+  const toggle = (option: FilterMultiSelectOption) => {
+    const targets = option.expandsTo?.length
+      ? option.expandsTo
+      : [option.value];
+    const removing = targets.every((item) => selectedSet.has(item));
+
+    if (removing) {
+      const drop = new Set(targets);
+      onChange(value.filter((item) => !drop.has(item)));
       return;
     }
-    onChange([...value, optionValue]);
+
+    const next = [...value];
+    const seen = new Set(next);
+    for (const item of targets) {
+      if (seen.has(item)) continue;
+      seen.add(item);
+      next.push(item);
+    }
+    onChange(next);
   };
 
   const clear = () => onChange([]);
@@ -218,15 +257,18 @@ export default function FilterMultiSelect({
             </p>
           ) : (
             filteredOptions.map((option) => {
-              const selected = selectedSet.has(option.value);
+              const selected = isOptionSelected(option);
+              const isGroup = Boolean(option.expandsTo?.length);
               return (
                 <button
                   key={option.value}
                   type="button"
                   role="option"
                   aria-selected={selected}
-                  onClick={() => toggle(option.value)}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-body text-[color:var(--color-black)] hover:bg-[color:var(--color-surface-hover)]"
+                  onClick={() => toggle(option)}
+                  className={`flex w-full items-center gap-3 py-2.5 text-left text-body text-[color:var(--color-black)] hover:bg-[color:var(--color-surface-hover)] ${
+                    option.nested ? "pl-8 pr-4" : "px-4"
+                  } ${isGroup ? "font-semibold" : ""}`}
                 >
                   <span
                     className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${

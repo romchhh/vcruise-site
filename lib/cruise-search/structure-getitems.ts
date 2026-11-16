@@ -1,3 +1,4 @@
+import { parseRouteText } from "./route-stops";
 import type { CabinPriceMap, CruiseDate, CruiseRecord } from "./types";
 
 type RawGetitemsRow = Record<string, unknown>;
@@ -84,11 +85,7 @@ function parsePriceCabinsNext(html: string | undefined): CruiseDate[] {
 
 function parseRoute(html: string | undefined) {
   if (!html) return [] as string[];
-  const text = stripTags(html);
-  return text
-    .split(" - ")
-    .map((part) => part.trim())
-    .filter(Boolean);
+  return parseRouteText(stripTags(html));
 }
 
 /**

@@ -21,6 +21,10 @@ import {
   getUpcomingDates,
 } from "@/lib/cruise-search/utils";
 import { countryCodeFromPlace } from "@/lib/cruise-search/country-flag";
+import {
+  isSeaDayStop,
+  normalizeRouteStop,
+} from "@/lib/cruise-search/route-stops";
 import type { CruiseRecord, CurrencyCode } from "@/lib/cruise-search/types";
 import { placeNeedsVisa } from "@/lib/cruise-search/visa";
 import CountryFlag from "./CountryFlag";
@@ -32,21 +36,17 @@ type RouteStop =
   | { kind: "port"; name: string; place: string }
   | { kind: "sea"; days: number };
 
-function isSeaDay(stop: string) {
-  const name = stop.split(",")[0]?.trim() ?? "";
-  return name === "В морі" || name.startsWith("...") || name.startsWith("…");
-}
-
 function routeStops(route: string[]): RouteStop[] {
   const stops: RouteStop[] = [];
   for (const raw of route) {
-    if (isSeaDay(raw)) {
+    if (isSeaDayStop(raw)) {
       const last = stops[stops.length - 1];
       if (last?.kind === "sea") last.days += 1;
       else stops.push({ kind: "sea", days: 1 });
       continue;
     }
-    const [name, ...rest] = raw.split(",");
+    const normalized = normalizeRouteStop(raw);
+    const [name, ...rest] = normalized.split(",");
     stops.push({
       kind: "port",
       name: name.trim(),
@@ -102,9 +102,10 @@ function formatRouteSummary(stops: RouteStop[]) {
 function formatFullRouteLine(route: string[]) {
   return route
     .map((stop) => {
-      const name = stop.split(",")[0]?.trim() ?? "";
+      const normalized = normalizeRouteStop(stop);
+      const name = normalized.split(",")[0]?.trim() ?? "";
       if (!name) return "";
-      if (name.startsWith("...") || name.startsWith("…")) return "В морі";
+      if (isSeaDayStop(normalized)) return "В морі";
       return name;
     })
     .filter(Boolean)

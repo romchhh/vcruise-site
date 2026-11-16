@@ -61,6 +61,16 @@ function MonthPane({
       </div>
       <div className="mt-1 grid grid-cols-7 gap-0.5">
         {cells.map((cell) => {
+          if (cell.outside) {
+            return (
+              <span
+                key={cell.iso}
+                className="h-9 w-full min-w-0"
+                aria-hidden
+              />
+            );
+          }
+
           const disabled = cell.iso < minDate;
           const isStart = dateFrom && cell.iso === dateFrom;
           const isEnd = dateTo && cell.iso === dateTo;
@@ -84,9 +94,7 @@ function MonthPane({
                     ? "rounded-md bg-[color:var(--color-brand)] text-white"
                     : inRange
                       ? "rounded-md bg-[color:var(--color-brand-light)] text-[color:var(--color-black)]"
-                      : cell.outside
-                        ? "text-[color:var(--color-silver)] hover:bg-[color:var(--color-surface-muted)]"
-                        : "text-[color:var(--color-black)] hover:bg-[color:var(--color-surface-muted)]"
+                      : "text-[color:var(--color-black)] hover:bg-[color:var(--color-surface-muted)]"
               }`}
             >
               {cell.day}
