@@ -153,6 +153,20 @@ export function resolveFourgatesRegionIds(regions: string[]) {
     if (!region || region === "Будь-який") continue;
     addRegionFilterId(ids, region);
   }
+
+  // 4gates often tags sailings under the parent only (e.g. Caribbean=13).
+  // Their widget always sends parent+children; child-only queries can return 0.
+  for (const group of REGION_TREE) {
+    if (!group.group) continue;
+    const parentId = REGION_FILTER_IDS[group.group];
+    if (!parentId || ids.has(parentId)) continue;
+    const childHasSelection = group.items.some(([treeId, label]) => {
+      const mapped = TREE_ID_TO_FILTER[treeId] ?? REGION_FILTER_IDS[label];
+      return Boolean(mapped && ids.has(mapped));
+    });
+    if (childHasSelection) ids.add(parentId);
+  }
+
   return [...ids].join(",");
 }
 

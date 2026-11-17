@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { adminFetch } from "@/components/admin/adminApi";
 import { Field } from "@/components/admin/AdminForm";
 import ui from "@/components/admin/AdminUi.module.css";
+import ImageDropField from "@/components/admin/ImageDropField";
 import type { CruisePickOption } from "@/lib/cms/section-card-shared";
 import type { ContentBlockCard } from "@/lib/cms/store";
 
@@ -103,8 +104,8 @@ export default function AdminCruisePickFields({
         Оберіть компанію, лайнер і дату — ціна та маршрут підтягнуться з бази
         автоматично. Ціна на картці — це ціна каюти з круїзу, без локального перерахунку.
         {blockKey === "hot-deals"
-          ? " Бейджі «Гаряча пропозиція» і знижка залишаються. Фото лайнера підтягується з бази автоматично."
-          : " Друге фото (лайнер) береться з бази; можете додати своє фото обкладинки."}
+          ? " Бейджі «Гаряча пропозиція» і знижка залишаються. Фото можна замінити нижче (drag & drop)."
+          : " Два фото на картці: обкладинка (завжди видно) і лайнер (при наведенні). Можна перетягнути файли в поля нижче."}
       </p>
 
       <div className={ui.formGrid}>
@@ -199,51 +200,51 @@ export default function AdminCruisePickFields({
         </Field>
 
         {blockKey === "hot-deals" ? (
-          <>
-            <Field label="Знижка на бейджі (%)">
-              <input
-                type="number"
-                min={1}
-                max={90}
-                value={asNumber(card.discountPercent, 25)}
-                onChange={(event) =>
-                  onChange({
-                    discountPercent: Number(event.target.value) || 25,
-                  })
-                }
-              />
-            </Field>
-            <Field label="Фото картки (опційно; порожнє = фото лайнера з бази)">
-              <input
-                value={asString(card.image)}
-                placeholder="Залишити порожнім = фото лайнера"
-                onChange={(event) => onChange({ image: event.target.value })}
-              />
-            </Field>
-          </>
-        ) : (
-          <>
-            <Field label="Фото обкладинки (1 фото)">
-              <input
-                value={asString(card.coverImage)}
-                placeholder="/images/sections/unique-routes-cover.jpg"
-                onChange={(event) =>
-                  onChange({ coverImage: event.target.value })
-                }
-              />
-            </Field>
-            <Field label="Фото лайнера (hover, опційно)">
-              <input
-                value={asString(card.linerImage)}
-                placeholder="Залишити порожнім = з бази круїзів"
-                onChange={(event) =>
-                  onChange({ linerImage: event.target.value })
-                }
-              />
-            </Field>
-          </>
-        )}
+          <Field label="Знижка на бейджі (%)">
+            <input
+              type="number"
+              min={1}
+              max={90}
+              value={asNumber(card.discountPercent, 25)}
+              onChange={(event) =>
+                onChange({
+                  discountPercent: Number(event.target.value) || 25,
+                })
+              }
+            />
+          </Field>
+        ) : null}
       </div>
+
+      {blockKey === "hot-deals" ? (
+        <Field label="Фото картки (опційно; порожнє = фото лайнера з бази)">
+          <ImageDropField
+            value={asString(card.image)}
+            onChange={(image) => onChange({ image })}
+            emptyLabel="Перетягніть фото картки або натисніть, щоб обрати"
+            hint="Порожнє = фото лайнера з бази · JPG / PNG / WEBP до 8 МБ"
+          />
+        </Field>
+      ) : (
+        <div className={ui.formGrid}>
+          <Field label="Фото обкладинки (перше на картці)">
+            <ImageDropField
+              value={asString(card.coverImage)}
+              onChange={(coverImage) => onChange({ coverImage })}
+              emptyLabel="Перетягніть обкладинку сюди або натисніть, щоб обрати"
+              hint="Це фото видно одразу · JPG / PNG / WEBP до 8 МБ"
+            />
+          </Field>
+          <Field label="Фото лайнера (при наведенні, опційно)">
+            <ImageDropField
+              value={asString(card.linerImage)}
+              onChange={(linerImage) => onChange({ linerImage })}
+              emptyLabel="Перетягніть фото лайнера або натисніть, щоб обрати"
+              hint="Порожнє = фото лайнера з бази · показується при hover"
+            />
+          </Field>
+        </div>
+      )}
     </>
   );
 }

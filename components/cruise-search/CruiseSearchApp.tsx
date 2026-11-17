@@ -285,7 +285,7 @@ export default function CruiseSearchApp({
 
             if (payload.source === "disk" && payload.stale) {
               setCatalogError(
-                "Не вдалося оновити дані з 4gates. Показано резервну копію каталогу.",
+                "Не вдалося оновити актуальні дані. Показано резервну копію каталогу.",
               );
             }
 
@@ -317,10 +317,12 @@ export default function CruiseSearchApp({
           setLiveCatalog([]);
           setCatalogSource(null);
           setCatalogNextOffset(null);
+          const raw =
+            error instanceof Error ? error.message : "";
           setCatalogError(
-            error instanceof Error
-              ? error.message
-              : "Не вдалося завантажити круїзи з 4gates.",
+            raw && !/4gates/i.test(raw)
+              ? raw
+              : "Не вдалося завантажити круїзи. Спробуйте ще раз.",
           );
         }
       })();
@@ -438,9 +440,10 @@ export default function CruiseSearchApp({
       .catch((error) => {
         if (requestId !== catalogRequestRef.current) return;
         setCatalogLoadingMore(false);
+        const raw = error instanceof Error ? error.message : "";
         setCatalogError(
-          error instanceof Error
-            ? error.message
+          raw && !/4gates/i.test(raw)
+            ? raw
             : "Не вдалося підвантажити наступні круїзи.",
         );
       });
@@ -714,9 +717,6 @@ export default function CruiseSearchApp({
                     {catalogTotal.toLocaleString("uk-UA")}
                   </span>{" "}
                   круїзів
-                  {catalogSource === "live" ? (
-                    <span className="text-caption"> · дані 4gates</span>
-                  ) : null}
                 </>
               ) : hasActiveFilters ? (
                 <>
@@ -730,9 +730,6 @@ export default function CruiseSearchApp({
                         (catalogTotal ?? results.length) <= 4
                       ? "круїзи"
                       : "круїзів"}
-                  {catalogSource === "live" ? (
-                    <span className="text-caption"> · дані 4gates</span>
-                  ) : null}
                 </>
               ) : (
                 <>
@@ -749,7 +746,7 @@ export default function CruiseSearchApp({
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
             {showCatalogLoader ? (
               <CruiseInlineLoader
-                label="Обробляємо запит і підвантажуємо круїзи з 4gates… Це може зайняти кілька секунд."
+                label="Обробляємо запит і підвантажуємо круїзи… Це може зайняти кілька секунд."
                 variant="block"
                 className="col-span-full min-h-72 rounded-card bg-white"
               />

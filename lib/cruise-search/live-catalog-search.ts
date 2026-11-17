@@ -8,6 +8,7 @@ import { fetchGetitemsPage } from "./fourgates-getitems";
 import { resolveFourgatesShipId } from "./fourgates-ships";
 import { loadClientCruises } from "./load-cruises";
 import { buildSearchParams } from "./params";
+import { regionsNeedClientRematch } from "./region-match";
 import { serializeCruisesForClient } from "./serialize-cruises";
 import { structureGetitemsRows } from "./structure-getitems";
 import type { CruiseRecord, CruiseSearchFilters } from "./types";
@@ -52,7 +53,7 @@ type ProgressiveSession = {
 };
 
 function cacheKey(filters: CruiseSearchFilters) {
-  return `v14:${buildSearchParams(filters)}`;
+  return `v16:${buildSearchParams(filters)}`;
 }
 
 function countUniqueKeys(items: Record<string, unknown>[]) {
@@ -67,13 +68,15 @@ function countUniqueKeys(items: Record<string, unknown>[]) {
 function clientFiltersMayReduce(
   filters: CruiseSearchFilters,
   shipAppliedOnServer = false,
+  regionAppliedOnServer = false,
 ) {
   return Boolean(
     (filters.liner.length > 0 && !shipAppliedOnServer) ||
       (filters.company.length > 1) ||
       filters.newLinersOnly ||
       (filters.duration && filters.duration !== "Будь-яка") ||
-      filters.months?.length,
+      filters.months?.length ||
+      (filters.regions.length > 0 && !regionAppliedOnServer),
   );
 }
 
@@ -170,7 +173,9 @@ async function createSession(
     complete: false,
     fetchedAt: Date.now(),
     pump: null,
-    regionAppliedOnServer: Boolean(regionIds),
+    // Parent region_id widens the 4gates set (Asia/Caribbean); rematch names/routes.
+    regionAppliedOnServer:
+      Boolean(regionIds) && !regionsNeedClientRematch(filters.regions),
     shipAppliedOnServer: Boolean(shipId),
   };
   rebuildSessionCruises(session);
@@ -269,8 +274,14 @@ function enqueuePump(session: ProgressiveSession, needCount: number) {
 
 function resolveTotal(session: ProgressiveSession) {
   if (session.complete) return session.cruises.length;
-  if (clientFiltersMayReduce(session.filters, session.shipAppliedOnServer)) {
-    // Months/new-liner filters still running — claimed 4gates total is an upper bound.
+  if (
+    clientFiltersMayReduce(
+      session.filters,
+      session.shipAppliedOnServer,
+      session.regionAppliedOnServer,
+    )
+  ) {
+    // Months/new-liner/region rematch still running — claimed total is an upper bound.
     return Math.max(session.cruises.length, session.claimedTotal);
   }
   // Region/company already applied on 4gates: claimed total is exact.
@@ -334,7 +345,13 @@ export async function searchLiveCatalogPage(
     // Client-only filters (months residual, new liners, …) can shrink the page.
     // Fill the requested slice first; finish the scan in the background so nginx
     // does not 504 before the first JSON response.
-    if (clientFiltersMayReduce(filters, session.shipAppliedOnServer)) {
+    if (
+      clientFiltersMayReduce(
+        filters,
+        session.shipAppliedOnServer,
+        session.regionAppliedOnServer,
+      )
+    ) {
       await enqueuePump(session, needCount);
       if (!session.complete) {
         void enqueuePump(session, session.claimedTotal || session.maxItems);
