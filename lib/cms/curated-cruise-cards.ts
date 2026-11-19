@@ -149,30 +149,76 @@ function applyBasisToPrices(
   return out;
 }
 
-/** Find cruise matching company + liner + sailing date. */
+function cruiseHasPricedDate(cruise: CruiseRecord, date: string) {
+  return pickPrimaryCatalogPrice(pricesOnDate(cruise, date)) != null;
+}
+
+/**
+ * Prefer exact `cruiseKey` (admin paste / sailing picker). Fall back to
+ * company + liner + date (+ optional nights) when several routes share a day.
+ */
 export function findCruisePick(
   cruises: CruiseRecord[],
   company: string,
   liner: string,
   date: string,
+  options?: { cruiseKey?: number; nights?: number },
 ): {
   cruise: CruiseRecord;
   date: string;
   prices: Partial<Record<CurrencyCode, number>>;
 } | null {
+  const cruiseKey =
+    options?.cruiseKey && options.cruiseKey > 0 ? options.cruiseKey : 0;
+
+  if (cruiseKey) {
+    const byKey = cruises.find((item) => item.key === cruiseKey);
+    if (byKey) {
+      const useDate =
+        (date && byKey.base_date_start === date
+          ? date
+          : byKey.base_date_start) || date;
+      if (useDate && cruiseHasPricedDate(byKey, useDate)) {
+        return {
+          cruise: byKey,
+          date: useDate,
+          prices: pricesOnDate(byKey, useDate),
+        };
+      }
+    }
+  }
+
   if (!company || !liner || !date) return null;
 
-  const cruise = cruises.find(
+  const matches = cruises.filter(
     (item) =>
       item.cruise_title === company &&
       item.liner_slug === liner &&
-      item.base_date_start === date,
+      item.base_date_start === date &&
+      cruiseHasPricedDate(item, date),
   );
+  if (!matches.length) return null;
+
+  const nights = options?.nights;
+  const cruise =
+    (nights != null && nights > 0
+      ? matches.find((item) => item.nights === nights)
+      : undefined) ?? matches[0];
 
   if (!cruise) return null;
-  const prices = pricesOnDate(cruise, date);
-  if (pickPrimaryCatalogPrice(prices) == null) return null;
-  return { cruise, date, prices };
+  return { cruise, date, prices: pricesOnDate(cruise, date) };
+}
+
+function cardCruiseKey(card: ContentBlockCard) {
+  const raw = card.cruiseKey ?? card.key;
+  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) return raw;
+  if (typeof raw === "string" && /^\d+$/.test(raw.trim())) {
+    return Number(raw.trim());
+  }
+  if (typeof card.id === "string" && /^\d+$/.test(card.id)) {
+    return Number(card.id);
+  }
+  return 0;
 }
 
 export function cardToHotDeal(
@@ -182,7 +228,9 @@ export function cardToHotDeal(
   const company = asString(card.company);
   const liner = asString(card.liner);
   const date = asString(card.date);
-  const found = findCruisePick(cruises, company, liner, date);
+  const found = findCruisePick(cruises, company, liner, date, {
+    cruiseKey: cardCruiseKey(card),
+  });
   if (!found) return null;
 
   const { cruise, prices: rawPrices } = found;
@@ -240,7 +288,9 @@ export function cardToUniqueRoute(
   const company = asString(card.company);
   const liner = asString(card.liner);
   const date = asString(card.date);
-  const found = findCruisePick(cruises, company, liner, date);
+  const found = findCruisePick(cruises, company, liner, date, {
+    cruiseKey: cardCruiseKey(card),
+  });
   if (!found) return null;
 
   const { cruise, prices: rawPrices } = found;
@@ -328,27 +378,44 @@ export function buildCruisePickOptions(
 
   for (const cruise of cruises) {
     if (!cruise.cruise_title || !cruise.liner_slug) continue;
-    const dates =
-      cruise.base_date_start && cruise.base_date_start >= today
-        ? [cruise.base_date_start]
-        : [];
-    if (!dates.length) continue;
+    const date = cruise.base_date_start;
+    if (!date || date < today) continue;
+    if (!cruiseHasPricedDate(cruise, date)) continue;
 
-    const key = `${cruise.cruise_title}::${cruise.liner_slug}`;
-    const existing = map.get(key);
+    const groupKey = `${cruise.cruise_title}::${cruise.liner_slug}`;
+    const sailing = {
+      key: cruise.key,
+      date,
+      nights: Math.max(cruise.nights, 1),
+      routePreview: formatRoute(cruise.route ?? []),
+    };
+    const existing = map.get(groupKey);
     if (existing) {
+      if (!existing.sailings.some((item) => item.key === sailing.key)) {
+        existing.sailings.push(sailing);
+      }
       existing.dates = Array.from(
-        new Set([...existing.dates, ...dates]),
+        new Set([...existing.dates, date]),
       ).sort();
       continue;
     }
 
-    map.set(key, {
+    map.set(groupKey, {
       company: cruise.cruise_title,
       linerSlug: cruise.liner_slug,
       linerName: cruise.liner_name || cruise.liner_slug,
-      dates,
+      dates: [date],
+      sailings: [sailing],
     });
+  }
+
+  for (const option of map.values()) {
+    option.sailings.sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        a.nights - b.nights ||
+        a.key - b.key,
+    );
   }
 
   return [...map.values()].sort(

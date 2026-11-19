@@ -5,7 +5,11 @@ import { adminFetch } from "@/components/admin/adminApi";
 import { Field } from "@/components/admin/AdminForm";
 import ui from "@/components/admin/AdminUi.module.css";
 import ImageDropField from "@/components/admin/ImageDropField";
-import type { CruisePickOption } from "@/lib/cms/section-card-shared";
+import {
+  parseSiteCruiseKey,
+  type CruisePickOption,
+  type CruisePickSailing,
+} from "@/lib/cms/section-card-shared";
 import type { ContentBlockCard } from "@/lib/cms/store";
 
 function asString(value: unknown) {
@@ -14,6 +18,22 @@ function asString(value: unknown) {
 
 function asNumber(value: unknown, fallback = 0) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function asCruiseKey(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return String(value);
+  }
+  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+    return value.trim();
+  }
+  return "";
+}
+
+function sailingLabel(sailing: CruisePickSailing) {
+  const nights =
+    sailing.nights === 1 ? "1 ніч" : `${sailing.nights} ночей`;
+  return `${nights} · ${sailing.routePreview}`;
 }
 
 type Props = {
@@ -30,6 +50,8 @@ export default function AdminCruisePickFields({
   const [options, setOptions] = useState<CruisePickOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [pasteUrl, setPasteUrl] = useState("");
+  const [pasteHint, setPasteHint] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +82,7 @@ export default function AdminCruisePickFields({
   const company = asString(card.company);
   const liner = asString(card.liner);
   const date = asString(card.date);
+  const cruiseKey = asCruiseKey(card.cruiseKey);
 
   const companies = useMemo(
     () =>
@@ -81,12 +104,53 @@ export default function AdminCruisePickFields({
     [options, company],
   );
 
-  const dates = useMemo(() => {
-    const match = options.find(
-      (item) => item.company === company && item.linerSlug === liner,
+  const activeOption = useMemo(
+    () =>
+      options.find(
+        (item) => item.company === company && item.linerSlug === liner,
+      ),
+    [options, company, liner],
+  );
+
+  const dates = activeOption?.dates ?? [];
+  const sailingsForDate = useMemo(() => {
+    if (!activeOption || !date) return [] as CruisePickSailing[];
+    return activeOption.sailings.filter((item) => item.date === date);
+  }, [activeOption, date]);
+
+  const applySailing = (sailing: CruisePickSailing, option: CruisePickOption) => {
+    onChange({
+      company: option.company,
+      liner: option.linerSlug,
+      date: sailing.date,
+      cruiseKey: String(sailing.key),
+    });
+  };
+
+  const applyPaste = () => {
+    const key = parseSiteCruiseKey(pasteUrl);
+    if (!key) {
+      setPasteHint(
+        "Не розпізнано. Вставте посилання виду /search/cruise/12345 або ?cruise=12345",
+      );
+      return;
+    }
+
+    for (const option of options) {
+      const sailing = option.sailings.find((item) => item.key === key);
+      if (!sailing) continue;
+      applySailing(sailing, option);
+      setPasteHint(
+        `Додано: ${option.company} · ${option.linerName} · ${sailing.date} · ${sailingLabel(sailing)}`,
+      );
+      setPasteUrl("");
+      return;
+    }
+
+    setPasteHint(
+      `Ключ ${key} не знайдено в каталозі (можливо, круїз уже знятий з продажу).`,
     );
-    return match?.dates ?? [];
-  }, [options, company, liner]);
+  };
 
   if (loading) {
     return <p className={ui.tableHint}>Завантаження круїзів…</p>;
@@ -101,12 +165,46 @@ export default function AdminCruisePickFields({
   return (
     <>
       <p className={ui.tableHint}>
-        Оберіть компанію, лайнер і дату — ціна та маршрут підтягнуться з бази
-        автоматично. Ціна на картці — це ціна каюти з круїзу, без локального перерахунку.
+        Оберіть компанію, лайнер і дату — або вставте посилання з сайту на
+        конкретний круїз (коли на одну дату кілька маршрутів різної довжини).
+        Ціна й маршрут підтягнуться з бази.
         {blockKey === "hot-deals"
           ? " Бейджі «Гаряча пропозиція» і знижка залишаються. Фото можна замінити нижче (drag & drop)."
-          : " Два фото на картці: обкладинка (завжди видно) і лайнер (при наведенні). Можна перетягнути файли в поля нижче."}
+          : " Два фото на картці: обкладинка (завжди видно) і лайнер (при наведенні)."}
       </p>
+
+      <Field label="Посилання з сайту (опційно)">
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input
+            style={{ flex: "1 1 220px" }}
+            value={pasteUrl}
+            placeholder="https://vcruise.com.ua/search/cruise/4175"
+            onChange={(event) => {
+              setPasteUrl(event.target.value);
+              if (pasteHint) setPasteHint("");
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                applyPaste();
+              }
+            }}
+          />
+          <button type="button" className={ui.ghostBtn} onClick={applyPaste}>
+            Підставити
+          </button>
+        </div>
+        {pasteHint ? (
+          <p className={ui.tableHint} style={{ marginTop: 8 }}>
+            {pasteHint}
+          </p>
+        ) : (
+          <p className={ui.tableHint} style={{ marginTop: 8 }}>
+            Знайдіть круїз на сайті → скопіюйте URL → вставте сюди. Підтягнеться
+            саме цей рейс (компанія, лайнер, дата, варіант маршруту).
+          </p>
+        )}
+      </Field>
 
       <div className={ui.formGrid}>
         <Field label="Круїзна компанія">
@@ -117,6 +215,7 @@ export default function AdminCruisePickFields({
                 company: event.target.value,
                 liner: "",
                 date: "",
+                cruiseKey: "",
               })
             }
           >
@@ -137,6 +236,7 @@ export default function AdminCruisePickFields({
               onChange({
                 liner: event.target.value,
                 date: "",
+                cruiseKey: "",
               })
             }
           >
@@ -153,16 +253,58 @@ export default function AdminCruisePickFields({
           <select
             value={date}
             disabled={!liner}
-            onChange={(event) => onChange({ date: event.target.value })}
+            onChange={(event) => {
+              const nextDate = event.target.value;
+              const forDate =
+                activeOption?.sailings.filter(
+                  (item) => item.date === nextDate,
+                ) ?? [];
+              onChange({
+                date: nextDate,
+                cruiseKey:
+                  forDate.length === 1 ? String(forDate[0]!.key) : "",
+              });
+            }}
           >
             <option value="">Оберіть дату</option>
-            {dates.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
+            {dates.map((value) => {
+              const count =
+                activeOption?.sailings.filter((item) => item.date === value)
+                  .length ?? 0;
+              return (
+                <option key={value} value={value}>
+                  {count > 1 ? `${value} (${count} маршрути)` : value}
+                </option>
+              );
+            })}
           </select>
         </Field>
+
+        {sailingsForDate.length > 1 ? (
+          <Field label="Варіант маршруту">
+            <select
+              value={cruiseKey}
+              onChange={(event) =>
+                onChange({ cruiseKey: event.target.value })
+              }
+            >
+              <option value="">Оберіть тривалість / маршрут</option>
+              {sailingsForDate.map((sailing) => (
+                <option key={sailing.key} value={String(sailing.key)}>
+                  {sailingLabel(sailing)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : sailingsForDate.length === 1 ? (
+          <Field label="Маршрут">
+            <input
+              value={sailingLabel(sailingsForDate[0]!)}
+              readOnly
+              disabled
+            />
+          </Field>
+        ) : null}
 
         <Field
           label={
@@ -215,6 +357,21 @@ export default function AdminCruisePickFields({
           </Field>
         ) : null}
       </div>
+
+      {cruiseKey ? (
+        <p className={ui.tableHint}>
+          Привʼязано до круїзу #{cruiseKey}
+          {sailingsForDate.length <= 1 && date
+            ? ` · ${date}`
+            : sailingsForDate.find((item) => String(item.key) === cruiseKey)
+              ? ` · ${sailingLabel(
+                  sailingsForDate.find(
+                    (item) => String(item.key) === cruiseKey,
+                  )!,
+                )}`
+              : ""}
+        </p>
+      ) : null}
 
       {blockKey === "hot-deals" ? (
         <Field label="Фото картки (опційно; порожнє = фото лайнера з бази)">
